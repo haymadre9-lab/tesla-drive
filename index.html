@@ -12,15 +12,17 @@
 <style>
   :root{ --txt:#f4f6fa; --dim:#8b94a3; --panel:rgba(18,20,26,.55); --bd:rgba(255,255,255,.08); --ok:#39d98a; --warn:#ff5b5b; }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;}
-  html,body{margin:0;height:100%;background:#000;overflow:hidden;color:var(--txt);
+  html,body{margin:0;height:100%;background:#000;overflow:hidden;color:var(--txt);position:fixed;inset:0;width:100%;
     font-family:-apple-system,"Segoe UI",Roboto,Inter,system-ui,sans-serif;}
   #fx{position:fixed;inset:0;width:100%;height:100%;z-index:1;pointer-events:none;}
   #car{position:fixed;left:50%;top:62%;transform:translate(-50%,-50%);
     width:36%;height:47%;object-fit:contain;z-index:2;pointer-events:none;}
   .scrim{position:fixed;inset:0;z-index:3;pointer-events:none;
     background:radial-gradient(120% 80% at 50% 58%,rgba(0,0,0,0) 40%,rgba(0,0,0,.72) 100%);}
-  .layer{position:fixed;inset:0;z-index:4;padding:14px;display:flex;justify-content:space-between;gap:12px;}
-  .col{display:flex;flex-direction:column;gap:12px;width:30%;max-width:330px;min-width:220px;}
+  .layer{position:fixed;inset:0;z-index:4;padding:12px;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;}
+  .col{display:flex;flex-direction:column;gap:10px;width:28%;max-width:320px;min-width:196px;
+    max-height:calc(100% - 16px);overflow:hidden;}
+  .col.left{padding-bottom:62px;}                 /* hueco para la ruleta */
   .right{align-items:flex-end;}
 
   .card{background:var(--panel);border:1px solid var(--bd);border-radius:18px;padding:14px;
@@ -39,20 +41,22 @@
     box-shadow:0 6px 18px rgba(0,0,0,.5);}
   .limit span{color:#111;font-weight:800;font-size:40px;font-variant-numeric:tabular-nums;}
   .limit.unknown{border-color:#555;} .limit.unknown span{color:#888;font-size:30px;}
+  .limit.warn{animation:limitblink .55s ease-in-out infinite;}
+  @keyframes limitblink{ 0%,100%{box-shadow:0 0 0 0 rgba(255,45,45,.0);} 50%{box-shadow:0 0 20px 7px rgba(255,45,45,.92);} }
 
   /* nav banner (arriba, sobre el coche) */
-  .navbanner{position:fixed;top:22px;left:50%;transform:translateX(-50%);z-index:5;
+  .navbanner{position:fixed;top:14px;left:29%;right:29%;z-index:5;margin:0 auto;width:max-content;max-width:42%;
     display:flex;align-items:center;gap:15px;max-width:50%;
     background:rgba(18,20,26,.64);border:1px solid var(--bd);border-radius:20px;padding:13px 22px;
     backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:0 12px 38px rgba(0,0,0,.55);}
-  .navbanner .arrow{width:52px;height:52px;flex:0 0 auto;}
+  .navbanner .arrow{width:44px;height:44px;flex:0 0 auto;}
   .navbanner .arrow svg{width:100%;height:100%;display:block;transition:transform .3s;}
   .navtext{min-width:0;}
-  .navmain{font-size:27px;font-weight:700;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .navsub{font-size:14px;color:var(--dim);margin-top:4px;display:flex;align-items:center;gap:8px;white-space:nowrap;overflow:hidden;}
+  .navmain{font-size:22px;font-weight:700;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .navsub{font-size:13px;color:var(--dim);margin-top:3px;display:flex;align-items:center;gap:8px;white-space:nowrap;overflow:hidden;}
   #navstreet{overflow:hidden;text-overflow:ellipsis;}
   .navmeta{margin-left:auto;text-align:right;padding-left:10px;border-left:1px solid var(--bd);}
-  .navdist{font-size:24px;font-weight:700;color:var(--ok);font-variant-numeric:tabular-nums;}
+  .navdist{font-size:21px;font-weight:700;color:var(--ok);font-variant-numeric:tabular-nums;}
   .navsmall{font-size:11px;color:var(--dim);margin-top:2px;} .navsmall b{color:var(--txt);}
   .navnext{display:none;align-items:center;gap:6px;margin-top:6px;font-size:13px;color:var(--dim);
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -70,7 +74,7 @@
   .sh-gen{background:#fff;color:#111;border-color:#1a1a1a;}      /* convencional/general */
 
   /* panel POIs / radares */
-  #poicard #poilist{display:flex;flex-direction:column;gap:7px;}
+  #poicard #poilist{display:flex;flex-direction:column;gap:7px;max-height:34vh;overflow:auto;}
   .poiempty{font-size:12px;color:var(--dim);}
   .poi{display:flex;align-items:center;gap:10px;padding:6px 4px;border-radius:9px;}
   .poi .badge{width:30px;height:30px;border-radius:9px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;}
@@ -92,20 +96,40 @@
   .poi.tesla .pname{color:#ff9a9a;}
 
   /* ruleta de ajustes (abajo-izquierda) */
-  .gear{position:fixed;left:16px;bottom:16px;z-index:7;width:50px;height:50px;border-radius:50%;
-    background:rgba(18,20,26,.7);border:1px solid var(--bd);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
-    display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.5);pointer-events:auto;}
   .gear svg{width:26px;height:26px;transition:transform .4s;}
   .gear.on svg{transform:rotate(90deg);}
-  .settings{position:fixed;left:16px;bottom:76px;z-index:7;width:300px;max-width:80vw;display:none;
+
+  /* accesos directos a apps (junto a la ruleta) */
+  .shortcuts{display:flex;gap:8px;align-self:flex-end;margin-top:8px;}
+  .shortcut{z-index:7;width:50px;height:50px;border-radius:14px;
+    background:rgba(18,20,26,.7);border:1px solid var(--bd);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;
+    box-shadow:0 8px 24px rgba(0,0,0,.5);pointer-events:auto;color:var(--txt);padding:0;overflow:hidden;}
+  .shortcut .ic{font-size:20px;font-weight:800;line-height:1;}
+  .shortcut .ico{width:30px;height:30px;border-radius:7px;object-fit:cover;}
+  .shortcut .lb{font-size:8px;color:var(--dim);margin-top:2px;max-width:46px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .shortcut.empty{color:var(--dim);border-style:dashed;}
+  .scconfig{position:fixed;left:16px;bottom:16px;z-index:8;width:280px;max-width:82vw;display:none;
+    background:rgba(16,18,24,.92);border:1px solid var(--bd);border-radius:16px;padding:14px;
+    backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 12px 40px rgba(0,0,0,.6);pointer-events:auto;}
+  .scconfig.open{display:block;}
+  .scconfig h4{margin:0 0 8px;font-size:11px;letter-spacing:.12em;color:var(--dim);text-transform:uppercase;font-weight:700;}
+  .scconfig input{width:100%;background:rgba(0,0,0,.35);border:1px solid var(--bd);border-radius:10px;
+    color:var(--txt);padding:9px;font-size:13px;margin-bottom:8px;-webkit-user-select:text;user-select:text;}
+  .scconfig .hint2{font-size:10px;color:var(--dim);margin:-4px 0 9px;line-height:1.35;}
+  .scconfig .row2{display:flex;gap:8px;}
+  .scconfig button{flex:1;border:0;border-radius:10px;padding:9px;font-weight:700;font-size:13px;cursor:pointer;}
+  .scconfig .ok{background:#39d98a;color:#04130c;} .scconfig .del{background:rgba(255,255,255,.08);color:var(--warn);}
+  .scconfig .cancel{background:rgba(255,255,255,.08);color:var(--txt);}
+  .settings{position:fixed;right:16px;bottom:16px;z-index:7;width:300px;max-width:80vw;display:none;
     background:rgba(16,18,24,.82);border:1px solid var(--bd);border-radius:16px;padding:14px;
     backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 12px 40px rgba(0,0,0,.6);pointer-events:auto;}
   .settings.open{display:block;}
   .settings h4{margin:0 0 6px;font-size:10px;letter-spacing:.2em;color:var(--dim);text-transform:uppercase;font-weight:700;}
   .settings .seg{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:13px;}
-  .opt{border:1px solid var(--bd);background:rgba(255,255,255,.05);color:var(--dim);border-radius:9px;
+  .opt{border:1px solid var(--bd);background:rgba(255,255,255,.07);color:#e9edf2;border-radius:9px;
     padding:7px 10px;font-size:12px;font-weight:600;cursor:pointer;}
-  .opt.on{background:var(--accent);color:#0c0e14;border-color:transparent;}
+  .opt.on{background:#39d98a;color:#04130c;border-color:transparent;}
   .opt.tes.on{background:#e23b3b;color:#fff;}
 
   .search{display:flex;gap:6px;}
@@ -124,12 +148,22 @@
   .sitem:last-child{border-bottom:0;} .sitem:hover{background:rgba(255,255,255,.07);}
   .sitem b{color:var(--ok);font-weight:600;}
 
-  .favs{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;}
-  .favchip{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.06);border:1px solid var(--bd);
-    border-radius:10px;padding:6px 9px;font-size:12px;color:var(--txt);cursor:pointer;max-width:100%;}
-  .favchip .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;}
-  .favchip .x{color:var(--dim);font-weight:700;padding:0 2px;}
-  .favchip .x:hover{color:var(--warn);}
+  .favbox{margin-top:9px;}
+  .favtoggle{width:100%;display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,.07);
+    border:1px solid var(--bd);border-radius:10px;color:var(--txt);font:600 13px/1 inherit;padding:10px 11px;cursor:pointer;}
+  .favtoggle .favcnt{color:#ffd54a;font-weight:700;}
+  .favtoggle .chev{transition:transform .25s;color:var(--dim);}
+  .favbox.open .favtoggle{border-radius:10px 10px 0 0;}
+  .favbox.open .chev{transform:rotate(90deg);}
+  .favlist{display:none;flex-direction:column;border:1px solid var(--bd);border-top:0;border-radius:0 0 10px 10px;overflow:hidden;}
+  .favbox.open .favlist{display:flex;}
+  .favrow{display:flex;align-items:center;gap:8px;padding:9px 11px;border-top:1px solid rgba(255,255,255,.05);font-size:13px;}
+  .favrow .fstar{color:#ffd54a;}
+  .favrow .fnm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;}
+  .favrow .fx{color:var(--dim);font-weight:700;cursor:pointer;padding:0 4px;}
+  .favrow .fx:hover{color:var(--warn);}
+  .favrow.save{color:var(--ok);cursor:pointer;font-weight:700;justify-content:center;}
+  .favrow.empty{color:var(--dim);justify-content:center;}
   .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--warn);margin-right:6px;vertical-align:middle;}
   .dot.on{background:var(--ok);}
 
@@ -169,7 +203,10 @@
           <button id="go">Ir</button>
         </div>
         <div class="suggest" id="suggest"></div>
-        <div class="favs" id="favs"></div>
+        <div class="favbox" id="favbox">
+          <button class="favtoggle" id="favToggle"><span>★ Favoritos</span><span class="favcnt" id="favCnt">0/5</span><span class="chev">▸</span></button>
+          <div class="favlist" id="favs"></div>
+        </div>
       </div>
       <div class="card" id="poicard">
         <div class="label">Radares y puntos en ruta</div>
@@ -178,7 +215,6 @@
       <div class="card status">
         <span class="dot" id="gpsdot"></span><span id="status">Esperando GPS…</span>
         <button id="gpsbtn" class="demobtn" style="display:none">Activar GPS</button>
-        <button id="demobtn" class="demobtn">Demo</button>
       </div>
     </div>
 
@@ -190,11 +226,26 @@
         <div class="u">KM / H · GPS</div>
       </div>
       <div class="limit unknown" id="limit"><span id="limitn">--</span></div>
+      <div class="shortcuts" id="shortcuts">
+        <div class="gear shortcut" id="gear" title="Ajustes">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z" stroke="#e7eaf0" stroke-width="1.6"/><path d="M12 2.5l1.3 2.2 2.5-.4.6 2.5 2.3 1-.9 2.4 1.6 2-1.6 2 .9 2.4-2.3 1-.6 2.5-2.5-.4L12 21.5l-1.3-2.2-2.5.4-.6-2.5-2.3-1 .9-2.4-1.6-2 1.6-2-.9-2.4 2.3-1 .6-2.5 2.5.4L12 2.5Z" stroke="#e7eaf0" stroke-width="1.2" stroke-linejoin="round"/></svg>
+        </div>
+        <button class="shortcut empty" id="sc0"><span class="ic">＋</span></button>
+        <button class="shortcut empty" id="sc1"><span class="ic">＋</span></button>
+      </div>
     </div>
   </div>
 
-  <div class="gear" id="gear" title="Ajustes">
-    <svg viewBox="0 0 24 24" fill="none"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z" stroke="#e7eaf0" stroke-width="1.6"/><path d="M12 2.5l1.3 2.2 2.5-.4.6 2.5 2.3 1-.9 2.4 1.6 2-1.6 2 .9 2.4-2.3 1-.6 2.5-2.5-.4L12 21.5l-1.3-2.2-2.5.4-.6-2.5-2.3-1 .9-2.4-1.6-2 1.6-2-.9-2.4 2.3-1 .6-2.5 2.5.4L12 2.5Z" stroke="#e7eaf0" stroke-width="1.2" stroke-linejoin="round"/></svg>
+  <div class="scconfig" id="scconfig">
+    <h4 id="scTitle">Acceso directo</h4>
+    <input id="scName" type="text" placeholder="Nombre (p. ej. Spotify)" autocomplete="off">
+    <input id="scUrl" type="text" placeholder="Enlace o esquema de la app" autocomplete="off">
+    <div class="hint2">Ej.: <b>spotify:</b> · <b>https://maps.google.com</b> · <b>google.navigation:q=...</b> · <b>tel:600...</b></div>
+    <div class="row2">
+      <button class="ok" id="scSave">Guardar</button>
+      <button class="del" id="scDel">Borrar</button>
+      <button class="cancel" id="scCancel">Cerrar</button>
+    </div>
   </div>
   <div class="settings" id="settings">
     <h4>Tipo de cargador (elige varios)</h4>
@@ -258,7 +309,6 @@ let pos=null, lastFix=null, speedKmh=0;
 let limit=null, lastLimitAt=0, lastLimitPos=null;
 let steps=[], stepIdx=0, routeActive=false, destLL=null;
 let pois=[], lastPoiPos=null, lastPoiAt=0, actx=null;
-let demo=false, demoForced=false, demoTimer=null, demoState=null;
 const SETKEY='tesla_set';
 let settings=Object.assign({connectors:[], minkw:0, showCharge:true, showRadar:true, showRest:true},
   (()=>{ try{ const s=JSON.parse(localStorage.getItem(SETKEY)||'{}'); if(!Array.isArray(s.connectors)) s.connectors=[]; return s; }catch(e){ return {}; } })());
@@ -303,7 +353,6 @@ if(navigator.permissions && navigator.permissions.query){
 
 function onErr(e){ setStatus('GPS: '+(e.message||'permiso denegado')); }
 function onPos(p){
-  if(demo && !demoForced) stopDemo();
   const c=p.coords, now=p.timestamp;
   const here=[c.latitude,c.longitude];
   // velocidad: del GPS o calculada entre fixes
@@ -333,20 +382,42 @@ function updateOver(){
 }
 
 /* ---------------- límite de velocidad (Overpass / OSM) ---------------- */
+const HWDEF={motorway:120,motorway_link:80,trunk:120,trunk_link:80,primary:90,primary_link:60,
+  secondary:90,secondary_link:60,tertiary:70,tertiary_link:50,unclassified:50,
+  residential:30,living_street:20,service:20,road:50};
+function segDistM(p,a,b){
+  const mx=111320*Math.cos(p[0]*Math.PI/180), my=110540;
+  const px=p[1]*mx,py=p[0]*my, ax=a.lon*mx,ay=a.lat*my, bx=b.lon*mx,by=b.lat*my;
+  const dx=bx-ax,dy=by-ay, L2=dx*dx+dy*dy;
+  let t=L2?((px-ax)*dx+(py-ay)*dy)/L2:0; t=Math.max(0,Math.min(1,t));
+  return Math.hypot(px-(ax+t*dx), py-(ay+t*dy));
+}
+function distToWay(ll,geom){
+  let best=1e9;
+  for(let i=1;i<geom.length;i++){ const d=segDistM(ll,geom[i-1],geom[i]); if(d<best)best=d; }
+  if(geom.length===1) best=dist(ll,[geom[0].lat,geom[0].lon]);
+  return best;
+}
 async function fetchLimit(ll){
-  const q=`[out:json][timeout:10];way(around:30,${ll[0]},${ll[1]})[highway][maxspeed];out tags center 1;`;
-  try{
-    const r=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:q});
-    const j=await r.json();
-    let best=null,bd=1e9;
-    for(const el of (j.elements||[])){
-      if(!el.center) continue;
-      const d=dist(ll,[el.center.lat,el.center.lon]);
-      if(d<bd){ bd=d; best=el; }
-    }
-    if(best){ const ms=parseMax(best.tags.maxspeed); if(ms){ limit=ms; renderLimit(); return; } }
-  }catch(e){}
-  // no encontrado: no tocar el último valor conocido
+  const q=`[out:json][timeout:12];way(around:45,${ll[0]},${ll[1]})[highway];out tags geom 60;`;
+  const eps=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter'];
+  for(const ep of eps){
+    try{
+      const r=await fetch(ep,{method:'POST',body:q}); if(!r.ok) continue;
+      const j=await r.json();
+      let best=null,bd=1e9;
+      for(const el of (j.elements||[])){
+        const hw=el.tags&&el.tags.highway; if(!hw||!(hw in HWDEF)||!el.geometry) continue;
+        const d=distToWay(ll,el.geometry); if(d<bd){ bd=d; best=el; }
+      }
+      if(best){
+        const ms=parseMax(best.tags.maxspeed);
+        limit = ms || HWDEF[best.tags.highway] || null;   // real si existe; si no, estimado por tipo de vía
+        renderLimit(); return;
+      }
+      return;   // respuesta válida sin vías: no tocar el último valor
+    }catch(e){}
+  }
 }
 function parseMax(s){
   if(!s) return null;
@@ -372,7 +443,7 @@ document.addEventListener('click',e=>{ if(!$('searchcard').contains(e.target)) c
 
 function escapeHtml(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function onType(){
-  chosenLL=null;                                  // si reescribe, ignora la selección anterior
+  chosenLL=null; lastDest=null; favBtn.classList.remove('saved');  // si reescribe, parte de cero
   const q=destInput.value.trim();
   clearTimeout(acTimer);
   if(q.length<3){ closeSuggest(); return; }
@@ -397,29 +468,33 @@ async function fetchSuggest(q){
 function chooseSuggest(it){
   destInput.value=it.display_name.split(',').slice(0,2).join(',').trim();
   chosenLL=[+it.lat,+it.lon];
+  lastDest={ name:destInput.value, ll:chosenLL.slice() };   // ya se puede guardar como favorito
+  favBtn.classList.toggle('saved', isFav(chosenLL));
   closeSuggest();                                 // al elegir, desaparece el autocompletar
   startRoute();
 }
 function closeSuggest(){ suggestEl.classList.remove('open'); suggestEl.innerHTML=''; }
 
+// resuelve el destino (de la selección o geocodificando el texto) — NO necesita GPS
+async function resolveDest(){
+  const name=destInput.value.trim();
+  if(chosenLL) return { name:name||'Destino', ll:chosenLL.slice() };
+  if(!name) return null;
+  try{
+    const g=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=es&q='+encodeURIComponent(name));
+    const gj=await g.json();
+    if(!gj.length) return null;
+    return { name, ll:[+gj[0].lat,+gj[0].lon] };
+  }catch(e){ return null; }
+}
 async function startRoute(){
   closeSuggest();
-  let name=destInput.value.trim();
-  if(!chosenLL && !name) return;
-  if(!pos){ setStatus('Espera a tener señal GPS para calcular la ruta'); return; }
-  if(chosenLL){ destLL=chosenLL.slice(); }
-  else{
-    setStatus('Buscando destino…');
-    try{
-      const g=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=es&q='+encodeURIComponent(name));
-      const gj=await g.json();
-      if(!gj.length){ setStatus('No se encontró el destino'); return; }
-      destLL=[+gj[0].lat,+gj[0].lon];
-      if(!name) name=gj[0].display_name.split(',').slice(0,2).join(',').trim();
-    }catch(e){ setStatus('Error buscando destino'); return; }
-  }
-  lastDest={ name:name||'Destino', ll:destLL.slice() };
+  setStatus('Buscando destino…');
+  const d=await resolveDest();
+  if(!d){ setStatus('No se encontró el destino'); return; }
+  lastDest=d; destLL=d.ll.slice();
   favBtn.classList.toggle('saved', isFav(destLL));
+  if(!pos){ setStatus('Destino fijado · esperando GPS para la ruta'); return; }   // el favorito ya se puede guardar
   await buildRoute();
 }
 async function buildRoute(){
@@ -434,38 +509,60 @@ async function buildRoute(){
       steps.push({ instr:instrES(m, s.name, s.destinations), name:s.name||'', dest:s.destinations||'',
                    ref:s.ref||'', exit:(s.exits||(m.exit!=null?String(m.exit):'')),
                    mod:m.modifier||'straight', type:m.type,
-                   ll:[m.location[1],m.location[0]], dist:s.distance, _min:1e9 });
+                   ll:[m.location[1],m.location[0]], dist:s.distance, inter:s.intersections||[], _min:1e9 });
     }
-    // une maniobras triviales repetidas (continúa sin nombre) para que las útiles destaquen
     stepIdx=0; routeActive=true; $('navbanner').style.display='flex';
     setStatus('Ruta iniciada', true);
     renderStep(true);
   }catch(e){ setStatus('Error de red al calcular ruta'); }
 }
 
-/* favoritos en el propio móvil (localStorage) */
-const FAVKEY='tesla_favs';
+/* favoritos (máx. 5) en el propio móvil (localStorage) */
+const FAVKEY='tesla_favs', FAVMAX=5;
 function getFavs(){ try{ return JSON.parse(localStorage.getItem(FAVKEY)||'[]'); }catch(e){ return []; } }
 function setFavs(a){ try{ localStorage.setItem(FAVKEY, JSON.stringify(a)); }catch(e){} renderFavs(); }
 function sameLL(a,b){ return Math.abs(a[0]-b[0])<1e-4 && Math.abs(a[1]-b[1])<1e-4; }
 function isFav(ll){ return getFavs().some(f=>sameLL(f.ll,ll)); }
-function saveFav(){
-  if(!lastDest){ setStatus('Elige un destino primero para guardarlo'); return; }
-  let favs=getFavs();
-  if(isFav(lastDest.ll)){ favs=favs.filter(f=>!sameLL(f.ll,lastDest.ll)); favBtn.classList.remove('saved'); }
-  else { favs.unshift({name:lastDest.name, ll:lastDest.ll}); favs=favs.slice(0,12); favBtn.classList.add('saved'); }
-  setFavs(favs);
+async function ensureDest(){
+  if(lastDest) return lastDest;
+  const d=await resolveDest(); if(d) lastDest=d; return d;
 }
+async function saveFav(){
+  const d=await ensureDest();
+  if(!d){ setStatus('Escribe o elige un destino para guardarlo'); return; }
+  let favs=getFavs();
+  if(isFav(d.ll)){
+    favs=favs.filter(f=>!sameLL(f.ll,d.ll)); favBtn.classList.remove('saved'); setStatus('Quitado de favoritos', true);
+  } else {
+    if(favs.length>=FAVMAX){ setStatus('Máximo 5 favoritos · borra uno para añadir'); openFavs(true); return; }
+    favs.unshift({name:d.name, ll:d.ll}); favs=favs.slice(0,FAVMAX); favBtn.classList.add('saved'); setStatus('★ Guardado en favoritos', true);
+  }
+  setFavs(favs); openFavs(true);
+}
+function openFavs(open){ $('favbox').classList.toggle('open', open===undefined? !$('favbox').classList.contains('open') : open); }
+$('favToggle').addEventListener('click',()=>openFavs());
+
 function renderFavs(){
+  const favs=getFavs();
+  $('favCnt').textContent=favs.length+'/'+FAVMAX;
   favsEl.innerHTML='';
-  getFavs().forEach((f,i)=>{
-    const c=document.createElement('div'); c.className='favchip';
-    const nm=document.createElement('span'); nm.className='nm'; nm.textContent=f.name;
-    nm.addEventListener('click',()=>{ destInput.value=f.name; chosenLL=f.ll.slice(); closeSuggest(); startRoute(); });
-    const x=document.createElement('span'); x.className='x'; x.textContent='×';
+  favs.forEach((f,i)=>{
+    const row=document.createElement('div'); row.className='favrow';
+    const star=document.createElement('span'); star.className='fstar'; star.textContent='★';
+    const nm=document.createElement('span'); nm.className='fnm'; nm.textContent=f.name;
+    nm.addEventListener('click',()=>{ destInput.value=f.name; chosenLL=f.ll.slice(); lastDest={name:f.name,ll:f.ll.slice()}; closeSuggest(); openFavs(false); startRoute(); });
+    const x=document.createElement('span'); x.className='fx'; x.textContent='×';
     x.addEventListener('click',ev=>{ ev.stopPropagation(); const a=getFavs(); a.splice(i,1); setFavs(a); });
-    c.appendChild(nm); c.appendChild(x); favsEl.appendChild(c);
+    row.appendChild(star); row.appendChild(nm); row.appendChild(x); favsEl.appendChild(row);
   });
+  if(favs.length<FAVMAX){
+    const add=document.createElement('div'); add.className='favrow save'; add.textContent='＋ Guardar destino actual';
+    add.addEventListener('click',saveFav); favsEl.appendChild(add);
+  }
+  if(!favs.length){
+    const e=document.createElement('div'); e.className='favrow empty'; e.textContent='Sin favoritos todavía';
+    favsEl.insertBefore(e, favsEl.firstChild);
+  }
 }
 renderFavs();
 
@@ -500,17 +597,69 @@ const rot={ 'straight':0,'slight right':45,'right':90,'sharp right':135,'uturn':
 function arrowSVG(mod, color){
   return '<svg viewBox="0 0 48 48" style="transform:rotate('+(rot[mod]||0)+'deg)"><path d="M24 6 L24 42 M24 6 L13 18 M24 6 L35 18" fill="none" stroke="'+(color||'#39d98a')+'" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 }
+// geometría real de la rotonda a partir de los rumbos de OSRM
+function roundaboutGeom(step){
+  const II=step.inter;
+  if(!II || !II.length) return null;
+  const first=II[0];
+  if(!first.bearings || first.in==null) return null;
+  const heading=(first.bearings[first.in]+180)%360;          // sentido de avance al entrar
+  const last=II[II.length-1];
+  let exitBearing=null;
+  if(last.bearings && last.out!=null) exitBearing=last.bearings[last.out];
+  const rel=b=>((b-heading+360)%360);
+  const branches=[];
+  for(const it of II){
+    if(!it.bearings||!it.entry) continue;
+    it.bearings.forEach((b,idx)=>{ if(it.entry[idx]) branches.push(rel(b)); });
+  }
+  return { exit: exitBearing!=null? rel(exitBearing): null, branches };
+}
+function roundaboutSVG(step, color){
+  color=color||'#39d98a'; const grey='#5b6472';
+  const cx=24, cy=23, r=8.5;
+  const g=roundaboutGeom(step);
+  let exitDeg, branches=[];
+  if(g && g.exit!=null){ exitDeg=g.exit; branches=g.branches; }
+  else { exitDeg=(rot[step.mod]!=null? rot[step.mod] : 60); }
+  const onRing=d=>{ const t=d*Math.PI/180; return [cx+Math.sin(t)*r, cy-Math.cos(t)*r]; };
+  const outPt=(d,l)=>{ const t=d*Math.PI/180; return [cx+Math.sin(t)*(r+l), cy-Math.cos(t)*(r+l)]; };
+  let svg='<svg viewBox="0 0 48 48">';
+  svg+='<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+grey+'" stroke-width="3"/>';
+  svg+='<path d="M'+cx+' 46 L'+cx+' '+(cy+r)+'" stroke="'+grey+'" stroke-width="3.5" stroke-linecap="round"/>'; // entrada abajo
+  // ramales reales (gris), deduplicados, sin el de entrada ni el de salida
+  const seen={};
+  branches.forEach(d=>{ const k=Math.round(d/10)*10%360;
+    if(Math.abs(((k-180+540)%360)-180)<12) return;                 // ~ entrada
+    if(Math.abs(((k-exitDeg+540)%360)-180)<12) return;             // la salida la pintamos verde
+    if(seen[k]) return; seen[k]=1;
+    const a=onRing(k), b=outPt(k,6); svg+='<path d="M'+a[0].toFixed(1)+' '+a[1].toFixed(1)+' L'+b[0].toFixed(1)+' '+b[1].toFixed(1)+'" stroke="'+grey+'" stroke-width="2.4" stroke-linecap="round"/>';
+  });
+  // salida tomada (verde, con punta), en su ángulo real
+  const e=onRing(exitDeg), o=outPt(exitDeg,11), t=exitDeg*Math.PI/180, hl=5;
+  const a1=t+150*Math.PI/180, a2=t-150*Math.PI/180;
+  const h1=[o[0]+Math.sin(a1)*hl, o[1]-Math.cos(a1)*hl], h2=[o[0]+Math.sin(a2)*hl, o[1]-Math.cos(a2)*hl];
+  svg+='<path d="M'+e[0].toFixed(1)+' '+e[1].toFixed(1)+' L'+o[0].toFixed(1)+' '+o[1].toFixed(1)+'" stroke="'+color+'" stroke-width="3.5" stroke-linecap="round"/>';
+  svg+='<path d="M'+o[0].toFixed(1)+' '+o[1].toFixed(1)+' L'+h1[0].toFixed(1)+' '+h1[1].toFixed(1)+' M'+o[0].toFixed(1)+' '+o[1].toFixed(1)+' L'+h2[0].toFixed(1)+' '+h2[1].toFixed(1)+'" stroke="'+color+'" stroke-width="3.5" stroke-linecap="round"/>';
+  const n=step.exit? (parseInt(step.exit,10)||step.exit):'';
+  if(n!=='') svg+='<text x="'+cx+'" y="'+(cy+3.5)+'" text-anchor="middle" font-size="11" font-weight="800" fill="'+color+'">'+n+'</text>';
+  return svg+'</svg>';
+}
+function isRoundabout(s){ return s && (s.type==='roundabout'||s.type==='rotary'||s.type==='roundabout turn'); }
+function maneuverSVG(s, color){
+  return isRoundabout(s)? roundaboutSVG(s, color) : arrowSVG(s.mod, color);
+}
 
 function renderStep(force){
   const s=steps[stepIdx]; if(!s) return;
   $('navmain').textContent=s.instr;
   $('navstreet').textContent=s.name||s.dest||'';
   setSign(s.ref);
-  $('arrow').querySelector('svg').style.transform='rotate('+(rot[s.mod]||0)+'deg)';
+  $('arrow').innerHTML=maneuverSVG(s,'#39d98a');
   // siguiente maniobra (para que se vean más indicaciones)
   const nx=steps[stepIdx+1];
   const nb=$('navnext');
-  if(nx){ nb.style.display='flex'; nb.querySelector('.nxarrow').innerHTML=arrowSVG(nx.mod,'#8b94a3'); nb.querySelector('.nxtxt').textContent='Luego: '+nx.instr; }
+  if(nx){ nb.style.display='flex'; nb.querySelector('.nxarrow').innerHTML=maneuverSVG(nx,'#8b94a3'); nb.querySelector('.nxtxt').textContent='Luego: '+nx.instr; }
   else nb.style.display='none';
   // distancia/ETA restante
   let rem=0; for(let i=stepIdx;i<steps.length;i++) rem+=steps[i].dist;
@@ -650,6 +799,16 @@ function updatePois(here, heading){
   renderPois(pois);
 }
 function renderPois(items){
+  // aviso de radar cercano (a ~500 m): pitido + parpadeo de la señal de límite.
+  // se evalúa sobre TODOS los radares, aunque la capa esté oculta por filtros.
+  let radarNear=false;
+  for(const p of items){
+    if(p.type!=='radar' || p.ahead===false) continue;
+    if(p.dist>0 && p.dist<520){ radarNear=true; if(!p._al){ p._al=true; beep(); } }
+    else if(p.dist>660){ p._al=false; }
+  }
+  $('limit').classList.toggle('warn', radarNear);
+
   const host=$('poilist');
   const sorted=items.filter(p=>p.dist>=-30 && p.ahead!==false && passFilter(p)).sort((a,b)=>a.dist-b.dist).slice(0,7);
   if(!sorted.length){ host.innerHTML='<div class="poiempty">Sin puntos con estos filtros</div>'; return; }
@@ -664,10 +823,6 @@ function renderPois(items){
       + '<div class="pdist">'+fmtDist(Math.max(0,p.dist))+'</div>'
       + (isRadar&&p.max?'<div class="psign">'+p.max+'</div>':'');
     host.appendChild(row);
-    if(isRadar){
-      if(near && p.dist<520){ if(!p._al){ p._al=true; beep(); } }
-      else if(p.dist>660){ p._al=false; }
-    }
   }
 }
 function beep(){
@@ -683,57 +838,86 @@ function beep(){
 }
 addEventListener('pointerdown',()=>{ try{ if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)(); if(actx.state==='suspended') actx.resume(); }catch(e){} });
 
-/* ---------------- modo demo (sin GPS) ---------------- */
-$('demobtn').addEventListener('click',()=>{ demoForced=!demo; demo?stopDemo():startDemo(); });
-function startDemo(){
-  if(demo) return; demo=true; $('demobtn').classList.add('on');
-  $('navbanner').style.display='flex';
-  demoState={ t:0, navIdx:0, navDist:430, rem:14600,
-    nav:[ {instr:'Gira a la derecha',name:'Calle Mayor',ref:'',mod:'right'},
-          {instr:'Continúa',name:'dir. Sestao',ref:'BI-3739',mod:'straight'},
-          {instr:'Incorpórate',name:'dir. Bilbao',ref:'AP-8;E-70',mod:'slight right'},
-          {instr:'Continúa',name:'Eje del Cadagua',ref:'N-634',mod:'straight'},
-          {instr:'Continúa',name:'dir. Balmaseda',ref:'C-6313',mod:'straight'},
-          {instr:'Toma la salida',name:'Salida 117',ref:'A-8',mod:'slight right'} ],
-    pois:[ {type:'radar',name:'Radar fijo N-634',dist:760,max:80,_al:false,ahead:true},
-           {type:'charge',name:'Supercharger Barakaldo',dist:1500,ahead:true,isTesla:true,kw:250,cats:new Set(['tesla'])},
-           {type:'rest',name:'Área de descanso Kobetas',dist:2400,ahead:true},
-           {type:'charge',name:'Tesla Destination Megapark',dist:3000,ahead:true,isTesla:true,kw:22,cats:new Set(['tesla','type2'])},
-           {type:'charge',name:'Iberdrola Ultrarrápida',dist:3600,ahead:true,isTesla:false,kw:150,cats:new Set(['ccs','chademo'])},
-           {type:'radar',name:'Tramo control AP-8',dist:4400,max:100,_al:false,ahead:true} ] };
-  setStatus('Modo demo (sin GPS)', true);
-  demoTimer=setInterval(demoTick,500);
-}
-function stopDemo(){ if(!demo)return; demo=false; clearInterval(demoTimer); $('demobtn').classList.remove('on'); setStatus('Esperando GPS…'); if(!routeActive) $('navbanner').style.display='none'; }
-function demoTick(){
-  const s=demoState; s.t+=0.5;
-  speedKmh=Math.max(0, 80 + Math.sin(s.t/7)*26);
-  $('spd').textContent=Math.round(speedKmh);
-  const step=(speedKmh/3.6)*0.5;
-  limit=80; renderLimit(); updateOver();
-  // navegación
-  s.navDist-=step; if(s.navDist<25){ s.navIdx=(s.navIdx+1)%s.nav.length; s.navDist=280+Math.random()*520; }
-  const n=s.nav[s.navIdx];
-  $('navmain').textContent=n.instr; $('navstreet').textContent=n.name; setSign(n.ref);
-  $('arrow').querySelector('svg').style.transform='rotate('+(rot[n.mod]||0)+'deg)';
-  const nx=s.nav[(s.navIdx+1)%s.nav.length], nb=$('navnext');
-  nb.style.display='flex'; nb.querySelector('.nxarrow').innerHTML=arrowSVG(nx.mod,'#8b94a3'); nb.querySelector('.nxtxt').textContent='Luego: '+nx.instr;
-  $('navdist').textContent='En '+fmtDist(s.navDist);
-  s.rem=Math.max(0,s.rem-step); $('rem').textContent=fmtDist(s.rem);
-  const mins=Math.max(1,Math.round(s.rem/Math.max(8,speedKmh*1000/60)));
-  $('eta').textContent=new Date(Date.now()+mins*60000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-  // POIs
-  for(const p of s.pois){ p.dist-=step; if(p.dist<-60){ p.dist+=(3500+Math.random()*2500); } }
-  renderPois(s.pois);
-}
-// arranca demo si en 4 s no hay señal GPS (p.ej. en la vista previa)
-setTimeout(()=>{ if(!pos && !demo) startDemo(); }, 4000);
-
 // PWA: registrar service worker (solo funciona servido por HTTPS, p.ej. GitHub Pages)
 if('serviceWorker' in navigator){ window.addEventListener('load',()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); }); }
 
+/* ---------------- accesos directos a apps ---------------- */
+const SCKEY='tesla_shortcuts';
+const NATIVE = !!(window.AndroidApp && AndroidApp.pickApp);   // true dentro del APK
+function getSC(){ try{ const a=JSON.parse(localStorage.getItem(SCKEY)||'[]'); return [a[0]||null, a[1]||null]; }catch(e){ return [null,null]; } }
+function setSC(a){ try{ localStorage.setItem(SCKEY, JSON.stringify(a)); }catch(e){} renderSC(); }
+
+// el nativo nos devuelve la app elegida del cajón del móvil
+window.onAppPicked = function(slot, pkg, label, icon){
+  const sc=getSC(); sc[slot]={ pkg:pkg, label:label, icon:icon }; setSC(sc);
+};
+function pickApp(i){
+  if(NATIVE){ AndroidApp.pickApp(i); }          // abre el cajón de apps del móvil
+  else { openSCConfig(i); }                      // navegador: configura por enlace
+}
+function openShortcut(s){
+  if(!s) return;
+  if(s.pkg && NATIVE){ AndroidApp.launch(s.pkg); }       // abre la app elegida
+  else if(s.url){ try{ if(window.AndroidApp&&AndroidApp.open) AndroidApp.open(s.url); else window.open(s.url,'_blank')||(location.href=s.url);}catch(e){ location.href=s.url; } }
+}
+function renderSC(){
+  const sc=getSC();
+  [0,1].forEach(i=>{
+    const el=$('sc'+i), s=sc[i];
+    if(s && s.icon){ el.classList.remove('empty'); el.innerHTML='<img class="ico" src="'+s.icon+'"><span class="lb">'+escapeHtml(s.label||'')+'</span>'; }
+    else if(s && (s.url||s.label)){ el.classList.remove('empty'); el.innerHTML='<span class="ic">'+escapeHtml((s.label||s.name||'?').trim().charAt(0).toUpperCase()||'·')+'</span><span class="lb">'+escapeHtml(s.label||s.name||'')+'</span>'; }
+    else { el.classList.add('empty'); el.innerHTML='<span class="ic">＋</span>'; }
+  });
+}
+function bindShortcut(i){
+  const el=$('sc'+i); let timer=null, longed=false;
+  const press=()=>{ longed=false; timer=setTimeout(()=>{ longed=true; pickApp(i); }, 550); };   // pulsación larga: elegir/cambiar app
+  const release=()=>{ clearTimeout(timer); };
+  el.addEventListener('touchstart',press,{passive:true});
+  el.addEventListener('touchend',release);
+  el.addEventListener('mousedown',press);
+  el.addEventListener('mouseup',release);
+  el.addEventListener('mouseleave',release);
+  el.addEventListener('click',()=>{
+    if(longed){ longed=false; return; }
+    const s=getSC()[i];
+    if(s && (s.pkg||s.url)) openShortcut(s);     // pulsación corta: abrir app elegida
+    else pickApp(i);                              // si está vacío, elegir
+  });
+}
+bindShortcut(0); bindShortcut(1);
+
+/* configurador por enlace (solo navegador, sin APK) */
+let scEditing=0;
+function openSCConfig(i){
+  scEditing=i; const s=getSC()[i]||{};
+  $('scTitle').textContent='Acceso directo '+(i+1);
+  $('scName').value=s.label||s.name||''; $('scUrl').value=s.url||'';
+  $('scconfig').classList.add('open');
+  $('settings').classList.remove('open'); $('gear').classList.remove('on');
+}
+function closeSCConfig(){ $('scconfig').classList.remove('open'); }
+$('scSave').addEventListener('click',()=>{
+  const name=$('scName').value.trim(), url=$('scUrl').value.trim();
+  if(!url){ $('scUrl').focus(); return; }
+  const sc=getSC(); sc[scEditing]={label:name||url, url:url}; setSC(sc); closeSCConfig();
+});
+$('scDel').addEventListener('click',()=>{ const sc=getSC(); sc[scEditing]=null; setSC(sc); closeSCConfig(); });
+$('scCancel').addEventListener('click',closeSCConfig);
+document.addEventListener('click',e=>{ const t=e.target; if(!$('scconfig').contains(t) && !$('sc0').contains(t) && !$('sc1').contains(t)) closeSCConfig(); });
+renderSC();
+
+/* ---------------- mantener la pantalla encendida ---------------- */
+let wakeLock=null;
+async function keepAwake(){
+  try{ if('wakeLock' in navigator && document.visibilityState==='visible'){ wakeLock=await navigator.wakeLock.request('screen'); } }catch(e){}
+}
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') keepAwake(); });
+addEventListener('pointerdown', keepAwake);
+keepAwake();
+
 /* ---------------- ajustes (ruleta) ---------------- */
-function refreshPois(){ if(demo&&demoState) renderPois(demoState.pois); else renderPois(pois); }
+function refreshPois(){ renderPois(pois); }
 $('gear').addEventListener('click',()=>{ $('settings').classList.toggle('open'); $('gear').classList.toggle('on'); });
 document.addEventListener('click',e=>{ if(!$('settings').contains(e.target) && e.target!==$('gear') && !$('gear').contains(e.target)){ $('settings').classList.remove('open'); $('gear').classList.remove('on'); } });
 function initSeg(id, apply, isOn){
