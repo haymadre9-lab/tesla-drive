@@ -49,7 +49,7 @@
   .over .n{color:var(--warn);}
 
   /* speed-limit sign */
-  .limit{align-self:flex-end;width:104px;height:104px;border-radius:50%;background:#fff;
+  .limit{width:104px;height:104px;border-radius:50%;background:#fff;
     border:11px solid #d22; display:flex;align-items:center;justify-content:center;
     box-shadow:0 6px 18px rgba(0,0,0,.5);}
   .limit span{color:#111;font-weight:800;font-size:40px;font-variant-numeric:tabular-nums;}
@@ -124,8 +124,8 @@
 
   /* accesos directos a apps (junto a la ruleta) */
   .shortcuts{display:flex;gap:8px;align-self:flex-end;margin-top:8px;}
-  .spdrow{display:flex;align-items:center;justify-content:flex-end;gap:10px;}
-  .wx{display:flex;align-items:center;gap:7px;font-size:15px;
+  .limrow{display:flex;align-items:center;justify-content:flex-end;gap:12px;align-self:flex-end;}
+  .wx{display:flex;align-items:center;gap:7px;font-size:15px;flex:0 0 auto;
     background:rgba(18,20,26,.7);border:1px solid var(--bd);border-radius:12px;padding:7px 12px;color:var(--txt);}
   .wx .wico{font-size:19px;line-height:1;} .wx b{font-weight:800;}
   .shortcut{z-index:7;width:50px;height:50px;border-radius:14px;
@@ -252,15 +252,15 @@
 
     <!-- DERECHA: velocidad + límite -->
     <div class="col right">
-      <div class="spdrow">
-        <div class="wx" id="wx" style="display:none"></div>
-        <div class="card spd" id="spdcard">
-          <div class="label">Velocidad</div>
-          <div class="n" id="spd">0</div>
-          <div class="u">KM / H · GPS</div>
-        </div>
+      <div class="card spd" id="spdcard">
+        <div class="label">Velocidad</div>
+        <div class="n" id="spd">0</div>
+        <div class="u">KM / H · GPS</div>
       </div>
-      <div class="limit unknown" id="limit"><span id="limitn">--</span></div>
+      <div class="limrow">
+        <div class="wx" id="wx" style="display:none"></div>
+        <div class="limit unknown" id="limit"><span id="limitn">--</span></div>
+      </div>
       <div class="shortcuts" id="shortcuts">
         <div class="gear shortcut" id="gear" title="Ajustes">
           <svg viewBox="0 0 24 24" fill="none"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z" stroke="#e7eaf0" stroke-width="1.6"/><path d="M12 2.5l1.3 2.2 2.5-.4.6 2.5 2.3 1-.9 2.4 1.6 2-1.6 2 .9 2.4-2.3 1-.6 2.5-2.5-.4L12 21.5l-1.3-2.2-2.5.4-.6-2.5-2.3-1 .9-2.4-1.6-2 1.6-2-.9-2.4 2.3-1 .6-2.5 2.5.4L12 2.5Z" stroke="#e7eaf0" stroke-width="1.2" stroke-linejoin="round"/></svg>
@@ -308,6 +308,11 @@
     <div class="seg" id="setVoice">
       <button class="opt on" data-v="1">Activada</button>
       <button class="opt" data-v="0">Silencio</button>
+    </div>
+    <h4>Límite de velocidad</h4>
+    <div class="seg" id="setEst">
+      <button class="opt on" data-e="1">Estimado</button>
+      <button class="opt" data-e="0">Solo oficial</button>
     </div>
   </div>
 
@@ -365,7 +370,7 @@ function markPoisOnRoute(){
 }
 let pois=[], lastPoiPos=null, lastPoiAt=0, actx=null;
 const SETKEY='tesla_set';
-let settings=Object.assign({connectors:[], minkw:0, showCharge:true, showRadar:true, showRest:true, showFuel:true, voice:true},
+let settings=Object.assign({connectors:[], minkw:0, showCharge:true, showRadar:true, showRest:true, showFuel:true, voice:true, estimate:true},
   (()=>{ try{ const s=JSON.parse(localStorage.getItem(SETKEY)||'{}'); if(!Array.isArray(s.connectors)) s.connectors=[]; return s; }catch(e){ return {}; } })());
 function saveSettings(){ try{ localStorage.setItem(SETKEY, JSON.stringify(settings)); }catch(e){} }
 
@@ -469,7 +474,7 @@ async function fetchLimit(ll){
       }
       if(best){
         const ms=parseMax(best.tags.maxspeed);
-        limit = ms || HWDEF[best.tags.highway] || null;   // real si existe; si no, estimado por tipo de vía
+        limit = ms || (settings.estimate ? (HWDEF[best.tags.highway]||null) : null);   // oficial; estimado solo si está activado
         renderLimit(); return;
       }
       return;   // respuesta válida sin vías: no tocar el último valor
@@ -727,7 +732,8 @@ function renderStep(force){
   setSign(s.ref);
   // color del cartel según la vía actual: autopista/autovía azul · nacional/regional blanco
   const nbnr=$('navbanner'); nbnr.classList.remove('blue','white');
-  if(s.ref){ const c=shieldClass(s.ref.split(/[;,\/]+/)[0]); nbnr.classList.add((c==='sh-auto'||c==='sh-euro')?'blue':'white'); }
+  const _c = s.ref ? shieldClass(s.ref.split(/[;,\/]+/)[0]) : 'sh-gen';
+  nbnr.classList.add((_c==='sh-auto'||_c==='sh-euro')?'blue':'white');   // autovía azul · resto blanco
   $('arrow').innerHTML=maneuverSVG(s,'#ffffff');
   // siguiente maniobra (para que se vean más indicaciones)
   const nx=steps[stepIdx+1];
@@ -853,9 +859,12 @@ async function fetchPois(ll){
     +`node(around:${R},${ll[0]},${ll[1]})[amenity=fuel];way(around:${R},${ll[0]},${ll[1]})[amenity=fuel];`
     +`node(around:${R},${ll[0]},${ll[1]})[highway=services];way(around:${R},${ll[0]},${ll[1]})[highway=services];`
     +`);out tags center;`;
+  let j=null;
+  for(const ep of ['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter']){
+    try{ const r=await fetch(ep,{method:'POST',body:q}); if(!r.ok) continue; j=await r.json(); if(j) break; }catch(e){}
+  }
   try{
-    const r=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:q});
-    const j=await r.json();
+    if(!j) return;
     const arr=[];
     for(const e of (j.elements||[])){
       const lat=e.lat||(e.center&&e.center.lat), lon=e.lon||(e.center&&e.center.lon);
@@ -875,7 +884,7 @@ function updatePois(here, heading){
   const hasHead = heading!=null && !isNaN(heading) && speedKmh>5;
   for(const p of pois){
     p.dist=dist(here,p.ll);
-    p.ahead = hasHead ? (Math.abs(((bearing(here,p.ll)-heading+540)%360)-180) < 80) : true;
+    p.ahead = hasHead ? (Math.abs(((bearing(here,p.ll)-heading+540)%360)-180) < 95) : true;
   }
   renderPois(pois);
 }
@@ -885,14 +894,13 @@ function updateRadarSign(items){
   if(settings.showRadar){
     for(const p of items){
       if(p.type!=='radar' || p.ahead===false) continue;
-      if(routeActive && routeGeom.length && p.route===false) continue;
-      if(p.dist>0 && p.dist<700 && (!best || p.dist<best.dist)) best=p;
+      if(p.dist>0 && p.dist<800 && (!best || p.dist<best.dist)) best=p;   // radar SIEMPRE avisa (aunque haya ruta)
     }
   }
   const el=$('radarsign');
   if(!best){ el.classList.remove('show','hot'); return; }
   // aparece a 700 m al borde derecho (off-coche) y se acerca creciendo
-  const pp = 1 - Math.min(1, best.dist/700);
+  const pp = 1 - Math.min(1, best.dist/800);
   const x = 70 + pp*16;          // 70% → 86% del ancho (arcén derecho)
   const y = 58 + pp*36;          // 58% → 94% (hacia ti)
   const sc = 0.5 + pp*0.85;      // pequeña al aparecer, crece al acercarse
@@ -1075,6 +1083,8 @@ initSeg('setShow',(b)=>{ const k=b.dataset.s; const map={charge:'showCharge',rad
   b=>{ const map={charge:'showCharge',radar:'showRadar',rest:'showRest',fuel:'showFuel'}; return settings[map[b.dataset.s]]; });
 initSeg('setVoice',(b,g)=>{ g.querySelectorAll('.opt').forEach(x=>x.classList.remove('on')); b.classList.add('on'); settings.voice=b.dataset.v==='1'; if(settings.voice) speak('Voz activada'); },
   b=>(b.dataset.v==='1')===!!settings.voice);
+initSeg('setEst',(b,g)=>{ g.querySelectorAll('.opt').forEach(x=>x.classList.remove('on')); b.classList.add('on'); settings.estimate=b.dataset.e==='1'; if(pos) fetchLimit(pos); },
+  b=>(b.dataset.e==='1')===(settings.estimate!==false));
 
 /* ---------------- efecto de avance (líneas de carretera) ---------------- */
 const fx=$('fx'), fctx=fx.getContext('2d');
