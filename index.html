@@ -24,10 +24,9 @@
     flex-direction:column;align-items:center;transform-origin:bottom center;
     transition:transform .35s linear, left .35s linear, top .35s linear;}
   .radarsign.show{display:flex;}
-  .rs-circle{width:92px;height:92px;border-radius:50%;background:#fff;border:12px solid #e01d1d;
+  .rs-circle{width:108px;height:108px;border-radius:50%;background:#fff;border:14px solid #e01d1d;
     display:flex;align-items:center;justify-content:center;box-shadow:0 6px 22px rgba(0,0,0,.65);}
-  .rs-circle span{font-size:38px;font-weight:800;color:#111;font-variant-numeric:tabular-nums;line-height:1;}
-  .rs-pole{width:7px;height:56px;background:linear-gradient(#9aa1ab,#5c636d);border-radius:3px;margin-top:-2px;}
+  .rs-circle span{font-size:44px;font-weight:800;color:#111;font-variant-numeric:tabular-nums;line-height:1;}
   .rs-dist{margin-top:4px;background:rgba(14,16,22,.85);border:1px solid var(--bd);border-radius:9px;
     padding:3px 9px;font-size:13px;font-weight:700;color:#ffd54a;font-variant-numeric:tabular-nums;}
   .radarsign.hot .rs-circle{animation:rsblink .55s ease-in-out infinite;}
@@ -204,7 +203,6 @@
   <img id="car" alt="">
   <div class="radarsign" id="radarsign">
     <div class="rs-circle"><span id="rsmax">80</span></div>
-    <div class="rs-pole"></div>
     <div class="rs-dist" id="rsdist">500 m</div>
   </div>
   <div class="scrim"></div>
@@ -901,7 +899,7 @@ function updateRadarSign(items){
   if(!best){ el.classList.remove('show','hot'); return; }
   // aparece a 700 m al borde derecho (off-coche) y se acerca creciendo
   const pp = 1 - Math.min(1, best.dist/800);
-  const x = 70 + pp*16;          // 70% → 86% del ancho (arcén derecho)
+  const x = 78 + pp*16;          // 78% → 94% del ancho (arcén derecho, más afuera)
   const y = 58 + pp*36;          // 58% → 94% (hacia ti)
   const sc = 0.5 + pp*0.85;      // pequeña al aparecer, crece al acercarse
   el.style.left = x+'%'; el.style.top = y+'%';
