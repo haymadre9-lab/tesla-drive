@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tesla Model 3 Highland 2025 · visor</title>
+<style>
+  :root{--bg:#0e1014;--panel:#171a20;--line:#2a2f38;--fg:#e8eaed;--mut:#9aa3ad;--acc:#3e8eff}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font:14px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden}
+  #c{position:fixed;inset:0;width:100%;height:100%;display:block}
+  #ui{position:fixed;top:12px;left:12px;width:236px;max-height:calc(100% - 24px);overflow:auto;background:color-mix(in srgb,var(--panel) 92%,transparent);border:1px solid var(--line);border-radius:12px;padding:12px;backdrop-filter:blur(6px)}
+  h1{font-size:14px;margin:0 0 2px}small{color:var(--mut)}
+  h2{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);margin:14px 0 6px}
+  .row{display:flex;flex-wrap:wrap;gap:6px}
+  button{background:#20242c;color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px 9px;font:inherit;cursor:pointer}
+  button:hover{border-color:#44505f}button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+  #msg{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);color:var(--mut);background:#0008;padding:6px 12px;border-radius:20px;pointer-events:none}
+  @media (max-width:560px){#ui{width:auto;right:12px;max-height:42%}}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+  <h1>Model 3 Highland 2025</h1><small>Long Range AWD · llantas Photon 18"</small>
+  <h2>Puertas</h2>
+  <div class="row" id="doors"></div>
+  <h2>Luces</h2>
+  <div class="row" id="lights"></div>
+  <h2>Cámara</h2>
+  <div class="row" id="cams"></div>
+  <h2>Escena</h2>
+  <div class="row" id="scene"></div>
+</div>
+<div id="msg">Cargando modelo…</div>
+<script type="module">
+import * as THREE from 'three';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+
+const canvas=document.getElementById('c');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+const scene=new THREE.Scene();
+const pmrem=new THREE.PMREMGenerator(renderer);
+const envTex=pmrem.fromScene(new RoomEnvironment(),0.04).texture;
+scene.environment=envTex;
+const camera=new THREE.PerspectiveCamera(35,1,0.02,200);
+const controls=new OrbitControls(camera,canvas);controls.enableDamping=true;controls.maxPolarAngle=Math.PI*0.52;
+const sun=new THREE.DirectionalLight(0xffffff,2.2);sun.position.set(4,8,5);sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-5,right:5,top:5,bottom:-5,near:1,far:25});scene.add(sun);
+const ground=new THREE.Mesh(new THREE.CircleGeometry(30,64),new THREE.MeshStandardMaterial({color:0x6c7178,roughness:.95}));
+ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
+
+let car,mixer,clips={},toggles={},actions={},state={},night=false;
+const spots=[];
+const $=id=>document.getElementById(id);
+const btn=(parent,label,fn,id)=>{const b=document.createElement('button');b.textContent=label;b.onclick=()=>fn(b);if(id)b.id=id;$(parent).appendChild(b);return b};
+
+function setCam(pos,tg){camera.position.set(...pos);controls.target.set(...tg);controls.update()}
+function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}
+addEventListener('resize',resize);resize();
+
+const gltf=await new GLTFLoader().loadAsync('./tesla_model3_highland_2025.glb');
+car=gltf.scene;scene.add(car);
+car.traverse(o=>{if(o.isMesh){o.castShadow=true;const m=o.material;if(m&&m.transparent){o.castShadow=false}}});
+mixer=new THREE.AnimationMixer(car);
+for(const c of gltf.animations){clips[c.name]=c;}
+car.traverse(o=>{toggles[o.name]=o});
+$('msg').remove();
+
+// --- puertas
+const doorBtn={};
+for(const [k,label] of [['FL','Del. izq.'],['FR','Del. der.'],['RL','Tras. izq.'],['RR','Tras. der.']]){
+  const a=mixer.clipAction(clips[`Puerta_${k}_abrir`]);a.setLoop(THREE.LoopOnce);a.clampWhenFinished=true;actions['d'+k]=a;
+  doorBtn[k]=btn('doors',label,b=>toggleDoor(k,b));
+}
+function toggleDoor(k,b,force){
+  const a=actions['d'+k];const open=force!==undefined?force:!state['d'+k];state['d'+k]=open;
+  a.paused=false;a.timeScale=open?1:-1;if(open&&a.time>=a.getClip().duration)a.time=0;if(!open&&a.time===0)a.time=a.getClip().duration;a.play();
+  doorBtn[k].classList.toggle('on',open);
+}
+btn('doors','Todas',()=>{const any=['FL','FR','RL','RR'].some(k=>state['d'+k]);['FL','FR','RL','RR'].forEach(k=>toggleDoor(k,null,!any))});
+
+// --- luces
+const setVis=(names,on)=>names.forEach(n=>{const o=toggles[n];if(o)o.scale.setScalar(on?1:1e-4)});
+const lightDefs={
+  drl:{label:'Diurnas (DRL)',nodes:['DRL_L','DRL_R']},
+  low:{label:'Cortas',nodes:['LowBeam_L','LowBeam_R'],spot:{angle:.5,dist:25,int:60,tilt:-.05,x:.5}},
+  high:{label:'Carretera',nodes:['HighBeam_L','HighBeam_R'],spot:{angle:.22,dist:60,int:90,tilt:-.01,x:.4}},
+  tail:{label:'Traseras',nodes:['Tail_L','Tail_R']},
+  brake:{label:'Freno',nodes:['Brake_L','Brake_R']},
+  rev:{label:'Marcha atrás',nodes:['Reverse_L','Reverse_R']},
+};
+for(const [k,d] of Object.entries(lightDefs)){
+  if(d.spot){d.spots=[1,-1].map(s=>{const l=new THREE.SpotLight(0xfff1d6,0,d.spot.dist,d.spot.angle,.6,1.2);
+    l.position.set(s*d.spot.x,.64,2.3);l.target.position.set(s*d.spot.x*1.2,.64+d.spot.tilt*30,2.3+30);l.castShadow=false;car.add(l);car.add(l.target);return l})}
+  btn('lights',d.label,b=>{state[k]=!state[k];setVis(d.nodes,state[k]);b.classList.toggle('on',state[k]);
+    if(d.spots)d.spots.forEach(l=>l.intensity=state[k]?d.spot.int:0)});
+}
+// intermitentes (clip en bucle)
+function blink(clipName,b,key){
+  const a=actions[key]||(actions[key]=mixer.clipAction(clips[clipName]));
+  state[key]=!state[key];
+  if(state[key]){a.reset().setLoop(THREE.LoopRepeat).play()}else{a.stop();}
+  b.classList.toggle('on',state[key]);
+}
+btn('lights','⟵ Izquierdo',b=>blink('Intermitente_Izquierdo',b,'tl'));
+btn('lights','Derecho ⟶',b=>blink('Intermitente_Derecho',b,'tr'));
+btn('lights','⚠ Warning',b=>blink('Warning_Emergencia',b,'hz'));
+
+// --- ruedas
+const wb=btn('scene','Girar ruedas',b=>{const a=actions.wheels||(actions.wheels=mixer.clipAction(clips['Ruedas_Girar']));
+  state.wheels=!state.wheels;if(state.wheels){a.reset().setLoop(THREE.LoopRepeat).play();a.timeScale=1.5}else a.stop();b.classList.toggle('on',state.wheels)});
+
+// --- escena día/noche
+btn('scene','Día / noche',b=>{night=!night;
+  scene.environmentIntensity=night?.06:1;sun.intensity=night?.0:2.2;
+  scene.background=night?new THREE.Color(0x05070a):null;renderer.setClearColor(night?0x05070a:0x9aa3ad,1);
+  ground.material.color.set(night?0x2a2d31:0x6c7178);b.classList.toggle('on',night)});
+renderer.setClearColor(0x9aa3ad,1);
+
+// --- cámaras
+btn('cams','Exterior',()=>{controls.minDistance=1;setCam([5.6,1.9,6.4],[0,.7,0])});
+btn('cams','Frontal',()=>{controls.minDistance=1;setCam([0,.9,8.5],[0,.7,0])});
+btn('cams','Trasera',()=>{controls.minDistance=1;setCam([0,1.1,-8.5],[0,.8,0])});
+btn('cams','Perfil',()=>{controls.minDistance=1;setCam([9,1,0],[0,.7,0])});
+btn('cams','Conductor',()=>{controls.minDistance=.01;setCam([.37,1.22,-.12],[.3,1.0,1.2])});
+btn('cams','Asiento trasero',()=>{controls.minDistance=.01;setCam([0,1.2,-1.0],[0,.95,.8])});
+setCam([5.6,1.9,6.4],[0,.7,0]);
+
+const clock=new THREE.Clock();
+renderer.setAnimationLoop(()=>{mixer.update(clock.getDelta());controls.update();renderer.render(scene,camera)});
+window.__car=car;
+</script>
+</body>
+</html>
