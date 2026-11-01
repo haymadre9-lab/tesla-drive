@@ -1,0 +1,20 @@
+<!doctype html><meta charset=utf-8><body style="margin:0;background:#101418;font:12px system-ui;color:#ddd">
+<script src="ventanas.js"></script><div id=o style="padding:8px"></div>
+<script>
+const S=82, o=document.getElementById('o');
+function fila(titulo,fn){const d=document.createElement('div');d.style.cssText='margin:6px 0';d.innerHTML='<div style="margin:2px 0">'+titulo+'</div>';
+  const w=document.createElement('div');w.style.cssText='display:flex;gap:6px';
+  for(let f=0;f<7;f++){const t=fn(f);const c=document.createElement('canvas');c.width=c.height=S*2;const g=c.getContext('2d');
+    for(let i=0;i<2;i++)for(let j=0;j<2;j++)g.drawImage(t,i*S,j*S);w.appendChild(c);}
+  d.appendChild(w);o.appendChild(d);}
+fila('ACTUAL · día',f=>imagenVieja(FAM[f][0],false,f*2+1,S));
+fila('PROPUESTA · día',f=>imagenNueva(f,0,false,0,S));
+fila('ACTUAL · noche (2 variantes idénticas en carácter: k0)',f=>imagenVieja(FAM[f][0],true,(f*2+1)*7+3,S));
+fila('ACTUAL · noche k1',f=>imagenVieja(FAM[f][0],true,(f*2+1)*7+131+3,S));
+fila('PROPUESTA · noche k0 «tranquilo»',f=>imagenNueva(f,0,true,0,S));
+fila('PROPUESTA · noche k1 «animado»',f=>imagenNueva(f,0,true,1,S));
+// medida de coste: generar el juego completo (4 tamaños · 14 día + 28 noche)
+function juego(fn){const t0=performance.now();for(const S2 of [41,82,164,200])for(let f=0;f<7;f++)for(let t=0;t<2;t++){const c=fn(f,t,S2);c.getContext('2d').getImageData(0,0,S2,S2);}return Math.round(performance.now()-t0);}
+window.coste={vieja:juego((f,t,s)=>imagenVieja(FAM[f][t],true,1,s))+juego((f,t,s)=>imagenVieja(FAM[f][t],true,9,s))+juego((f,t,s)=>imagenVieja(FAM[f][t],false,1,s)),
+              nueva:juego((f,t,s)=>imagenNueva(f,t,true,0,s))+juego((f,t,s)=>imagenNueva(f,t,true,1,s))+juego((f,t,s)=>imagenNueva(f,t,false,0,s))};
+</script>
