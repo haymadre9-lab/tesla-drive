@@ -234,3 +234,21 @@ html[data-theme="light"] body[data-skin=neon] .card{background:rgba(255,255,255,
 .card.w-2x2 .mus{justify-content:space-around;} .card.w-2x2 .mus .cd{width:130px;height:130px;} .card.w-2x2 .mus .ti{font-size:24px;} .card.w-2x2 .mus .ctl button{width:60px;height:60px;} .card.w-2x2 .mus .ctl button.main{width:74px;height:74px;}
 
 @media (max-width:760px),(max-aspect-ratio:1/1){.row{flex-wrap:wrap;} .row .btn{flex:1;padding:10px 8px;}}
+
+/* ── Cockpit + navegador incrustado ── */
+.cockcard{padding:12px 14px;} .cock{display:flex;flex-direction:column;height:100%;gap:4px;min-height:0;}
+.ck-top,.ck-bot{display:flex;justify-content:space-between;align-items:center;gap:10px;color:var(--dim);font-size:14px;white-space:nowrap;} .ck-top b,.ck-bot b{color:var(--txt);font-variant-numeric:tabular-nums;}
+.ck-top .ck-nav{overflow:hidden;text-overflow:ellipsis;color:var(--acc);font-weight:600;min-width:0;}
+.ck-mid{flex:1;display:flex;align-items:center;gap:6px;min-height:0;} .ck-gauge{flex:1;min-width:0;height:100%;position:relative;} .ck-gauge svg{width:100%;height:100%;}
+.ck-gauge .gr{fill:none;stroke:var(--card2);stroke-width:8;stroke-linecap:round;} .ck-gauge .ga{fill:none;stroke:var(--acc);stroke-width:8;stroke-linecap:round;transition:stroke-dasharray .4s;}
+.ck-gauge .tk{stroke:var(--dim);stroke-width:2;} .ck-gauge .tl{fill:var(--dim);font-size:9px;text-anchor:middle;} .ck-gauge .nd{stroke:var(--txt);stroke-width:3;stroke-linecap:round;} .ck-gauge .hub{fill:var(--acc);}
+.ck-gauge .gv{fill:var(--txt);font-weight:700;text-anchor:middle;font-variant-numeric:tabular-nums;} .ck-gauge .gu{fill:var(--dim);font-size:10px;text-anchor:middle;letter-spacing:2px;}
+.ckl{top:auto;bottom:6%;right:auto;left:50%;transform:translateX(-50%);width:44px;height:44px;border-width:5px;font-size:15px;}
+.ck-side{display:flex;flex-direction:column;gap:14px;min-width:70px;text-align:center;} .ck-side b{display:block;font-size:20px;font-variant-numeric:tabular-nums;} .ck-side small{color:var(--dim);font-size:11px;}
+.cock.over .ga{stroke:var(--bad);} .cock.over .gv{fill:var(--bad);}
+.card.navhost{padding:0;} .navwrap.emb{border:0;border-radius:inherit;} .navwrap.emb .spdbub,.navwrap.emb .limsign{display:none;}
+.navwrap.emb .navguide .ni{font-size:40px;width:48px;} .navwrap.emb .navguide .nt b{font-size:24px;} .navwrap.emb .navbar{right:12px;flex-wrap:wrap;padding:8px 10px;} .navwrap.emb .navbar b{font-size:19px;} .navwrap.emb .navbar .btn{padding:9px 11px;}
+.navwrap.emb .navlayers{top:70px;} .navwrap.emb .navlayers button{width:42px;height:42px;font-size:18px;}
+body.tesla .ck-side b{font-size:24px;}
+
+#alertbar{top:8px;padding:9px 22px;font-size:20px;}

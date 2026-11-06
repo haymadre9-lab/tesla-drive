@@ -72,7 +72,7 @@ const Poi = (() => {
     const lim = P.limit ? (S.speedUnit === 'mph' ? Math.round(P.limit / 1.609) : P.limit) : null;
     const st = $('#stLimit'); if (st) { st.hidden = !lim; st.textContent = lim || ''; }
     $$('.limsign,.limchip').forEach(e => { e.hidden = !lim; e.textContent = lim || ''; });
-    $$('.spdbub').forEach(e => e.classList.toggle('over', !!over)); $('#stSpeed')?.classList.toggle('over', !!over);
+    $$('.spdbub,.cock').forEach(e => e.classList.toggle('over', !!over)); $('#stSpeed')?.classList.toggle('over', !!over);
   }
 
   /* ── Avisos de radares y reportes por delante ── */
