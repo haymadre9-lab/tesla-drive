@@ -33,7 +33,7 @@ const DEF = {
   speedUnit: 'kmh', pressUnit: 'bar', tempUnit: 'c', tpWarn: 2.0, tpDanger: 1.6, spare: false,
   tires: { fl: 2.4, fr: 2.4, rl: 2.5, rr: 2.5 },
   fab: { on: true, click: 'home', long: 'daynight', x: null, y: null }, keys: [],
-  city: null, lastPos: null, last: {}, maxSpeed: 0, trip: 0,
+  city: null, lastPos: null, last: {}, recent: [], maxSpeed: 0, trip: 0,
 };
 let S;
 try { S = Object.assign(structuredClone(DEF), JSON.parse(localStorage.getItem('leco.v1') || '{}')); } catch { S = structuredClone(DEF); }
@@ -332,9 +332,9 @@ function widgetMap(el) {
   el.querySelector('.tag').onclick = () => go('map');
 }
 renderers.map = () => {
-  $('#p-map').innerHTML = `<div class="mapfull"><div class="bar"><input id="mq" placeholder="Abrir destino en Google Maps…"><button id="mgo">Ir</button><button id="mfl" class="btn sec">▢ Flotante</button></div><iframe title="Mapa" src="${mapSrc(true)}"></iframe></div>`;
-  const q = () => { const v = $('#mq').value.trim(); if (v) window.open('https://www.google.com/maps/search/' + encodeURIComponent(v), '_blank', 'noopener'); };
-  $('#mgo').onclick = q; $('#mq').onkeydown = e => e.key === 'Enter' && q();
+  $('#p-map').innerHTML = `<div class="mapfull"><div class="bar"><input id="mq" placeholder="Destino: dirección, lugar o lat,lon"><button id="mgo">📍 Maps</button><button id="mwz">🚙 Waze</button><button id="mgeo" class="btn sec">📲 Otra app</button><button id="mfl" class="btn sec">▢</button></div><iframe title="Mapa" src="${mapSrc(true)}"></iframe></div>`;
+  const q = $('#mq'); $('#mgo').onclick = () => navigateTo('gmaps', q.value); $('#mwz').onclick = () => navigateTo('waze', q.value); $('#mgeo').onclick = () => navigateTo('geo', q.value);
+  q.onkeydown = e => e.key === 'Enter' && navigateTo('gmaps', q.value);
   $('#mfl').onclick = () => openFloat({ n: 'Mapa', u: mapSrc(true) });
 };
 bus.on('pos', () => {
@@ -352,6 +352,7 @@ function sortedApps(list) {
   return l;
 }
 async function openApp(a, mode = S.openMode) {
+  if (a.k === 'gmaps' || a.k === 'waze') return navDlg(a);
   if (mode === 'tab') return window.open(a.u, '_blank', 'noopener');
   const r = await embedFor(a); if (!r) return;
   openFloat({ ...a, u: r.u || a.u, orig: r.orig || a.u, blocked: r.blocked, smart: r.smart }, mode === 'full');
@@ -376,6 +377,41 @@ async function embedFor(a) {
     case 'twitch': { const c = await ask('twitch', 'Twitch: nombre del canal', 'Ej. ibai'); if (c === null) return null; return /^\w{3,25}$/.test(c) ? { u: `https://player.twitch.tv/?channel=${c}&parent=${location.hostname || 'localhost'}`, orig: 'https://www.twitch.tv/' + c, smart: 1 } : bad('Canal no válido'); }
   }
   return {};
+}
+
+/* ───────────── Navegación: abre la app de GPS con la ruta ───────────── */
+function navUrl(via, q) {
+  const enc = encodeURIComponent(q), coords = /^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/.test(q);
+  if (via === 'waze') return !q ? 'https://waze.com/ul' : coords ? `https://waze.com/ul?ll=${encodeURIComponent(q.replace(/\s/g, ''))}&navigate=yes` : `https://waze.com/ul?q=${enc}&navigate=yes`;
+  if (via === 'geo') return `geo:0,0?q=${enc}`;
+  return q ? `https://www.google.com/maps/dir/?api=1&destination=${enc}&travelmode=driving&dir_action=navigate` : 'https://www.google.com/maps';
+}
+function navigateTo(via, q) {
+  q = (q || '').trim();
+  if (q) { S.recent = [q, ...S.recent.filter(x => x !== q)].slice(0, 6); save(); }
+  const u = navUrl(via, q);
+  if (via === 'geo') location.href = u; else window.open(u, '_blank', 'noopener');
+  toast(q ? 'Abriendo ruta a ' + q : 'Abriendo navegación…');
+}
+function navDlg(a) {
+  const via = a.k === 'waze' ? 'waze' : 'gmaps';
+  dlg(`<h3>${esc(a.e)} Navegar con ${esc(a.n)}</h3><div class="f"><input class="in" id="nd" placeholder="Destino: dirección, lugar o lat,lon" autocomplete="off">
+    <div>${S.recent.map(r => `<span class="chip" data-r="${esc(r)}" style="cursor:pointer">🕘 ${esc(r)}</span>`).join('')}</div>
+    <button class="btn" id="n1">🧭 Iniciar navegación en ${esc(a.n)}</button>
+    <button class="btn sec" id="n3">📲 Elegir otra app de GPS</button>
+    <button class="btn sec" id="n2">▢ Solo ver el mapa en ventana</button></div>
+    <div class="note">Se abre la app instalada en el dispositivo con la ruta lista. Dejando el destino vacío se abre la app sin ruta.</div>
+    <div class="acts"><button class="btn sec" id="c">Cerrar</button></div>`, d => {
+    const i = $('#nd', d); i.focus();
+    $$('[data-r]', d).forEach(c => c.onclick = () => { i.value = c.dataset.r; });
+    const go1 = v => { closeDlg(); navigateTo(v, i.value); };
+    $('#n1', d).onclick = () => go1(via); $('#n3', d).onclick = () => go1('geo'); i.onkeydown = e => e.key === 'Enter' && go1(via);
+    $('#c', d).onclick = closeDlg;
+    $('#n2', d).onclick = () => {
+      const q = i.value.trim(), p = myPos(); closeDlg();
+      openFloat({ ...a, smart: 1, orig: navUrl(via, q), u: via === 'waze' ? `https://embed.waze.com/iframe?zoom=14&lat=${p[0]}&lon=${p[1]}&pin=1` : `https://maps.google.com/maps?q=${encodeURIComponent(q || p.join(','))}&z=15&output=embed` });
+    };
+  });
 }
 const floats = [];
 function openFloat(a, full = false) {
