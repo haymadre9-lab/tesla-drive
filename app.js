@@ -414,23 +414,43 @@ function navDlg(a) {
   });
 }
 const floats = [];
+const vvp = () => window.visualViewport || { offsetTop: 0, offsetLeft: 0, width: innerWidth, height: innerHeight };
+/* Mantiene la ventana siempre dentro de la parte visible (teclado, barras del sistema, giro de pantalla). */
+function fitFloat(w, center) {
+  if (w.classList.contains('full')) return;
+  const v = vvp(), top0 = 8;
+  const ww = Math.min(w.offsetWidth, v.width - 16), hh = Math.min(w.offsetHeight, v.height - top0 - 8);
+  w.style.width = ww + 'px'; w.style.height = hh + 'px';
+  const idx = floats.indexOf(w);
+  const L = center ? v.offsetLeft + (v.width - ww) / 2 + idx * 36 : w.offsetLeft, T = center ? v.offsetTop + Math.max(56, (v.height - hh) / 2) + idx * 36 : w.offsetTop;
+  w.style.left = clamp(L, v.offsetLeft + 8, v.offsetLeft + v.width - ww - 8) + 'px';
+  w.style.top = clamp(T, v.offsetTop + top0, v.offsetTop + v.height - hh - 8) + 'px';
+}
+const fitAll = () => floats.forEach(w => fitFloat(w));
+addEventListener('resize', fitAll); window.visualViewport?.addEventListener('resize', fitAll);
 function openFloat(a, full = false) {
   if (floats.length >= 2) floats.shift().remove(); // doble PiP: máximo 2
+  document.activeElement?.blur?.(); scrollTo(0, 0);
   const w = document.createElement('div'); w.className = 'fw' + (full ? ' full' : '');
-  const n = floats.length, W = innerWidth, H = innerHeight;
-  w.style.left = clamp(W * .3 + n * 40, 10, W - 260) + 'px'; w.style.top = clamp(H * .18 + n * 40, 10, H - 180) + 'px';
-  w.innerHTML = `<div class="hd"><b>${esc(a.e || '🌐')} ${esc(a.n)}</b><button data-b="tab" title="Abrir en pestaña">↗</button><button data-b="full" title="Pantalla completa">⛶</button><button data-b="x" title="Cerrar">✕</button></div>
+  w.innerHTML = `<div class="hd" title="Arrastra para mover · doble toque para centrar"><b>${esc(a.e || '🌐')} ${esc(a.n)}</b><button data-b="ctr" title="Centrar">⌖</button><button data-b="tab" title="Abrir fuera">↗</button><button data-b="full" title="Pantalla completa">⛶</button><button data-b="x" title="Cerrar">✕</button></div>
     ${a.blocked ? `<div class="blk"><div style="font-size:44px">🔒</div><p><b>${esc(a.n)}</b> no permite abrirse dentro de otra ventana.<br>Es una restricción del propio servicio.</p><button class="btn" data-b="tab">Abrir ${esc(a.n)}</button></div>`
     : `${a.smart ? '' : '<div class="hint">Si ves la ventana en blanco, este sitio bloquea el modo incrustado: usa ↗.</div>'}
-    <iframe src="${esc(a.u)}" allow="geolocation; autoplay; fullscreen; encrypted-media; picture-in-picture" referrerpolicy="no-referrer-when-downgrade"></iframe>`}`;
-  $('#floats').append(w); floats.push(w);
+    <iframe src="${esc(a.u)}" allow="geolocation; autoplay; fullscreen; encrypted-media; picture-in-picture" referrerpolicy="no-referrer-when-downgrade"></iframe>`}
+    <div class="ft" title="Arrastra para mover">⋯ mover ⋯</div>`;
+  $('#floats').append(w); floats.push(w); fitFloat(w, true);
   $('[data-b=x]', w).onclick = () => { w.remove(); floats.splice(floats.indexOf(w), 1); };
-  $('[data-b=full]', w).onclick = () => w.classList.toggle('full');
+  $('[data-b=full]', w).onclick = () => { w.classList.toggle('full'); if (!w.classList.contains('full')) { w.style.width = w.style.height = ''; fitFloat(w, true); } };
+  $('[data-b=ctr]', w).onclick = () => { w.classList.remove('full'); w.style.width = w.style.height = ''; fitFloat(w, true); };
   $$('[data-b=tab]', w).forEach(b => b.onclick = () => window.open(a.orig || a.u, '_blank', 'noopener'));
-  const hd = $('.hd', w); let dx, dy, drag = false;
-  hd.onpointerdown = e => { if (e.target.closest('button') || w.classList.contains('full')) return; drag = true; dx = e.clientX - w.offsetLeft; dy = e.clientY - w.offsetTop; hd.setPointerCapture(e.pointerId); hd.style.cursor = 'grabbing'; $$('.fw').forEach(x => x.style.zIndex = 50); w.style.zIndex = 51; };
-  hd.onpointermove = e => { if (drag) { w.style.left = clamp(e.clientX - dx, -w.offsetWidth + 80, innerWidth - 80) + 'px'; w.style.top = clamp(e.clientY - dy, 0, innerHeight - 40) + 'px'; } };
-  hd.onpointerup = () => { drag = false; hd.style.cursor = ''; };
+  let dx, dy, drag = false;
+  const bring = () => { $$('.fw').forEach(x => x.style.zIndex = 50); w.style.zIndex = 51; };
+  w.addEventListener('pointerdown', bring);
+  [$('.hd', w), $('.ft', w)].forEach(h => {
+    h.onpointerdown = e => { if (e.target.closest('button') || w.classList.contains('full')) return; drag = true; dx = e.clientX - w.offsetLeft; dy = e.clientY - w.offsetTop; h.setPointerCapture(e.pointerId); };
+    h.onpointermove = e => { if (!drag) return; const v = vvp(); w.style.left = clamp(e.clientX - dx, v.offsetLeft - w.offsetWidth + 90, v.offsetLeft + v.width - 90) + 'px'; w.style.top = clamp(e.clientY - dy, v.offsetTop, v.offsetTop + v.height - 70) + 'px'; };
+    h.onpointerup = h.onpointercancel = () => { drag = false; };
+  });
+  $('.hd', w).ondblclick = e => { if (!e.target.closest('button')) fitFloat(w, true); };
 }
 function appHtml(a, x) { return `<div class="app" data-id="${esc(a.id)}"><div class="ico">${esc(a.e || '🌐')}</div><span>${esc(a.n)}</span>${x ? '<button class="x" data-del>✕</button>' : ''}</div>`; }
 function widgetApps(el) {
