@@ -55,7 +55,9 @@ const Nav = (() => {
       <div class="navguide" id="nguide" hidden><div class="ni" id="nicon">⬆</div><div class="nt"><b id="ndist">—</b><span id="ntext"></span></div></div>
       <div class="navbar" id="nbar" hidden><div><b id="nrem">—</b><small>restante</small></div><div><b id="neta">—</b><small>llegada</small></div><div><b id="nspd">0</b><small id="nspu">km/h</small></div>
         <button class="btn sec" id="nmute">🔊</button><button class="btn sec" id="nctr">🎯</button><button class="btn sec" id="nfav">⭐</button><button class="btn bad" id="nstop">✕ Terminar</button></div>
-      <button class="btn sec navsim" id="nsim" hidden>🧪 Simular ruta</button>`;
+      <button class="btn sec navsim" id="nsim" hidden>🧪 Simular ruta</button>
+      <div class="navlayers" id="nlay"><button data-l="cams" title="Radares fijos">📷</button><button data-l="chargers" title="Cargadores">⚡</button><button data-l="fuel" title="Gasolineras">⛽</button><button data-l="reports" title="Reportes">⚠️</button><button id="nrep" title="Reportar">➕</button></div>
+      <div class="spdbub"><b class="js-spd">0</b><small>${spdUnit()}</small></div><div class="limsign" hidden></div>`;
     return el;
   }
   function chips() {
@@ -76,6 +78,10 @@ const Nav = (() => {
       $('#nctr', N.el).onclick = () => { N.follow = true; if (N.pos) N.map.setView(N.pos, N.map.getZoom()); };
       $('#nmute', N.el).onclick = () => { N.muted = !N.muted; $('#nmute', N.el).textContent = N.muted ? '🔇' : '🔊'; if (N.muted) try { speechSynthesis.cancel(); } catch { } };
       $('#nfav', N.el).onclick = saveFav;
+      $('#nrep', N.el).onclick = () => Poi.reportDlg();
+      const sync = () => $$('#nlay [data-l]', N.el).forEach(b => b.classList.toggle('on', !!S.layers[b.dataset.l]));
+      $$('#nlay [data-l]', N.el).forEach(b => b.onclick = () => { S.layers[b.dataset.l] = !S.layers[b.dataset.l]; save(); sync(); Poi.draw(); Poi.refresh(); });
+      sync();
     }
     root.innerHTML = ''; root.append(N.el); initMap(); chips(); N.map.invalidateSize();
     $('#nph', N.el).style.display = S.teslaMode ? 'none' : '';
@@ -88,6 +94,8 @@ const Nav = (() => {
     L.control.zoom({ position: 'topright' }).addTo(N.map);
     N.me = L.marker(p, { icon: L.divIcon({ className: '', html: '<div class="nme"><i></i></div>', iconSize: [34, 34], iconAnchor: [17, 17] }), zIndexOffset: 1000 }).addTo(N.map);
     N.map.on('dragstart', () => { N.follow = false; });
+    N.map.on('moveend', () => { if (Date.now() - (Poi.state.lastDraw || 0) > 4000) { Poi.state.lastDraw = Date.now(); Poi.draw(); } });
+    Poi.attach(N.map);
   }
 
   /* ── Búsqueda ── */
@@ -117,15 +125,15 @@ const Nav = (() => {
       N.steps.forEach(s => { s.v1 = s.v2 = false; });
       if (N.line) N.map.removeLayer(N.line); if (N.dm) N.map.removeLayer(N.dm);
       N.line = L.polyline(N.coords, { color: S.accent, weight: 8, opacity: .9 }).addTo(N.map);
-      N.dm = L.marker([d.lat, d.lon]).addTo(N.map);
+      N.dm = L.marker([d.lat, d.lon], { icon: L.divIcon({ className: '', html: '<div class="poi" style="border-color:var(--acc);font-size:21px">🏁</div>', iconSize: [36, 36], iconAnchor: [18, 18] }) }).addTo(N.map);
       if (!quiet) { N.map.fitBounds(N.line.getBounds(), { padding: [60, 60] }); setTimeout(() => { N.follow = true; }, 4000); S.navRecent = [d, ...(S.navRecent || []).filter(x => x.name !== d.name)].slice(0, 5); save(); chips(); say('Ruta calculada. ' + fmtD(rt.distance) + ' hasta ' + d.name); }
-      $('#nres', N.el).hidden = true; $('.navtop', N.el).style.display = 'none'; $('#nguide', N.el).hidden = false; $('#nbar', N.el).hidden = false; $('#nsim', N.el).hidden = false; update(o);
+      $('#nres', N.el).hidden = true; $('.navtop', N.el).style.display = 'none'; $('#nguide', N.el).hidden = false; $('#nbar', N.el).hidden = false; N.el.classList.add('guiding'); $('#nsim', N.el).hidden = false; update(o);
     } catch (e) { toast('No se pudo calcular la ruta (sin conexión o servidor ocupado)', 3500); }
   }
   function stop() {
     N.active = false; clearInterval(N.simT); N.sim = false; try { speechSynthesis.cancel(); } catch { }
     if (N.line) N.map.removeLayer(N.line), N.line = null; if (N.dm) N.map.removeLayer(N.dm), N.dm = null;
-    ['nguide', 'nbar', 'nsim'].forEach(i => $('#' + i, N.el).hidden = true); $('.navtop', N.el).style.display = ''; $('#nchips', N.el).style.display = ''; $('#nsim', N.el).textContent = '🧪 Simular ruta';
+    N.el.classList.remove('guiding'); ['nguide', 'nbar', 'nsim'].forEach(i => $('#' + i, N.el).hidden = true); $('.navtop', N.el).style.display = ''; $('#nchips', N.el).style.display = ''; $('#nsim', N.el).textContent = '🧪 Simular ruta';
   }
   function saveFav() {
     if (!N.dest) return;
@@ -178,5 +186,5 @@ const Nav = (() => {
     }, 1000);
   }
   function prefill(q) { go('map'); setTimeout(() => { const i = $('#nq', N.el); if (i) { i.focus(); if (q) { i.value = q; search(q); } } }, 150); }
-  return { render, onPos, prefill, routeTo, search, state: N, instr };
+  return { render, onPos, prefill, routeTo, search, state: N, instr, distToLine: distToRoute };
 })();
