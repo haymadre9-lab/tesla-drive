@@ -33,7 +33,7 @@ const DEF = {
   speedUnit: 'kmh', pressUnit: 'bar', tempUnit: 'c', tpWarn: 2.0, tpDanger: 1.6, spare: false,
   tires: { fl: 2.4, fr: 2.4, rl: 2.5, rr: 2.5 },
   fab: { on: true, click: 'home', long: 'daynight', x: null, y: null }, keys: [],
-  city: null, lastPos: null, last: {}, recent: [], teslaMode: IS_TESLA, voice: true, radarAlerts: true, layers: { cams: true, chargers: false, fuel: false, reports: true }, reports: [], navRecent: [], favs: { home: null, work: null }, maxSpeed: 0, trip: 0,
+  city: null, lastPos: null, last: {}, recent: [], teslaMode: IS_TESLA, voice: true, tripT: 0, dash: 'classic', dashboards: null, radarAlerts: true, layers: { cams: true, chargers: false, fuel: false, reports: true }, reports: [], navRecent: [], favs: { home: null, work: null }, maxSpeed: 0, trip: 0,
 };
 let S;
 try { S = Object.assign(structuredClone(DEF), JSON.parse(localStorage.getItem('leco.v1') || '{}')); } catch { S = structuredClone(DEF); }
@@ -70,7 +70,7 @@ function isDark() {
 function applyTheme() {
   const dark = isDark(), r = document.documentElement;
   r.dataset.theme = dark ? 'dark' : 'light';
-  r.style.setProperty('--acc', S.accent); r.style.setProperty('--radius', S.radius + 'px');
+  r.style.setProperty('--acc', Dash.accent()); document.body.dataset.skin = Dash.cur().skin; r.style.setProperty('--radius', S.radius + 'px');
   r.style.setProperty('--colw', S.colw + 'px'); r.style.setProperty('--rows', S.rows);
   r.style.setProperty('--lyr-cur', S.lyricCur); r.style.setProperty('--lyr-norm', S.lyricNorm); r.style.setProperty('--lyr-size', S.lyricSize + 'px');
   document.body.classList.toggle('rhd', S.rhd); document.body.classList.toggle('tesla', !!S.teslaMode); document.body.classList.toggle('nolyr', S.hideLyrics);
@@ -137,6 +137,7 @@ function startGPS() {
   navigator.geolocation.watchPosition(p => {
     if (Nav.state.sim) return;
     const c = p.coords; GPS.pos = c; GPS.speed = c.speed != null && !isNaN(c.speed) ? Math.max(0, c.speed) : 0;
+    const nowT = Date.now(); if (GPS.t && GPS.speed > 1) S.tripT = (S.tripT || 0) + Math.min(10, (nowT - GPS.t) / 1000); GPS.t = nowT;
     if (GPS.last && c.accuracy < 60) { const d = hav(GPS.last, c); if (d > 4 && d < 500) { S.trip += d; } }
     if (!GPS.last || c.accuracy < 60) GPS.last = { latitude: c.latitude, longitude: c.longitude };
     S.maxSpeed = Math.max(S.maxSpeed, GPS.speed); S.lastPos = [c.latitude, c.longitude];
@@ -529,7 +530,7 @@ addEventListener('keydown', e => {
 const fab = $('#fab');
 function placeFab() {
   fab.classList.toggle('on', S.fab.on);
-  const x = S.fab.x ?? innerWidth - 80, y = S.fab.y ?? innerHeight - 90;
+  const portrait = innerWidth < 761 || innerHeight > innerWidth, x = S.fab.x ?? innerWidth - 80, y = S.fab.y ?? innerHeight - (portrait ? 170 : 90);
   fab.style.left = clamp(x, 0, innerWidth - 58) + 'px'; fab.style.top = clamp(y, 0, innerHeight - 58) + 'px';
 }
 (() => {
@@ -589,7 +590,7 @@ const CATS = {
     { t: 'btn', l: 'Borrar mis reportes', f: () => { Poi.clearReports(); toast('Reportes borrados'); } },
     { t: 'note', l: 'No se incluyen avisos de controles móviles de policía. Los reportes (accidente, peligro, bache…) se guardan solo en este dispositivo durante 3 horas.' },
   ]],
-  unidades: ['📏 Unidades', [{ k: 'speedUnit', l: 'Velocidad', type: 'select' }, { k: 'tempUnit', l: 'Temperatura', type: 'select' }, { t: 'btn', l: 'Reiniciar viaje y velocidad máxima', f: () => { S.trip = 0; S.maxSpeed = 0; save(); renderSpeedUI(); toast('Reiniciado'); } }]],
+  unidades: ['📏 Unidades', [{ k: 'speedUnit', l: 'Velocidad', type: 'select' }, { k: 'tempUnit', l: 'Temperatura', type: 'select' }, { t: 'btn', l: 'Reiniciar viaje y velocidad máxima', f: () => { S.trip = 0; S.maxSpeed = 0; S.tripT = 0; save(); renderSpeedUI(); toast('Reiniciado'); } }]],
   controles: ['🎛 Controles', [
     { k: 'teslaMode', l: 'Modo Tesla', d: 'Botones grandes y navegación propia dentro de la app (el navegador de Tesla no abre las apps de Maps/Waze). Se activa solo en el navegador del coche', type: 'toggle' },
     { k: 'voice', l: 'Voz de navegación', d: 'Avisos hablados de giros (si el navegador lo permite)', type: 'toggle' },
@@ -679,11 +680,12 @@ $('#fileCfg').onchange = async e => {
 };
 
 /* ───────────── Arranque ───────────── */
-(async function init() {
+async function init() {
   S.apps.forEach(a => { const d = DEF_APPS.find(x => x.id === a.id); if (d && !a.k) a.k = d.k; });
   await Wall.load(); applyTheme(); Wall.apply(); placeFab();
   go('home'); tickClock(); setInterval(tickClock, 1000);
   Poi.init(); startGPS(); loadWeather(); setInterval(() => loadWeather(), 15 * 60e3);
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => { });
   try { navigator.wakeLock?.request('screen').catch(() => { }); document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && navigator.wakeLock?.request('screen').catch(() => { })); } catch { }
-})();
+}
+addEventListener('DOMContentLoaded', init); // tras cargar también dash.js

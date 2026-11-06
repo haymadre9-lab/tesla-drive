@@ -71,7 +71,7 @@ const Poi = (() => {
     const kmh = Math.round(GPS.speed * 3.6), over = P.limit && kmh > P.limit + 3;
     const lim = P.limit ? (S.speedUnit === 'mph' ? Math.round(P.limit / 1.609) : P.limit) : null;
     const st = $('#stLimit'); if (st) { st.hidden = !lim; st.textContent = lim || ''; }
-    $$('.limsign').forEach(e => { e.hidden = !lim; e.textContent = lim || ''; });
+    $$('.limsign,.limchip').forEach(e => { e.hidden = !lim; e.textContent = lim || ''; });
     $$('.spdbub').forEach(e => e.classList.toggle('over', !!over)); $('#stSpeed')?.classList.toggle('over', !!over);
   }
 
@@ -138,5 +138,5 @@ const Poi = (() => {
     });
   }
   function init() { try { const j = JSON.parse(localStorage.getItem(KEY) || '{}'); ['cams', 'chargers', 'fuel'].forEach(k => P[k] = j[k] || []); } catch { } }
-  return { init, onPos, attach, draw, refresh, reportDlg, state: P, clearReports: () => { S.reports = []; save(); draw(); } };
+  return { init, onPos, attach, draw, refresh, reportDlg, renderLimit, state: P, clearReports: () => { S.reports = []; save(); draw(); } };
 })();
