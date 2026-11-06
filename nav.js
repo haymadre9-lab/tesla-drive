@@ -131,7 +131,7 @@ const Nav = (() => {
     } catch (e) { toast('No se pudo calcular la ruta (sin conexión o servidor ocupado)', 3500); }
   }
   function stop() {
-    N.active = false; clearInterval(N.simT); N.sim = false; try { speechSynthesis.cancel(); } catch { }
+    N.active = false; clearInterval(N.simT); N.sim = false; N.sum = null; bus.emit('nav'); try { speechSynthesis.cancel(); } catch { }
     if (N.line) N.map.removeLayer(N.line), N.line = null; if (N.dm) N.map.removeLayer(N.dm), N.dm = null;
     N.el.classList.remove('guiding'); ['nguide', 'nbar', 'nsim'].forEach(i => $('#' + i, N.el).hidden = true); $('.navtop', N.el).style.display = ''; $('#nchips', N.el).style.display = ''; $('#nsim', N.el).textContent = '🧪 Simular ruta';
   }
@@ -148,12 +148,12 @@ const Nav = (() => {
     while (N.idx < last && dist(p, loc(st[N.idx + 1])) < 35) N.idx++;
     if (N.idx >= last) { arrive(); return; }
     const nx = st[N.idx + 1], dN = dist(p, loc(nx));
-    $('#nicon', N.el).textContent = icon(nx); $('#ndist', N.el).textContent = fmtD(dN); $('#ntext', N.el).textContent = instr(nx);
+    $('#nicon', N.el).textContent = icon(nx); $('#ndist', N.el).textContent = fmtD(dN); $('#ntext', N.el).textContent = instr(nx); N.sum = { icon: icon(nx), dist: fmtD(dN), text: instr(nx) };
     if (dN < 650 && !nx.v1 && st[N.idx].distance > 250) { nx.v1 = true; say(`En ${Math.round(dN / 50) * 50} metros, ${instr(nx).toLowerCase()}`); }
     if (dN < 140 && !nx.v2) { nx.v2 = true; say(instr(nx)); }
     let rem = dN, dur = 0; for (let j = N.idx + 1; j <= last; j++) { rem += st[j].distance; dur += st[j].duration; }
     const cur = st[N.idx]; dur += cur.duration ? dN / (cur.distance / cur.duration || 10) : 0;
-    $('#nrem', N.el).textContent = fmtD(rem); const eta = new Date(Date.now() + dur * 1000); $('#neta', N.el).textContent = `${pad2(eta.getHours())}:${pad2(eta.getMinutes())}`;
+    $('#nrem', N.el).textContent = fmtD(rem); const eta = new Date(Date.now() + dur * 1000); $('#neta', N.el).textContent = `${pad2(eta.getHours())}:${pad2(eta.getMinutes())}`; Object.assign(N.sum, { rem: fmtD(rem), eta: `${pad2(eta.getHours())}:${pad2(eta.getMinutes())}` }); bus.emit('nav');
     const v = Math.round(spdConv(GPS.speed)); $('#nspd', N.el).textContent = v; $('#nspu', N.el).textContent = spdUnit();
     // fuera de ruta
     if (!N.sim) {
@@ -161,7 +161,7 @@ const Nav = (() => {
     }
   }
   function arrive() {
-    $('#nicon', N.el).textContent = '🏁'; $('#ndist', N.el).textContent = '¡Llegaste!'; $('#ntext', N.el).textContent = N.dest ? N.dest.name : ''; say('Has llegado a tu destino');
+    $('#nicon', N.el).textContent = '🏁'; $('#ndist', N.el).textContent = '¡Llegaste!'; $('#ntext', N.el).textContent = N.dest ? N.dest.name : ''; say('Has llegado a tu destino'); N.sum = { icon: '🏁', dist: '¡Llegaste!', text: N.dest ? N.dest.name : '', rem: '0 m', eta: '--:--' }; bus.emit('nav');
     N.active = false; clearInterval(N.simT); setTimeout(() => { if (!N.active) stop(); }, 8000);
   }
   function onPos(c) {
@@ -186,5 +186,5 @@ const Nav = (() => {
     }, 1000);
   }
   function prefill(q) { go('map'); setTimeout(() => { const i = $('#nq', N.el); if (i) { i.focus(); if (q) { i.value = q; search(q); } } }, 150); }
-  return { render, onPos, prefill, routeTo, search, state: N, instr, distToLine: distToRoute };
+  return { render, onPos, prefill, routeTo, search, state: N, instr, distToLine: distToRoute, summary: () => N.sum };
 })();
