@@ -166,3 +166,26 @@ body.nolyr .lyr1,body.nolyr .lyrics{display:none;}
 @media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important;}}
 
 .fw .blk{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:16px;color:var(--dim);line-height:1.5;}
+
+/* ── Navegación (modo Tesla) ── */
+.navwrap{position:absolute;inset:0;border-radius:var(--radius);overflow:hidden;border:1px solid var(--bd);background:#222;}
+#navmap{position:absolute;inset:0;background:#1b1f27;}
+html[data-theme="dark"] #navmap .leaflet-tile-pane{filter:invert(.92) hue-rotate(180deg) saturate(.7) brightness(.95);}
+.leaflet-control-attribution{font-size:10px !important;}
+.navtop{position:absolute;z-index:500;left:12px;right:12px;top:12px;max-width:640px;}
+.navsearch{display:flex;gap:8px;} .navsearch input{flex:1;min-width:0;background:var(--card);backdrop-filter:blur(14px);border:1px solid var(--bd);border-radius:16px;padding:14px 16px;font-size:16px;outline:0;color:var(--txt);}
+.navres{margin-top:8px;background:var(--bg);border:1px solid var(--bd);border-radius:16px;overflow:hidden;max-height:46vh;overflow-y:auto;} .navres .note{padding:12px 16px;}
+.nr{padding:12px 16px;border-bottom:1px solid var(--bd);cursor:pointer;} .nr:last-child{border:0;} .nr b{display:block;font-size:16px;} .nr small{color:var(--dim);} .nr:active{background:var(--card2);}
+.navchips{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;} .navchips .chip{background:var(--card);backdrop-filter:blur(14px);padding:10px 14px;font-size:15px;cursor:pointer;border:1px solid var(--bd);border-radius:14px;}
+.navguide{position:absolute;z-index:500;left:12px;top:12px;display:flex;gap:14px;align-items:center;background:var(--bg);border:1px solid var(--bd);border-radius:20px;padding:12px 20px 12px 14px;box-shadow:0 8px 28px rgba(0,0,0,.45);max-width:min(560px,calc(100% - 24px));}
+.navguide[hidden]{display:none;} .navguide .ni{font-size:60px;line-height:1;width:72px;text-align:center;color:var(--acc);} .navguide .nt b{display:block;font-size:34px;line-height:1.1;} .navguide .nt span{color:var(--dim);font-size:16px;}
+.navbar{position:absolute;z-index:500;left:12px;right:84px;bottom:12px;display:flex;gap:12px;align-items:center;background:var(--bg);border:1px solid var(--bd);border-radius:20px;padding:10px 14px;box-shadow:0 8px 28px rgba(0,0,0,.45);}
+.navbar[hidden]{display:none;} .navbar > div{display:flex;flex-direction:column;min-width:64px;} .navbar b{font-size:24px;font-variant-numeric:tabular-nums;} .navbar small{color:var(--dim);font-size:11px;} .navbar .btn{padding:12px 14px;} .navbar .btn.bad{margin-left:auto;}
+.navsim{position:absolute;z-index:500;right:74px;top:12px;} .navsim[hidden]{display:none;}
+.nme{width:34px;height:34px;position:relative;transform:rotate(var(--h,0deg));} .nme i{position:absolute;inset:4px;border-radius:50%;background:var(--acc);border:4px solid #fff;box-shadow:0 0 0 6px rgba(62,155,255,.28),0 2px 8px rgba(0,0,0,.5);}
+.nme::before{content:"";position:absolute;left:11px;top:-9px;border:6px solid transparent;border-bottom:11px solid var(--acc);}
+.leaflet-control-zoom a{width:44px !important;height:44px !important;line-height:44px !important;font-size:22px !important;}
+/* modo Tesla: objetivos táctiles más grandes */
+body.tesla{font-size:17px;} body.tesla #shell{grid-template-columns:104px 1fr;} body.tesla.rhd #shell{grid-template-columns:1fr 104px;}
+body.tesla #dock button{height:88px;font-size:32px;} body.tesla #dock button i{font-size:13px;} body.tesla .ic{width:52px;height:52px;} body.tesla .btn{padding:14px 20px;} body.tesla .st-time b{font-size:34px;}
+@media (max-width:760px),(max-aspect-ratio:1/1){ .navguide .ni{font-size:44px;width:52px;} .navguide .nt b{font-size:26px;} .navbar{flex-wrap:wrap;} .navbar .btn.bad{margin-left:0;} }

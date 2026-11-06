@@ -11,6 +11,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
 <title>LecoAuto PWA</title>
+<link rel="stylesheet" href="vendor/leaflet.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -33,7 +34,7 @@
     <button data-go="home"     title="Inicio">🏠<i>Inicio</i></button>
     <button data-go="apps"     title="Aplicaciones">▦<i>Apps</i></button>
     <button data-go="music"    title="Música">🎵<i>Música</i></button>
-    <button data-go="map"      title="Mapa">🗺️<i>Mapa</i></button>
+    <button data-go="map"      title="Navegar">🧭<i>Navegar</i></button>
     <button data-go="settings" title="Ajustes">⚙️<i>Ajustes</i></button>
   </nav>
 
@@ -55,6 +56,8 @@
 <input type="file" id="fileImg" accept="image/*" multiple hidden>
 <input type="file" id="fileCfg" accept="application/json,.json" hidden>
 <audio id="audio" preload="metadata"></audio>
+<script src="vendor/leaflet.js"></script>
+<script src="nav.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

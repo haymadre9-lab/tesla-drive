@@ -33,7 +33,7 @@ const DEF = {
   speedUnit: 'kmh', pressUnit: 'bar', tempUnit: 'c', tpWarn: 2.0, tpDanger: 1.6, spare: false,
   tires: { fl: 2.4, fr: 2.4, rl: 2.5, rr: 2.5 },
   fab: { on: true, click: 'home', long: 'daynight', x: null, y: null }, keys: [],
-  city: null, lastPos: null, last: {}, recent: [], maxSpeed: 0, trip: 0,
+  city: null, lastPos: null, last: {}, recent: [], teslaMode: IS_TESLA, voice: true, navRecent: [], favs: { home: null, work: null }, maxSpeed: 0, trip: 0,
 };
 let S;
 try { S = Object.assign(structuredClone(DEF), JSON.parse(localStorage.getItem('leco.v1') || '{}')); } catch { S = structuredClone(DEF); }
@@ -73,7 +73,7 @@ function applyTheme() {
   r.style.setProperty('--acc', S.accent); r.style.setProperty('--radius', S.radius + 'px');
   r.style.setProperty('--colw', S.colw + 'px'); r.style.setProperty('--rows', S.rows);
   r.style.setProperty('--lyr-cur', S.lyricCur); r.style.setProperty('--lyr-norm', S.lyricNorm); r.style.setProperty('--lyr-size', S.lyricSize + 'px');
-  document.body.classList.toggle('rhd', S.rhd); document.body.classList.toggle('nolyr', S.hideLyrics);
+  document.body.classList.toggle('rhd', S.rhd); document.body.classList.toggle('tesla', !!S.teslaMode); document.body.classList.toggle('nolyr', S.hideLyrics);
   $('meta[name=theme-color]').content = dark ? '#0b0f17' : '#e9eef6';
   Wall.refreshDefault();
 }
@@ -135,6 +135,7 @@ function startGPS() {
   if (!navigator.geolocation) return setGpsDot('off');
   setGpsDot('wait');
   navigator.geolocation.watchPosition(p => {
+    if (Nav.state.sim) return;
     const c = p.coords; GPS.pos = c; GPS.speed = c.speed != null && !isNaN(c.speed) ? Math.max(0, c.speed) : 0;
     if (GPS.last && c.accuracy < 60) { const d = hav(GPS.last, c); if (d > 4 && d < 500) { S.trip += d; } }
     if (!GPS.last || c.accuracy < 60) GPS.last = { latitude: c.latitude, longitude: c.longitude };
@@ -331,16 +332,11 @@ function widgetMap(el) {
   el.innerHTML = `<span class="tag">🗺️ Mapa · toca para ampliar</span><iframe loading="lazy" title="Mapa" src="${mapSrc()}"></iframe>`;
   el.querySelector('.tag').onclick = () => go('map');
 }
-renderers.map = () => {
-  $('#p-map').innerHTML = `<div class="mapfull"><div class="bar"><input id="mq" placeholder="Destino: dirección, lugar o lat,lon"><button id="mgo">📍 Maps</button><button id="mwz">🚙 Waze</button><button id="mgeo" class="btn sec">📲 Otra app</button><button id="mfl" class="btn sec">▢</button></div><iframe title="Mapa" src="${mapSrc(true)}"></iframe></div>`;
-  const q = $('#mq'); $('#mgo').onclick = () => navigateTo('gmaps', q.value); $('#mwz').onclick = () => navigateTo('waze', q.value); $('#mgeo').onclick = () => navigateTo('geo', q.value);
-  q.onkeydown = e => e.key === 'Enter' && navigateTo('gmaps', q.value);
-  $('#mfl').onclick = () => openFloat({ n: 'Mapa', u: mapSrc(true) });
-};
+renderers.map = () => Nav.render($('#p-map'));
+bus.on('pos', c => Nav.onPos(c));
 bus.on('pos', () => {
   const p = GPS.pos; if (!p) return; const key = p.latitude.toFixed(3) + p.longitude.toFixed(3); if (key === mapKey) return; mapKey = key;
   $$('.js-mapw iframe').forEach(f => f.src = mapSrc());
-  if (page === 'map') $('#p-map iframe').src = mapSrc(true);
   loadWeather();
 });
 
@@ -352,7 +348,7 @@ function sortedApps(list) {
   return l;
 }
 async function openApp(a, mode = S.openMode) {
-  if (a.k === 'gmaps' || a.k === 'waze') return navDlg(a);
+  if (a.k === 'gmaps' || a.k === 'waze') return S.teslaMode ? Nav.prefill() : navDlg(a);
   if (mode === 'tab') return window.open(a.u, '_blank', 'noopener');
   const r = await embedFor(a); if (!r) return;
   openFloat({ ...a, u: r.u || a.u, orig: r.orig || a.u, blocked: r.blocked, smart: r.smart }, mode === 'full');
@@ -586,6 +582,8 @@ const CATS = {
   ]],
   unidades: ['📏 Unidades', [{ k: 'speedUnit', l: 'Velocidad', type: 'select' }, { k: 'tempUnit', l: 'Temperatura', type: 'select' }, { t: 'btn', l: 'Reiniciar viaje y velocidad máxima', f: () => { S.trip = 0; S.maxSpeed = 0; save(); renderSpeedUI(); toast('Reiniciado'); } }]],
   controles: ['🎛 Controles', [
+    { k: 'teslaMode', l: 'Modo Tesla', d: 'Botones grandes y navegación propia dentro de la app (el navegador de Tesla no abre las apps de Maps/Waze). Se activa solo en el navegador del coche', type: 'toggle' },
+    { k: 'voice', l: 'Voz de navegación', d: 'Avisos hablados de giros (si el navegador lo permite)', type: 'toggle' },
     { k: 'fab.on', l: 'Botón flotante', d: 'Punto arrastrable. Toque = acción corta, pulsación larga = acción larga', type: 'toggle' },
     { k: 'fab.click', l: 'Acción al tocar', type: 'action' }, { k: 'fab.long', l: 'Acción al mantener', type: 'action' },
     { t: 'keys' },
