@@ -1,724 +1,602 @@
-// ════════════════════════════════════════════════════════════════════════
-//  UsoEmbsa PWA — lógica principal
-//  Backend: Supabase (mismo que la app Android)
-// ════════════════════════════════════════════════════════════════════════
 'use strict';
+/* LecoAuto PWA — launcher para pantallas de coche (inspirado en la app Android LecoAuto).
+   Sin dependencias ni claves de API. Estado en localStorage; fondos en IndexedDB. */
 
-const CFG = window.USOEMBSA_CONFIG;
-const ICONS = window.ICONS;
-const app = document.getElementById('app');
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const pad = n => String(n).padStart(2, '0');
+const bus = (() => { const m = {}; return { on: (e, f) => (m[e] ||= []).push(f), emit: (e, d) => (m[e] || []).forEach(f => f(d)) }; })();
 
-// ─────────────────────────── Supabase mini-cliente ──────────────────────
-const SB = {
-  headers() {
-    return {
-      'apikey': CFG.SUPABASE_KEY,
-      'Authorization': 'Bearer ' + CFG.SUPABASE_KEY,
-      'Content-Type': 'application/json',
-    };
-  },
-  async select(table, query='') {
-    const url = `${CFG.SUPABASE_URL}/rest/v1/${table}` + (query ? `?${query}` : '');
-    const r = await fetch(url, { headers: this.headers() });
-    if (!r.ok) throw new Error(`GET ${table}: ${r.status}`);
-    return r.json();
-  },
-  async insert(table, payload) {
-    const url = `${CFG.SUPABASE_URL}/rest/v1/${table}`;
-    const r = await fetch(url, {
-      method: 'POST',
-      headers: { ...this.headers(), 'Prefer': 'return=representation' },
-      body: JSON.stringify(payload),
-    });
-    if (!r.ok) throw new Error(`POST ${table}: ${r.status} ${await r.text()}`);
-    return r.json();
-  },
-  async del(table, query) {
-    const url = `${CFG.SUPABASE_URL}/rest/v1/${table}?${query}`;
-    const r = await fetch(url, { method: 'DELETE', headers: this.headers() });
-    if (!r.ok) throw new Error(`DELETE ${table}: ${r.status}`);
-  },
-  async rpc(fn, payload) {
-    const url = `${CFG.SUPABASE_URL}/rest/v1/rpc/${fn}`;
-    const r = await fetch(url, { method: 'POST', headers: this.headers(), body: JSON.stringify(payload) });
-    if (!r.ok) throw new Error(`RPC ${fn}: ${r.status}`);
-    return r.text();
-  },
-  async uploadFile(path, file, contentType) {
-    const url = `${CFG.SUPABASE_URL}/storage/v1/object/${CFG.STORAGE_BUCKET}/${path}`;
-    const r = await fetch(url, {
-      method: 'POST',
-      headers: { 'apikey': CFG.SUPABASE_KEY, 'Authorization': 'Bearer ' + CFG.SUPABASE_KEY,
-                 'Content-Type': contentType, 'x-upsert': 'true' },
-      body: file,
-    });
-    if (!r.ok) throw new Error(`UPLOAD: ${r.status} ${await r.text()}`);
-    return `${CFG.SUPABASE_URL}/storage/v1/object/public/${CFG.STORAGE_BUCKET}/${path}`;
-  },
-  async askAi(question) {
-    const url = `${CFG.SUPABASE_URL}/functions/v1/preguntar-convenio`;
-    const r = await fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ question }) });
-    const data = await r.json().catch(()=>({}));
-    if (!r.ok) throw new Error(data.error || `Error ${r.status}`);
-    return data.answer;
-  },
-  // Carpetas personalizadas
-  async getFolders() {
-    return this.select('custom_folders', 'select=*&order=created_at.asc');
-  },
-  async createFolder(title) {
-    const key = 'custom_' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
-    return this.insert('custom_folders', { cat_key:key, title });
-  },
-  async deleteFolder(id, catKey) {
-    // Borra la carpeta y todo su contenido asociado
-    await this.del('content_items', `category=eq.${encodeURIComponent(catKey)}`).catch(()=>{});
-    await this.del('custom_folders', `id=eq.${id}`);
-  },
-};
-
-// ─────────────────────────── Auth (localStorage) ────────────────────────
-const Auth = {
-  get matricula() { return localStorage.getItem('matricula') || ''; },
-  set matricula(v) { localStorage.setItem('matricula', v); },
-  get deviceId() {
-    let id = localStorage.getItem('deviceId');
-    if (!id) { id = 'web-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
-               localStorage.setItem('deviceId', id); }
-    return id;
-  },
-  get isLogged() { return !!this.matricula; },
-  get isAdmin() { return this.matricula === CFG.PERMANENT_MATRICULA; },
-  // Modo gestión: se desbloquea al entrar en Privado con la contraseña.
-  // Dura toda la sesión (hasta cerrar sesión). Guardado en sessionStorage
-  // para que no persista entre cierres completos de la app.
-  get manageMode() { return sessionStorage.getItem('manage') === '1'; },
-  set manageMode(v) { if(v) sessionStorage.setItem('manage','1'); else sessionStorage.removeItem('manage'); },
-  checkPrivadoPassword(pw) { return pw === CFG.PRIVADO_PASSWORD; },
-  logout() { localStorage.removeItem('matricula'); sessionStorage.removeItem('manage'); },
-};
-
-// ─────────────────────────── Categorías ─────────────────────────────────
-const CALENDAR_SUBS = [
-  { key:'calendarios_100', label:'Línea 100' },
-  { key:'calendarios_3198', label:'Línea 3198' },
-  { key:'calendarios_50', label:'Línea 50' },
-  { key:'calendarios_sae', label:'SAE' },
-  { key:'calendarios_inspeccion', label:'Inspección' },
-  { key:'calendarios_z', label:'Zona' },
-  { key:'calendarios_interinis', label:'Interinidad' },
+/* ───────────── Estado ───────────── */
+const DEF_APPS = [
+  { id: 'maps', n: 'Google Maps', u: 'https://www.google.com/maps', e: '📍' },
+  { id: 'waze', n: 'Waze', u: 'https://www.waze.com/live-map', e: '🚙' },
+  { id: 'yt', n: 'YouTube', u: 'https://m.youtube.com', e: '▶️' },
+  { id: 'spot', n: 'Spotify', u: 'https://open.spotify.com', e: '🎧' },
+  { id: 'nflx', n: 'Netflix', u: 'https://www.netflix.com', e: '🎬' },
+  { id: 'twitch', n: 'Twitch', u: 'https://m.twitch.tv', e: '🟣' },
+  { id: 'wa', n: 'WhatsApp', u: 'https://web.whatsapp.com', e: '💬' },
+  { id: 'radio', n: 'Radio Garden', u: 'https://radio.garden', e: '📻' },
+  { id: 'windy', n: 'Windy', u: 'https://www.windy.com', e: '🌬️' },
+  { id: 'hud', n: 'Tesla HUD (antiguo)', u: 'old-hud/index.html', e: '🚘' },
+  { id: 'gmail', n: 'Gmail', u: 'https://mail.google.com', e: '✉️' },
+  { id: 'wiki', n: 'Wikipedia', u: 'https://es.m.wikipedia.org', e: '📚' },
 ];
+const DEF = {
+  theme: 'auto-time', accent: '#3e9bff', radius: 22, colw: 300, rows: 2, rhd: false,
+  wallMode: 'default', wallSel: 0, wallInterval: 30, wallEffect: 'fade',
+  widgets: [['clock', 1], ['weather', 1], ['music', 1], ['map', 1], ['speed', 1], ['tpms', 1], ['apps', 1]],
+  apps: DEF_APPS, quick: ['maps', 'yt', 'spot', 'waze', 'hud'], openMode: 'float', sort: 'default',
+  hideLyrics: false, visualizer: true, lyricSize: 28, lyricCur: '#ffffff', lyricNorm: '#9aa3b2',
+  speedUnit: 'kmh', pressUnit: 'bar', tempUnit: 'c', tpWarn: 2.0, tpDanger: 1.6, spare: false,
+  tires: { fl: 2.4, fr: 2.4, rl: 2.5, rr: 2.5 },
+  fab: { on: true, click: 'home', long: 'daynight', x: null, y: null }, keys: [],
+  city: null, lastPos: null, maxSpeed: 0, trip: 0,
+};
+let S;
+try { S = Object.assign(structuredClone(DEF), JSON.parse(localStorage.getItem('leco.v1') || '{}')); } catch { S = structuredClone(DEF); }
+const save = () => { try { localStorage.setItem('leco.v1', JSON.stringify(S)); } catch { toast('No se pudo guardar (almacenamiento lleno)'); } };
 
-const MENU = [
-  { cat:'convenio',   title:'Convenio',  icon:'convenio',   color:'var(--azul)' },
-  { cat:'calendarios',title:'Calendarios',icon:'calendarios',color:'var(--verde)' },
-  { cat:'actas',      title:'Actas',     icon:'actas',      color:'var(--naranja)' },
-  { cat:'contactos',  title:'Contactos', icon:'contactos',  color:'var(--teal)' },
-  { cat:'pic',        title:'Bus y Avería',icon:'pic',      color:'var(--violeta)' },
-  { cat:'quejas',     title:'Quejas y sugerencias',icon:'quejas',color:'var(--rojo)' },
-  { cat:'privado',    title:'Privado',   icon:'privado',    color:'var(--gris)', auth:true },
-];
+function toast(msg, ms = 2200) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), ms);
+}
 
-const CAT_META = {
-  convenio:{name:'CONVENIO',icon:'convenio',color:'var(--azul)'},
-  calendarios:{name:'CALENDARIOS',icon:'calendarios',color:'var(--verde)'},
-  actas:{name:'ACTAS',icon:'actas',color:'var(--naranja)'},
-  contactos:{name:'CONTACTOS',icon:'contactos',color:'var(--teal)'},
-  pic:{name:'BUS Y AVERÍA',icon:'pic',color:'var(--violeta)'},
-  quejas:{name:'QUEJAS',icon:'quejas',color:'var(--rojo)'},
-  privado:{name:'PRIVADO',icon:'privado',color:'var(--gris)'},
+/* ───────────── IndexedDB (fondos) ───────────── */
+const idb = (() => {
+  let db;
+  const open = () => db ||= new Promise((ok, ko) => {
+    const r = indexedDB.open('lecoauto', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('walls', { keyPath: 'id', autoIncrement: true });
+    r.onsuccess = () => ok(r.result); r.onerror = () => ko(r.error);
+  });
+  const tx = async (m, f) => { const d = await open(); return new Promise((ok, ko) => { const t = d.transaction('walls', m); const q = f(t.objectStore('walls')); t.oncomplete = () => ok(q.result); t.onerror = () => ko(t.error); }); };
+  return { all: () => tx('readonly', s => s.getAll()), add: b => tx('readwrite', s => s.add({ blob: b })), del: id => tx('readwrite', s => s.delete(id)) };
+})();
+
+/* ───────────── Tema día/noche ───────────── */
+let ambientDark = null;
+function isDark() {
+  switch (S.theme) {
+    case 'dark': return true;
+    case 'light': return false;
+    case 'system': return matchMedia('(prefers-color-scheme: dark)').matches;
+    case 'light-sensor': if (ambientDark !== null) return ambientDark; // si no hay sensor, cae a hora
+    default: { const h = new Date().getHours(); return h < 6 || h >= 19; }
+  }
+}
+function applyTheme() {
+  const dark = isDark(), r = document.documentElement;
+  r.dataset.theme = dark ? 'dark' : 'light';
+  r.style.setProperty('--acc', S.accent); r.style.setProperty('--radius', S.radius + 'px');
+  r.style.setProperty('--colw', S.colw + 'px'); r.style.setProperty('--rows', S.rows);
+  r.style.setProperty('--lyr-cur', S.lyricCur); r.style.setProperty('--lyr-norm', S.lyricNorm); r.style.setProperty('--lyr-size', S.lyricSize + 'px');
+  document.body.classList.toggle('rhd', S.rhd); document.body.classList.toggle('nolyr', S.hideLyrics);
+  $('meta[name=theme-color]').content = dark ? '#0b0f17' : '#e9eef6';
+  Wall.refreshDefault();
+}
+if (S.theme === 'light-sensor' && 'AmbientLightSensor' in window) {
+  try { const s = new AmbientLightSensor({ frequency: 0.5 }); s.onreading = () => { const d = s.illuminance < 25; if (d !== ambientDark) { ambientDark = d; applyTheme(); } }; s.start(); } catch { }
+}
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => S.theme === 'system' && applyTheme());
+
+/* ───────────── Fondo / carrusel ───────────── */
+const Wall = {
+  list: [], layers: $$('#wall .wl'), cur: 0, idx: 0, timer: 0, urls: [],
+  async load() { try { this.list = await idb.all(); } catch { this.list = []; } this.urls.forEach(URL.revokeObjectURL); this.urls = this.list.map(w => URL.createObjectURL(w.blob)); },
+  show(url) {
+    const next = this.layers[1 - this.cur], old = this.layers[this.cur];
+    next.className = 'wl fx-' + S.wallEffect + (url ? '' : ' def-' + (isDark() ? 'dark' : 'light'));
+    next.style.backgroundImage = url ? `url("${url}")` : '';
+    document.documentElement.style.setProperty('--wt', S.wallEffect === 'none' ? '0s' : '1.2s');
+    void next.offsetWidth; next.classList.add('show'); old.classList.remove('show'); this.cur = 1 - this.cur;
+  },
+  refreshDefault() { if (!this.urls.length || S.wallMode === 'default') this.apply(true); },
+  apply(quiet) {
+    clearInterval(this.timer);
+    if (S.wallMode === 'default' || !this.urls.length) return this.show(null);
+    if (S.wallMode === 'custom') return this.show(this.urls[clamp(S.wallSel, 0, this.urls.length - 1)]);
+    this.idx = quiet ? this.idx : 0; this.show(this.urls[this.idx % this.urls.length]);
+    this.timer = setInterval(() => { this.idx = (this.idx + 1) % this.urls.length; this.show(this.urls[this.idx]); }, Math.max(5, S.wallInterval) * 1000);
+  },
 };
 
-// ─────────────────────────── Utilidades UI ──────────────────────────────
-function el(html){ const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstChild; }
-function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'),2600); }
-function esc(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-function nowStr(){ const d=new Date(); const p=n=>String(n).padStart(2,'0');
-  return `${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; }
-function catLabel(cat){ if(cat.startsWith('calendarios')) return 'CALENDARIOS';
-  return (CAT_META[cat]||{name:cat.toUpperCase()}).name; }
-function catIcon(cat){ if(cat.startsWith('calendarios')) return 'calendarios';
-  return (CAT_META[cat]||{icon:'contactos'}).icon; }
+/* ───────────── Navegación ───────────── */
+let page = 'home';
+const renderers = {};
+function go(p) {
+  if (!renderers[p]) return;
+  page = p;
+  $$('.page').forEach(e => e.classList.toggle('act', e.id === 'p-' + p));
+  $$('#dock button').forEach(b => b.classList.toggle('act', b.dataset.go === p));
+  renderers[p]();
+}
+$$('#dock button').forEach(b => b.onclick = () => go(b.dataset.go));
 
-// ¿Puede el usuario AÑADIR contenido en esta categoría?
-//  - Quejas y Bus/Avería: cualquiera (buzones abiertos)
-//  - Resto: solo en modo gestión (contraseña de Privado)
-function canAdd(cat){
-  if (cat === 'quejas' || cat === 'pic') return true;
-  return Auth.manageMode;
+/* ───────────── Reloj ───────────── */
+const DAYS = new Intl.DateTimeFormat('es', { weekday: 'long', day: 'numeric', month: 'long' });
+function greeting(h) { return h < 6 ? 'Madrugada' : h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches'; }
+function tickClock() {
+  const d = new Date(), t = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  $('#stTime').textContent = t; $('#stDate').textContent = DAYS.format(d);
+  $$('.js-clock').forEach(e => e.textContent = t);
+  $$('.js-greet').forEach(e => e.textContent = greeting(d.getHours()));
+  $$('.js-date').forEach(e => e.textContent = DAYS.format(d));
+  if (S.theme === 'auto-time' || S.theme === 'light-sensor') { const dk = isDark(); if (document.documentElement.dataset.theme !== (dk ? 'dark' : 'light')) applyTheme(); }
 }
 
-// ¿Puede el usuario BORRAR contenido en esta categoría?
-//  - Borrar SIEMPRE requiere modo gestión, en todas las secciones.
-function canDelete(cat){
-  return Auth.manageMode;
+/* ───────────── GPS / velocidad ───────────── */
+const GPS = { pos: null, speed: 0, status: 'off', last: null };
+const spdConv = ms => S.speedUnit === 'mph' ? ms * 2.23694 : ms * 3.6;
+const spdUnit = () => S.speedUnit === 'mph' ? 'mph' : 'km/h';
+function startGPS() {
+  if (!navigator.geolocation) return setGpsDot('off');
+  setGpsDot('wait');
+  navigator.geolocation.watchPosition(p => {
+    const c = p.coords; GPS.pos = c; GPS.speed = c.speed != null && !isNaN(c.speed) ? Math.max(0, c.speed) : 0;
+    if (GPS.last && c.accuracy < 60) { const d = hav(GPS.last, c); if (d > 4 && d < 500) { S.trip += d; } }
+    if (!GPS.last || c.accuracy < 60) GPS.last = { latitude: c.latitude, longitude: c.longitude };
+    S.maxSpeed = Math.max(S.maxSpeed, GPS.speed); S.lastPos = [c.latitude, c.longitude];
+    setGpsDot('on'); bus.emit('pos', c); renderSpeedUI(); saveSoon();
+  }, () => setGpsDot('off'), { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 });
+}
+let sv; const saveSoon = () => { clearTimeout(sv); sv = setTimeout(save, 3000); };
+function setGpsDot(s) { GPS.status = s; const d = $('#stGps'); d.className = 'dot ' + (s === 'on' ? 'on' : s === 'wait' ? 'wait' : ''); }
+function hav(a, b) { const R = 6371000, r = x => x * Math.PI / 180, dLa = r(b.latitude - a.latitude), dLo = r(b.longitude - a.longitude); const x = Math.sin(dLa / 2) ** 2 + Math.cos(r(a.latitude)) * Math.cos(r(b.latitude)) * Math.sin(dLo / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); }
+function renderSpeedUI() {
+  const v = Math.round(spdConv(GPS.speed));
+  $('#stSpeed').textContent = `${v} ${spdUnit()}`;
+  $$('.js-spd').forEach(e => e.textContent = v);
+  $$('.js-spdbar').forEach(e => e.style.width = clamp(v / (S.speedUnit === 'mph' ? 100 : 160) * 100, 0, 100) + '%');
+  $$('.js-max').forEach(e => e.textContent = Math.round(spdConv(S.maxSpeed)));
+  $$('.js-trip').forEach(e => e.textContent = (S.speedUnit === 'mph' ? S.trip / 1609.34 : S.trip / 1000).toFixed(1));
 }
 
-// Compatibilidad: canManage = puede añadir (se usa para mostrar el botón +)
-function canManage(cat){ return canAdd(cat); }
-
-// ─────────────────────────── Router ─────────────────────────────────────
-const routes = {};
-function route(name, fn){ routes[name]=fn; }
-function go(name, params){ location.hash = '#'+name + (params?('/'+encodeURIComponent(JSON.stringify(params))):''); }
-function render(node){ app.innerHTML=''; app.appendChild(node); }
-
-window.addEventListener('hashchange', handleRoute);
-function handleRoute(){
-  const raw = location.hash.slice(1) || 'main';
-  const [name, paramStr] = raw.split('/');
-  if (!Auth.isLogged && name !== 'login') { return go('login'); }
-  const fn = routes[name] || routes['main'];
-  let params = null;
-  if (paramStr) { try { params = JSON.parse(decodeURIComponent(paramStr)); } catch(e){} }
-  fn(params);
-}
-
-// ─────────────────────────── Pantalla LOGIN ─────────────────────────────
-route('login', () => {
-  const node = el(`<div class="screen"><div class="login">
-    <div class="biglogo"><span></span></div>
-    <h2>USO <i style="font-style:italic;color:var(--rojo)">emb</i></h2>
-    <p>Introduce tu matrícula para entrar</p>
-    <input id="mat" inputmode="numeric" placeholder="Matrícula" autocomplete="off">
-    <div class="err" id="loginErr"></div>
-    <button class="btn" id="enterBtn">Entrar</button>
-  </div></div>`);
-  render(node);
-  const inp = node.querySelector('#mat');
-  const err = node.querySelector('#loginErr');
-  const btn = node.querySelector('#enterBtn');
-  inp.focus();
-  const submit = async () => {
-    const val = inp.value.trim();
-    if (!val) { err.textContent='Escribe tu matrícula.'; return; }
-    btn.disabled=true; err.textContent=''; btn.innerHTML='<span class="spinner"></span>';
-    try {
-      // PIN de emergencia
-      if (val === CFG.EMERGENCY_PIN) {
-        await SB.rpc('claim_matricula', { p_matricula: CFG.PERMANENT_MATRICULA, p_device_id: Auth.deviceId }).catch(()=>{});
-        Auth.matricula = CFG.PERMANENT_MATRICULA;
-        return go('main');
-      }
-      const key = val.toUpperCase();
-      // Validar permitida
-      const allowed = await SB.select('matriculas_allowed', `matricula=eq.${encodeURIComponent(key)}&select=matricula`);
-      const isPermanent = key === CFG.PERMANENT_MATRICULA;
-      if (!allowed.length && !isPermanent) { err.textContent='Matrícula no autorizada.'; return; }
-      // Reclamar
-      const res = (await SB.rpc('claim_matricula', { p_matricula:key, p_device_id:Auth.deviceId })).trim();
-      if (res === 'true' || isPermanent) { Auth.matricula = key; go('main'); }
-      else err.textContent='Esa matrícula ya está en uso en otro dispositivo.';
-    } catch(e) {
-      err.textContent = 'Error de conexión. Revisa tu internet.';
-      console.error(e);
-    } finally { btn.disabled=false; btn.textContent='Entrar'; }
-  };
-  btn.onclick = submit;
-  inp.onkeydown = e => { if(e.key==='Enter') submit(); };
-});
-
-// ─────────────────────────── Pantalla PRINCIPAL ─────────────────────────
-route('main', async () => {
-  const node = el(`<div class="screen">
-    <div class="hero">
-      <div class="logo"><span></span></div>
-      <div class="titles"><b>USO</b><i>emb</i>
-        ${Auth.matricula?`<small>Matrícula ${esc(Auth.matricula)}</small>`:''}</div>
-      <button id="logoutBtn" title="Salir" style="color:#fff;font-size:18px">⎋</button>
-    </div>
-    <div class="content">
-      <div id="recentWrap"></div>
-      <div class="section-title">Categorías</div>
-      <div class="grid" id="grid"></div>
-    </div>
-  </div>`);
-  render(node);
-  node.querySelector('#logoutBtn').onclick = () => {
-    if(confirm('¿Cerrar sesión?')){ Auth.logout(); go('login'); }
-  };
-
-  const grid = node.querySelector('#grid');
-  const items = MENU.filter(m => !m.adminOnly || Auth.isAdmin);
-  items.forEach(m => {
-    const card = el(`<button class="card" style="color:${m.color}">
-      ${ICONS[m.icon]}<div class="label">${esc(m.title)}</div></button>`);
-    card.onclick = () => {
-      if (m.cat==='privado') return go('privado');
-      if (m.cat==='convenio') return go('convenio');
-      if (m.cat==='calendarios') return go('calendarios');
-      go('list', { cat:m.cat });
-    };
-    grid.appendChild(card);
-  });
-
-  // Carpetas personalizadas (creadas desde Privado). Visibles para todos.
+/* ───────────── Clima (Open-Meteo, sin clave) ───────────── */
+const WX = { data: null, at: 0 };
+const wxDesc = c => c === 0 ? ['☀️', 'Despejado'] : c <= 2 ? ['🌤️', 'Poco nublado'] : c === 3 ? ['☁️', 'Nublado'] : c <= 48 ? ['🌫️', 'Niebla'] : c <= 57 ? ['🌦️', 'Llovizna'] : c <= 67 ? ['🌧️', 'Lluvia'] : c <= 77 ? ['🌨️', 'Nieve'] : c <= 82 ? ['🌧️', 'Chubascos'] : c <= 86 ? ['🌨️', 'Nevada'] : ['⛈️', 'Tormenta'];
+const tmp = c => S.tempUnit === 'f' ? Math.round(c * 9 / 5 + 32) + '°F' : Math.round(c) + '°C';
+async function loadWeather(force) {
+  const p = GPS.pos ? [GPS.pos.latitude, GPS.pos.longitude] : S.city ? [S.city.lat, S.city.lon] : S.lastPos;
+  if (!p) return;
+  if (!force && WX.data && Date.now() - WX.at < 15 * 60e3) return;
   try {
-    const folders = await SB.getFolders();
-    folders.forEach(f => {
-      const card = el(`<button class="card" style="color:var(--gris)">
-        ${ICONS.contactos}<div class="label">${esc(f.title)}</div></button>`);
-      card.onclick = () => go('list', { cat:f.cat_key, title:f.title });
-      grid.appendChild(card);
+    const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${p[0].toFixed(3)}&longitude=${p[1].toFixed(3)}&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m&daily=temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=1`);
+    WX.data = await r.json(); WX.at = Date.now(); renderWeather();
+  } catch { /* sin red */ }
+}
+function renderWeather() {
+  const d = WX.data; const [em, tx] = d ? wxDesc(d.current.weather_code) : ['🌡️', 'Sin datos'];
+  $('#stWeather').textContent = d ? `${em} ${tmp(d.current.temperature_2m)} · ${tx}` : '';
+  $$('.js-wx').forEach(el => {
+    el.innerHTML = d ? `<div class="row"><span class="em">${em}</span><div><span class="t">${tmp(d.current.temperature_2m)}</span><small>${tx}</small></div></div>
+      <small>↑ ${tmp(d.daily.temperature_2m_max[0])} · ↓ ${tmp(d.daily.temperature_2m_min[0])} · 💨 ${Math.round(d.current.wind_speed_10m)} km/h · 💧 ${d.current.relative_humidity_2m}%</small>
+      <small class="city" data-act="city">📍 ${esc(S.city?.name || (GPS.pos ? 'Tu ubicación' : 'Elegir ciudad'))}</small>`
+      : `<div class="row"><span class="em">🌡️</span><div><small>Sin datos del clima.<br>Activa el GPS o elige una ciudad.</small></div></div><small class="city" data-act="city">📍 Elegir ciudad</small>`;
+  });
+}
+async function pickCity() {
+  const v = await promptDlg('Buscar ciudad', 'Ej. Madrid');
+  if (!v) return;
+  try {
+    const r = await (await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(v)}&count=1&language=es`)).json();
+    const c = r.results?.[0]; if (!c) return toast('Ciudad no encontrada');
+    S.city = { name: c.name, lat: c.latitude, lon: c.longitude }; save(); loadWeather(true); toast('Ciudad: ' + c.name);
+  } catch { toast('Sin conexión'); }
+}
+
+/* ───────────── Diálogos ───────────── */
+function dlg(html, onMount) {
+  const m = $('#modal'); m.innerHTML = `<div class="dlg">${html}</div>`; m.hidden = false;
+  m.onclick = e => { if (e.target === m) closeDlg(); }; onMount?.($('.dlg', m));
+}
+const closeDlg = () => { $('#modal').hidden = true; $('#modal').innerHTML = ''; };
+function promptDlg(title, ph = '', val = '') {
+  return new Promise(ok => dlg(`<h3>${esc(title)}</h3><div class="f"><input class="in" id="dv" placeholder="${esc(ph)}" value="${esc(val)}"></div>
+    <div class="acts"><button class="btn sec" id="dc">Cancelar</button><button class="btn" id="dk">Aceptar</button></div>`, d => {
+    const i = $('#dv', d); i.focus(); const fin = v => { closeDlg(); ok(v); };
+    $('#dc', d).onclick = () => fin(null); $('#dk', d).onclick = () => fin(i.value.trim()); i.onkeydown = e => e.key === 'Enter' && fin(i.value.trim());
+  }));
+}
+
+/* ───────────── Música ───────────── */
+const audio = $('#audio');
+const Mus = { list: [], i: -1, lrc: [], lrcIdx: -1, ac: null, an: null };
+const fmt = s => isFinite(s) ? `${Math.floor(s / 60)}:${pad(Math.floor(s % 60))}` : '0:00';
+function parseLRC(txt) {
+  const out = [];
+  for (const line of txt.split(/\r?\n/)) {
+    const ts = [...line.matchAll(/\[(\d+):(\d+(?:\.\d+)?)\]/g)]; const text = line.replace(/\[[^\]]*\]/g, '').trim();
+    ts.forEach(m => out.push({ t: +m[1] * 60 + parseFloat(m[2]), s: text }));
+  }
+  return out.sort((a, b) => a.t - b.t);
+}
+const base = n => n.replace(/\.[^.]+$/, '');
+function addTracks(files) {
+  const aud = [...files].filter(f => f.type.startsWith('audio') || /\.(mp3|m4a|aac|ogg|wav|flac|opus)$/i.test(f.name));
+  const lrcs = [...files].filter(f => /\.lrc$/i.test(f.name));
+  aud.forEach(f => {
+    const [ar, ti] = base(f.name).includes(' - ') ? base(f.name).split(/ - (.+)/) : ['', base(f.name)];
+    Mus.list.push({ file: f, url: URL.createObjectURL(f), title: ti, artist: ar, lrcFile: lrcs.find(l => base(l.name) === base(f.name)) });
+  });
+  if (aud.length) { toast(`${aud.length} canción(es) añadida(s)`); if (Mus.i < 0) playIdx(0); else bus.emit('music'); }
+}
+async function playIdx(i) {
+  if (!Mus.list.length) return;
+  Mus.i = (i + Mus.list.length) % Mus.list.length; const t = Mus.list[Mus.i];
+  audio.src = t.url; Mus.lrc = []; Mus.lrcIdx = -1;
+  if (t.lrcFile) Mus.lrc = parseLRC(await t.lrcFile.text());
+  try { await audio.play(); } catch { }
+  if ('mediaSession' in navigator) navigator.mediaSession.metadata = new MediaMetadata({ title: t.title, artist: t.artist });
+  bus.emit('music');
+}
+const togglePlay = () => { if (Mus.i < 0) return pickAudio(); audio.paused ? audio.play() : audio.pause(); };
+const pickAudio = () => $('#fileAudio').click();
+$('#fileAudio').onchange = e => { addTracks(e.target.files); e.target.value = ''; };
+$('#fileLrc').onchange = async e => { const f = e.target.files[0]; e.target.value = ''; if (!f || Mus.i < 0) return; Mus.lrc = parseLRC(await f.text()); Mus.list[Mus.i].lrcFile = f; toast(Mus.lrc.length ? 'Letra cargada' : 'Formato LRC no válido'); bus.emit('music'); };
+audio.onended = () => playIdx(Mus.i + 1);
+['play', 'pause'].forEach(ev => audio.addEventListener(ev, () => { $$('.cd').forEach(c => c.classList.toggle('play', !audio.paused)); $$('.js-pp').forEach(b => b.textContent = audio.paused ? '▶' : '⏸'); if (!audio.paused) startViz(); }));
+audio.ontimeupdate = () => {
+  $$('.js-seek').forEach(r => { if (!r.dragging) { r.max = audio.duration || 0; r.value = audio.currentTime; } });
+  $$('.js-cur').forEach(e => e.textContent = fmt(audio.currentTime)); $$('.js-dur').forEach(e => e.textContent = fmt(audio.duration));
+  let k = -1; for (let j = 0; j < Mus.lrc.length && Mus.lrc[j].t <= audio.currentTime + .2; j++) k = j;
+  if (k !== Mus.lrcIdx) { Mus.lrcIdx = k; const line = Mus.lrc[k]?.s || ''; $$('.lyr1').forEach(e => e.textContent = line); updateLyricsFull(); }
+};
+if ('mediaSession' in navigator) {
+  const ms = navigator.mediaSession;
+  [['play', () => audio.play()], ['pause', () => audio.pause()], ['previoustrack', () => playIdx(Mus.i - 1)], ['nexttrack', () => playIdx(Mus.i + 1)]].forEach(([a, f]) => { try { ms.setActionHandler(a, f); } catch { } });
+}
+function startViz() {
+  if (!S.visualizer || Mus.an) return;
+  try { Mus.ac = new (window.AudioContext || window.webkitAudioContext)(); const src = Mus.ac.createMediaElementSource(audio); Mus.an = Mus.ac.createAnalyser(); Mus.an.fftSize = 64; src.connect(Mus.an); Mus.an.connect(Mus.ac.destination); } catch { return; }
+  const buf = new Uint8Array(Mus.an.frequencyBinCount);
+  (function draw() {
+    requestAnimationFrame(draw);
+    if (audio.paused || !S.visualizer) return;
+    Mus.an.getByteFrequencyData(buf);
+    $$('canvas.viz').forEach(c => {
+      const w = c.width = c.clientWidth, h = c.height = c.clientHeight, g = c.getContext('2d'), n = 24, bw = w / n;
+      g.clearRect(0, 0, w, h); g.fillStyle = S.accent;
+      for (let i = 0; i < n; i++) { const v = buf[i] / 255 * h; g.globalAlpha = .4 + buf[i] / 400; g.fillRect(i * bw + 2, h - v, bw - 4, v); }
     });
-  } catch(e){ console.warn('folders', e); }
-
-  // Actividad reciente
-  try {
-    const recent = await loadRecent();
-    if (recent.length) {
-      const wrap = node.querySelector('#recentWrap');
-      wrap.appendChild(el(`<div class="section-title">Última actividad</div>`));
-      const row = el(`<div class="recent"></div>`);
-      recent.forEach(({cat,item}) => {
-        const c = el(`<div class="recent-card">${ICONS[catIcon(cat)]}
-          <div style="min-width:0">
-            <div class="rc-cat" style="color:${(CAT_META[cat.replace(/_.*/,'')]||{}).color||'var(--rojo)'}">${catLabel(cat)}</div>
-            <div class="rc-title">${esc(item.title||'(sin título)')}</div>
-            <div class="rc-date">${esc(item.date_text||'')}</div>
-          </div></div>`);
-        c.onclick = () => {
-          if(cat.startsWith('calendarios')) return go('calendarios');
-          if(cat==='convenio') return go('convenio');
-          go('list',{cat});
-        };
-        row.appendChild(c);
-      });
-      wrap.appendChild(row);
-    }
-  } catch(e){ console.warn('recent', e); }
-});
-
-async function loadRecent(){
-  const cats = ['quejas','actas','pic','contactos'];
-  const all = [];
-  for (const cat of cats) {
-    try {
-      const rows = await SB.select('content_items', `category=eq.${cat}&select=*&order=created_at.desc&limit=3`);
-      rows.forEach(r => all.push({ cat, item:r, ts:r.created_at }));
-    } catch(e){}
-  }
-  all.sort((a,b)=> (b.ts||'').localeCompare(a.ts||''));
-  return all.slice(0,5);
+  })();
 }
-
-// ─────────────────────────── Pantalla LISTA genérica ────────────────────
-route('list', async (params) => {
-  const cat = params?.cat || 'quejas';
-  const customTitle = params?.title;
-  const meta = CAT_META[cat] || { name: customTitle || cat.toUpperCase() };
-  const titulo = customTitle || (meta.name.charAt(0)+meta.name.slice(1).toLowerCase());
-  const node = el(`<div class="screen">
-    <div class="appbar"><button id="back">‹</button><h1>${esc(titulo)}</h1></div>
-    <div class="content" id="list"><div class="loading-full"><div class="spinner dark"></div></div></div>
-  </div>`);
-  render(node);
-  node.querySelector('#back').onclick = () => go('main');
-  const cont = node.querySelector('#list');
-
-  async function reload(){
-    try {
-      const rows = await SB.select('content_items', `category=eq.${cat}&select=*&order=created_at.desc`);
-      cont.innerHTML='';
-      if (!rows.length) {
-        cont.appendChild(el(`<div class="empty">${ICONS[catIcon(cat)]}<p>Todavía no hay nada aquí.</p></div>`));
-      } else {
-        const list = el(`<div class="list"></div>`);
-        rows.forEach(r => list.appendChild(renderItem(r, cat, reload)));
-        cont.appendChild(list);
-      }
-    } catch(e){
-      cont.innerHTML=''; cont.appendChild(el(`<div class="empty"><p>Error al cargar.<br>${esc(e.message)}</p></div>`));
-    }
-  }
-  await reload();
-
-  // FAB para añadir (quejas: todos; resto: solo modo gestión)
-  if (canManage(cat)) {
-    const fab = el(`<button class="fab">＋</button>`);
-    fab.onclick = () => openAddModal(cat, reload);
-    node.appendChild(fab);
-  }
-});
-
-// Resalta en amarillo las apariciones de `term` dentro de un texto,
-// respetando tildes (busca sin tilde pero marca el texto original).
-function highlightText(text, term){
-  const safe = esc(text || '');
-  if (!term) return safe;
-  const norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-  const nText = norm(safe);
-  const nTerm = norm(term.trim());
-  if (!nTerm) return safe;
-  let out = '', i = 0;
-  while (i < safe.length) {
-    const idx = nText.indexOf(nTerm, i);
-    if (idx === -1) { out += safe.slice(i); break; }
-    out += safe.slice(i, idx);
-    out += '<mark class="hl">' + safe.slice(idx, idx + nTerm.length) + '</mark>';
-    i = idx + nTerm.length;
-  }
-  return out;
-}
-
-function renderItem(r, cat, reload, highlight=''){
-  const puedeBorrar = canDelete(cat);
-  const titleHtml = highlight ? highlightText(r.title||'(sin título)', highlight) : esc(r.title||'(sin título)');
-  const bodyHtml  = highlight ? highlightText(r.body||'', highlight) : esc(r.body||'');
-  const item = el(`<div class="item">
-    ${puedeBorrar?`<button class="it-del">Borrar</button>`:''}
-    <div class="it-cat">${catLabel(cat)}</div>
-    <div class="it-title">${titleHtml}</div>
-    ${r.body?`<div class="it-body">${bodyHtml}</div>`:''}
-    ${r.file_url?`<a class="it-file" href="${esc(r.file_url)}" target="_blank" rel="noopener">📎 ${esc(r.file_name||'Ver archivo')}</a>`:''}
-    <div class="it-date">${esc(r.date_text||'')} ${r.uploader?'· '+esc(r.uploader):''}</div>
-  </div>`);
-  if (puedeBorrar) {
-    item.querySelector('.it-del').onclick = async () => {
-      if(!confirm('¿Borrar este elemento?')) return;
-      try { await SB.del('content_items', `id=eq.${r.id}`); toast('Borrado'); reload(); }
-      catch(e){ toast('Error al borrar'); }
-    };
-  }
-  return item;
-}
-
-// ─────────────────────────── Modal AÑADIR ───────────────────────────────
-function openAddModal(cat, reload){
-  const bg = el(`<div class="modal-bg"><div class="modal">
-    <h3>Añadir a ${esc((CAT_META[cat]||{name:cat}).name.toLowerCase())}</h3>
-    <input id="aTitle" placeholder="Título">
-    <textarea id="aBody" placeholder="Escribe aquí…"></textarea>
-    <input type="file" id="aFile" accept="image/*,application/pdf">
-    <div class="err" id="aErr"></div>
-    <div class="modal-actions">
-      <button class="btn btn-sec" id="aCancel">Cancelar</button>
-      <button class="btn" id="aSave">Publicar</button>
-    </div>
-  </div></div>`);
-  document.body.appendChild(bg);
-  const close = () => bg.remove();
-  bg.onclick = e => { if(e.target===bg) close(); };
-  bg.querySelector('#aCancel').onclick = close;
-  bg.querySelector('#aSave').onclick = async () => {
-    const title = bg.querySelector('#aTitle').value.trim();
-    const body = bg.querySelector('#aBody').value.trim();
-    const file = bg.querySelector('#aFile').files[0];
-    const err = bg.querySelector('#aErr');
-    const btn = bg.querySelector('#aSave');
-    if (!title && !body && !file) { err.textContent='Escribe algo o adjunta un archivo.'; return; }
-    btn.disabled=true; btn.innerHTML='<span class="spinner"></span>'; err.textContent='';
-    try {
-      let fileUrl=null, fileName=null, filePath=null;
-      if (file) {
-        const prepared = await prepareFile(file);
-        const safe = file.name.replace(/[^A-Za-z0-9._-]/g,'_');
-        filePath = `${cat}/${crypto.randomUUID()}-${safe}`;
-        fileUrl = await SB.uploadFile(filePath, prepared.blob, prepared.type);
-        fileName = file.name;
-      }
-      await SB.insert('content_items', {
-        category:cat, title:title||fileName||'(sin título)', body,
-        uploader:Auth.matricula, date_text:nowStr(),
-        file_name:fileName, file_path:filePath, file_url:fileUrl,
-      });
-      toast('Publicado'); close(); reload();
-    } catch(e){
-      err.textContent='Error al subir: '+e.message; console.error(e);
-    } finally { btn.disabled=false; btn.textContent='Publicar'; }
-  };
-}
-
-// Comprime imágenes a máx 1600px / JPEG antes de subir
-async function prepareFile(file){
-  if (!file.type.startsWith('image/')) {
-    if (file.size > 5*1024*1024) throw new Error('Archivo muy grande (máx 5 MB)');
-    return { blob:file, type:file.type||'application/octet-stream' };
-  }
-  const img = await new Promise((res,rej)=>{ const i=new Image();
-    i.onload=()=>res(i); i.onerror=rej; i.src=URL.createObjectURL(file); });
-  const max=1600; let {width:w,height:h}=img;
-  if (Math.max(w,h)>max){ const r=max/Math.max(w,h); w=Math.round(w*r); h=Math.round(h*r); }
-  const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
-  cv.getContext('2d').drawImage(img,0,0,w,h);
-  const blob = await new Promise(res=>cv.toBlob(res,'image/jpeg',0.85));
-  if (blob.size > 2*1024*1024) {
-    const blob2 = await new Promise(res=>cv.toBlob(res,'image/jpeg',0.6));
-    return { blob:blob2, type:'image/jpeg' };
-  }
-  return { blob, type:'image/jpeg' };
-}
-
-// ─────────────────────────── Pantalla CONVENIO ──────────────────────────
-route('convenio', async () => {
-  const node = el(`<div class="screen">
-    <div class="appbar"><button id="back">‹</button><h1>Convenio</h1>
-      <button id="aiBtn" title="Preguntar a la IA">✨</button></div>
-    <div style="padding:12px 16px 0">
-      <input id="cvSearch" placeholder="🔍 Buscar en el convenio…"
-        style="width:100%;padding:12px 16px;border-radius:20px;border:1px solid var(--outline);
-        background:var(--surface);color:var(--on-bg);font-size:15px">
-    </div>
-    <div class="content" id="cont"><div class="loading-full"><div class="spinner dark"></div></div></div>
-  </div>`);
-  render(node);
-  node.querySelector('#back').onclick = () => go('main');
-  node.querySelector('#aiBtn').onclick = () => go('ia');
-  const cont = node.querySelector('#cont');
-  const search = node.querySelector('#cvSearch');
-
-  let allRows = [];
-  // Normaliza: minúsculas y sin tildes, para que "articulo" encuentre "artículo"
-  const norm = s => (s||'').toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-  function paint(filter=''){
-    const q = norm(filter.trim());
-    const rows = q ? allRows.filter(r =>
-      norm(r.title).includes(q) || norm(r.body).includes(q)
-    ) : allRows;
-    cont.innerHTML='';
-    if (!rows.length) {
-      cont.appendChild(el(`<div class="empty">${ICONS.convenio}<p>${q?'Sin resultados para tu búsqueda.':'No hay artículos del convenio aún.'}</p></div>`));
-    } else {
-      const list=el(`<div class="list"></div>`);
-      rows.forEach(r=>list.appendChild(renderItem(r,'convenio',()=>go('convenio'), filter)));
-      cont.appendChild(list);
-    }
-  }
-
-  try {
-    allRows = await SB.select('convenio_articulos', `select=*&order=created_at.asc`);
-    paint();
-  } catch(e){ cont.innerHTML=''; cont.appendChild(el(`<div class="empty"><p>Error: ${esc(e.message)}</p></div>`)); }
-
-  let t;
-  search.oninput = () => { clearTimeout(t); t=setTimeout(()=>paint(search.value), 200); };
-
-  if (canManage('convenio')) { const fab=el(`<button class="fab">＋</button>`);
-    fab.onclick=()=>openAddModal('convenio',()=>go('convenio')); node.appendChild(fab); }
-});
-
-// ─────────────────────────── Pantalla IA (chat) ─────────────────────────
-route('ia', () => {
-  const node = el(`<div class="screen">
-    <div class="appbar"><button id="back">‹</button><h1>✨ Pregunta al convenio</h1></div>
-    <div class="chat">
-      <div class="chat-msgs" id="msgs"></div>
-      <div class="chat-input">
-        <textarea id="q" rows="1" placeholder="Escribe tu pregunta…"></textarea>
-        <button id="send">➤</button>
-      </div>
-    </div>
-  </div>`);
-  render(node);
-  node.querySelector('#back').onclick = () => go('convenio');
-  const msgs = node.querySelector('#msgs');
-  const q = node.querySelector('#q');
-  const send = node.querySelector('#send');
-
-  const sugs = ['¿Cuántos días de vacaciones tengo?','¿Cómo se calcula el plus de nocturnidad?',
-    '¿Qué pagas extras me corresponden?','¿Qué cobro si me pongo enfermo?'];
-  const welcome = el(`<div class="chat-welcome">
-    <div class="ico">✨</div>
-    <h2 style="margin:0 0 8px">Pregúntame del convenio</h2>
-    <p style="color:var(--on-var)">Respondo según el convenio EMB y el Estatuto de los Trabajadores. No invento — si no está, te lo digo.</p>
-    <div style="text-align:left;font-weight:600;margin:20px 0 8px;color:var(--on-var)">Sugerencias</div>
-  </div>`);
-  sugs.forEach(s=>{ const b=el(`<button class="sug">${esc(s)}</button>`); b.onclick=()=>ask(s); welcome.appendChild(b); });
-  msgs.appendChild(welcome);
-
-  q.oninput = () => { q.style.height='auto'; q.style.height=Math.min(q.scrollHeight,100)+'px'; };
-  let loading=false;
-  async function ask(text){
-    const question=(text||q.value).trim();
-    if(!question||loading) return;
-    welcome.remove();
-    msgs.appendChild(el(`<div class="bubble user">${esc(question)}</div>`));
-    q.value=''; q.style.height='auto';
-    loading=true; send.disabled=true;
-    const load = el(`<div class="bubble ai"><span class="spinner dark"></span> Pensando…</div>`);
-    msgs.appendChild(load); msgs.scrollTop=msgs.scrollHeight;
-    try {
-      const answer = await SB.askAi(question);
-      load.remove();
-      msgs.appendChild(el(`<div class="bubble ai">${esc(answer)}</div>`));
-    } catch(e){
-      load.remove();
-      msgs.appendChild(el(`<div class="bubble err">⚠️ ${esc(e.message)}</div>`));
-    } finally { loading=false; send.disabled=false; msgs.scrollTop=msgs.scrollHeight; }
-  }
-  send.onclick = () => ask();
-  q.onkeydown = e => { if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); ask(); } };
-});
-
-// ─────────────────────────── Pantalla CALENDARIOS ───────────────────────
-route('calendarios', async () => {
-  let activeSub = CALENDAR_SUBS[0].key;
-  const node = el(`<div class="screen">
-    <div class="appbar"><button id="back">‹</button><h1>Calendarios</h1></div>
-    <div class="tabs" id="tabs"></div>
-    <div class="content" id="cont"></div>
-  </div>`);
-  render(node);
-  node.querySelector('#back').onclick = () => go('main');
-  const tabs = node.querySelector('#tabs');
-  const cont = node.querySelector('#cont');
-
-  CALENDAR_SUBS.forEach(s => {
-    const t = el(`<button class="tab${s.key===activeSub?' active':''}">${esc(s.label)}</button>`);
-    t.onclick = () => { activeSub=s.key; [...tabs.children].forEach(c=>c.classList.remove('active'));
-      t.classList.add('active'); loadSub(); };
-    tabs.appendChild(t);
+function trackInfo() { const t = Mus.list[Mus.i]; return t ? [t.title, t.artist || 'Artista desconocido'] : ['Sin música', 'Toca para añadir canciones']; }
+const musicControls = () => `<div class="ctl"><button data-a="prev">⏮</button><button class="main js-pp" data-a="pp">${audio.paused ? '▶' : '⏸'}</button><button data-a="next">⏭</button></div>`;
+function bindMusic(root) {
+  $$('[data-a]', root).forEach(b => b.onclick = e => {
+    e.stopPropagation(); const a = b.dataset.a;
+    if (a === 'prev') playIdx(Mus.i - 1); else if (a === 'next') playIdx(Mus.i + 1); else if (a === 'pp') togglePlay();
+    else if (a === 'add') pickAudio(); else if (a === 'lrc') Mus.i < 0 ? toast('Primero añade una canción') : $('#fileLrc').click();
   });
+  $$('.js-seek', root).forEach(r => { r.oninput = () => { r.dragging = true; }; r.onchange = () => { audio.currentTime = +r.value; r.dragging = false; }; });
+}
+function widgetMusic(el) {
+  const [t, a] = trackInfo();
+  el.innerHTML = `<div class="mus"><div class="top"><div class="cd ${audio.paused ? '' : 'play'}"></div><div class="meta"><div class="ti">${esc(t)}</div><div class="ar">${esc(a)}</div></div>
+    <button class="ic" data-a="add" title="Añadir música">＋</button></div>
+    <div class="lyr1">${esc(Mus.lrc[Mus.lrcIdx]?.s || '')}</div>${S.visualizer ? '<canvas class="viz"></canvas>' : ''}
+    <div class="seek"><span class="js-cur">0:00</span><input type="range" class="js-seek" min="0" max="${audio.duration || 0}" value="${audio.currentTime || 0}" step="0.1"><span class="js-dur">0:00</span></div>${musicControls()}</div>`;
+  bindMusic(el); el.onclick = e => { if (!e.target.closest('button,input')) go('music'); };
+}
+function updateLyricsFull() {
+  const box = $('.lyrics'); if (!box || page !== 'music') return;
+  $$('p', box).forEach((p, i) => p.classList.toggle('cur', i === Mus.lrcIdx));
+  const c = $('p.cur', box); if (c) box.scrollTop = c.offsetTop - box.clientHeight / 2 + c.clientHeight / 2;
+}
+renderers.music = () => {
+  const root = $('#p-music'), [t, a] = trackInfo();
+  root.innerHTML = `<div class="musfull"><div class="card left"><div class="cd ${audio.paused ? '' : 'play'}"></div><div style="text-align:center"><div class="ti" style="font-size:22px;font-weight:600">${esc(t)}</div><div class="ar" style="color:var(--dim)">${esc(a)}</div></div>
+    ${S.visualizer ? '<canvas class="viz" style="width:80%;height:34px"></canvas>' : ''}
+    <div class="seek" style="width:90%"><span class="js-cur">0:00</span><input type="range" class="js-seek" min="0" max="${audio.duration || 0}" value="${audio.currentTime || 0}" step="0.1"><span class="js-dur">0:00</span></div>${musicControls()}
+    <div class="toolbar" style="margin:0"><button class="btn sec" data-a="add">＋ Música</button><button class="btn sec" data-a="lrc">📝 Letra .lrc</button></div>
+    <div class="plist">${Mus.list.map((x, i) => `<div data-i="${i}" class="${i === Mus.i ? 'cur' : ''}">${i + 1}. ${esc(x.title)}</div>`).join('') || '<div class="note">Sin canciones. Añade archivos de audio (mp3, m4a, ogg, flac…). Si el archivo .lrc tiene el mismo nombre y lo seleccionas junto al audio, se carga solo.</div>'}</div></div>
+    <div class="card" style="padding:0"><div class="lyrics">${Mus.lrc.map(l => `<p>${esc(l.s) || '♪'}</p>`).join('') || '<p class="note">Sin letra. Carga un archivo .lrc con sincronía.</p>'}</div></div></div>`;
+  bindMusic(root); $$('.plist [data-i]', root).forEach(d => d.onclick = () => playIdx(+d.dataset.i)); updateLyricsFull();
+};
+bus.on('music', () => { if (page === 'music') renderers.music(); $$('.js-musw').forEach(widgetMusic); });
 
-  async function loadSub(){
-    cont.innerHTML='<div class="loading-full"><div class="spinner dark"></div></div>';
-    try {
-      const rows = await SB.select('content_items', `category=eq.${activeSub}&select=*&order=created_at.desc`);
-      cont.innerHTML='';
-      if(!rows.length) cont.appendChild(el(`<div class="empty">${ICONS.calendarios}<p>Sin calendarios en esta línea.</p></div>`));
-      else { const list=el(`<div class="list"></div>`);
-        rows.forEach(r=>list.appendChild(renderItem(r,activeSub,loadSub))); cont.appendChild(list); }
-    } catch(e){ cont.innerHTML=''; cont.appendChild(el(`<div class="empty"><p>Error: ${esc(e.message)}</p></div>`)); }
-  }
-  await loadSub();
+/* ───────────── Neumáticos (TPMS) ───────────── */
+const pU = () => S.pressUnit;
+const toU = bar => pU() === 'psi' ? bar * 14.5038 : pU() === 'kpa' ? bar * 100 : bar;
+const fromU = v => pU() === 'psi' ? v / 14.5038 : pU() === 'kpa' ? v / 100 : v;
+const fmtP = bar => toU(bar).toFixed(pU() === 'bar' ? 1 : 0) + ' ' + pU();
+const tireState = bar => bar < S.tpDanger ? 'bad' : bar < S.tpWarn ? 'warn' : '';
+let alerted = '';
+function widgetTpms(el) {
+  const T = S.tires, names = { fl: 'Del. izq.', fr: 'Del. der.', rl: 'Tras. izq.', rr: 'Tras. der.' };
+  el.innerHTML = `<h4>Neumáticos</h4><div class="tp"><div class="car"></div>${Object.keys(names).map(k => `<div class="tire ${k} ${tireState(T[k])}" data-t="${k}"><small>${names[k]}</small><b>${fmtP(T[k])}</b></div>`).join('')}</div>`;
+  $$('.tire', el).forEach(t => t.onclick = () => editTire(t.dataset.t));
+  const bad = Object.keys(T).filter(k => tireState(T[k])); const key = bad.map(k => k + tireState(T[k])).join();
+  if (key && key !== alerted) { showAlert('⚠ Presión anormal en ' + bad.map(k => names[k]).join(', ')); }
+  alerted = key;
+}
+function showAlert(txt) { const a = document.createElement('div'); a.className = 'alert'; a.textContent = txt; document.body.append(a); setTimeout(() => a.remove(), 5000); }
+async function editTire(k) {
+  const v = await promptDlg('Presión (' + pU() + ')', 'Valor', toU(S.tires[k]).toFixed(pU() === 'bar' ? 1 : 0));
+  const n = parseFloat(String(v).replace(',', '.')); if (!v || isNaN(n) || n <= 0) return;
+  S.tires[k] = fromU(n); save(); bus.emit('tpms');
+}
+bus.on('tpms', () => $$('.js-tpw').forEach(widgetTpms));
 
-  if (canManage('calendarios')) { const fab=el(`<button class="fab">＋</button>`);
-    fab.onclick=()=>openAddModal(activeSub,loadSub); node.appendChild(fab); }
+/* ───────────── Mapa ───────────── */
+let mapKey = '';
+function mapSrc(big) {
+  const p = GPS.pos ? [GPS.pos.latitude, GPS.pos.longitude] : S.lastPos || (S.city && [S.city.lat, S.city.lon]) || [40.4168, -3.7038], z = big ? 0.012 : 0.008;
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${p[1] - z * 1.6},${p[0] - z},${p[1] + z * 1.6},${p[0] + z}&layer=mapnik&marker=${p[0]},${p[1]}`;
+}
+function widgetMap(el) {
+  el.innerHTML = `<span class="tag">🗺️ Mapa · toca para ampliar</span><iframe loading="lazy" title="Mapa" src="${mapSrc()}"></iframe>`;
+  el.querySelector('.tag').onclick = () => go('map');
+}
+renderers.map = () => {
+  $('#p-map').innerHTML = `<div class="mapfull"><div class="bar"><input id="mq" placeholder="Abrir destino en Google Maps…"><button id="mgo">Ir</button><button id="mfl" class="btn sec">▢ Flotante</button></div><iframe title="Mapa" src="${mapSrc(true)}"></iframe></div>`;
+  const q = () => { const v = $('#mq').value.trim(); if (v) window.open('https://www.google.com/maps/search/' + encodeURIComponent(v), '_blank', 'noopener'); };
+  $('#mgo').onclick = q; $('#mq').onkeydown = e => e.key === 'Enter' && q();
+  $('#mfl').onclick = () => openFloat({ n: 'Mapa', u: mapSrc(true) });
+};
+bus.on('pos', () => {
+  const p = GPS.pos; if (!p) return; const key = p.latitude.toFixed(3) + p.longitude.toFixed(3); if (key === mapKey) return; mapKey = key;
+  $$('.js-mapw iframe').forEach(f => f.src = mapSrc());
+  if (page === 'map') $('#p-map iframe').src = mapSrc(true);
+  loadWeather();
 });
 
-// ─────────────────────────── Pantalla PRIVADO ───────────────────────────
-route('privado', async () => {
-  // Si aún no está desbloqueado el modo gestión, pedir la contraseña.
-  if (!Auth.manageMode) {
-    const node = el(`<div class="screen">
-      <div class="appbar"><button id="back">‹</button><h1>Privado</h1></div>
-      <div class="login" style="justify-content:flex-start;padding-top:50px">
-        <div class="biglogo" style="width:80px;height:80px">${ICONS.privado}</div>
-        <h2 style="margin-top:16px">Zona privada</h2>
-        <p>Introduce la contraseña para gestionar el contenido de la app.</p>
-        <input id="pw" type="password" placeholder="Contraseña" autocomplete="off">
-        <div class="err" id="pwErr"></div>
-        <button class="btn" id="pwBtn">Desbloquear</button>
-      </div>
-    </div>`);
-    render(node);
-    node.querySelector('#back').onclick = () => go('main');
-    const inp = node.querySelector('#pw');
-    const err = node.querySelector('#pwErr');
-    inp.focus();
-    const submit = () => {
-      if (Auth.checkPrivadoPassword(inp.value)) {
-        Auth.manageMode = true;
-        toast('Modo gestión activado');
-        go('privado'); // recargar la pantalla ya desbloqueada
-      } else {
-        err.textContent = 'Contraseña incorrecta.';
-        inp.value = '';
-      }
+/* ───────────── Apps / ventanas flotantes ───────────── */
+const appById = id => S.apps.find(a => a.id === id);
+function sortedApps(list) {
+  const l = [...list];
+  if (S.sort === 'az') l.sort((a, b) => a.n.localeCompare(b.n)); else if (S.sort === 'za') l.sort((a, b) => b.n.localeCompare(a.n));
+  return l;
+}
+function openApp(a, mode = S.openMode) {
+  if (mode === 'tab') return window.open(a.u, '_blank', 'noopener');
+  openFloat(a, mode === 'full');
+}
+const floats = [];
+function openFloat(a, full = false) {
+  if (floats.length >= 2) floats.shift().remove(); // doble PiP: máximo 2
+  const w = document.createElement('div'); w.className = 'fw' + (full ? ' full' : '');
+  const n = floats.length, W = innerWidth, H = innerHeight;
+  w.style.left = clamp(W * .3 + n * 40, 10, W - 260) + 'px'; w.style.top = clamp(H * .18 + n * 40, 10, H - 180) + 'px';
+  w.innerHTML = `<div class="hd"><b>${esc(a.e || '🌐')} ${esc(a.n)}</b><button data-b="tab" title="Abrir en pestaña">↗</button><button data-b="full" title="Pantalla completa">⛶</button><button data-b="x" title="Cerrar">✕</button></div>
+    <div class="hint">Algunos sitios bloquean el modo incrustado. Si ves la ventana en blanco, usa ↗.</div>
+    <iframe src="${esc(a.u)}" allow="geolocation; autoplay; fullscreen; encrypted-media; picture-in-picture" referrerpolicy="no-referrer-when-downgrade"></iframe>`;
+  $('#floats').append(w); floats.push(w);
+  $('[data-b=x]', w).onclick = () => { w.remove(); floats.splice(floats.indexOf(w), 1); };
+  $('[data-b=full]', w).onclick = () => w.classList.toggle('full');
+  $('[data-b=tab]', w).onclick = () => window.open(a.u, '_blank', 'noopener');
+  const hd = $('.hd', w); let dx, dy, drag = false;
+  hd.onpointerdown = e => { if (e.target.closest('button') || w.classList.contains('full')) return; drag = true; dx = e.clientX - w.offsetLeft; dy = e.clientY - w.offsetTop; hd.setPointerCapture(e.pointerId); hd.style.cursor = 'grabbing'; $$('.fw').forEach(x => x.style.zIndex = 50); w.style.zIndex = 51; };
+  hd.onpointermove = e => { if (drag) { w.style.left = clamp(e.clientX - dx, -w.offsetWidth + 80, innerWidth - 80) + 'px'; w.style.top = clamp(e.clientY - dy, 0, innerHeight - 40) + 'px'; } };
+  hd.onpointerup = () => { drag = false; hd.style.cursor = ''; };
+}
+function appHtml(a, x) { return `<div class="app" data-id="${esc(a.id)}"><div class="ico">${esc(a.e || '🌐')}</div><span>${esc(a.n)}</span>${x ? '<button class="x" data-del>✕</button>' : ''}</div>`; }
+function widgetApps(el) {
+  const q = S.quick.map(appById).filter(Boolean);
+  el.innerHTML = `<h4>Accesos rápidos</h4><div class="appsrow ${el.dataset.edit ? 'editing' : ''}">${q.map(a => appHtml(a)).join('')}<div class="app" data-more><div class="ico">⋯</div><span>Todas</span></div></div>`;
+  $$('.app[data-id]', el).forEach(d => d.onclick = () => openApp(appById(d.dataset.id)));
+  $('[data-more]', el).onclick = () => go('apps');
+}
+function addAppDlg(edit) {
+  dlg(`<h3>${edit ? 'Editar' : 'Añadir'} aplicación</h3><div class="f"><input class="in" id="an" placeholder="Nombre" value="${esc(edit?.n || '')}"><input class="in" id="au" placeholder="https://…" value="${esc(edit?.u || '')}"><input class="in" id="ae" placeholder="Emoji / icono (ej. 🎮)" maxlength="4" value="${esc(edit?.e || '')}">
+    <label class="note"><input type="checkbox" id="aq" ${S.quick.includes(edit?.id) ? 'checked' : ''}> Mostrar en accesos rápidos</label></div>
+    <div class="acts"><button class="btn sec" id="c">Cancelar</button><button class="btn" id="k">Guardar</button></div>`, d => {
+    $('#c', d).onclick = closeDlg;
+    $('#k', d).onclick = () => {
+      let u = $('#au', d).value.trim(), n = $('#an', d).value.trim(); if (!u || !n) return toast('Nombre y URL obligatorios');
+      if (!/^(https?:|\.\.?\/)/i.test(u)) u = 'https://' + u;
+      const a = edit || { id: 'u' + Date.now() }; Object.assign(a, { n, u, e: $('#ae', d).value.trim() || '🌐' }); if (!edit) S.apps.push(a);
+      S.quick = S.quick.filter(i => i !== a.id); if ($('#aq', d).checked) S.quick.push(a.id);
+      save(); closeDlg(); renderers.apps(); bus.emit('apps');
     };
-    node.querySelector('#pwBtn').onclick = submit;
-    inp.onkeydown = e => { if(e.key==='Enter') submit(); };
-    return;
-  }
+  });
+}
+let appsEdit = false;
+renderers.apps = () => {
+  const root = $('#p-apps'), q = (root.dataset.q || '').toLowerCase();
+  const list = sortedApps(S.apps).filter(a => !q || a.n.toLowerCase().includes(q));
+  root.innerHTML = `<div class="toolbar"><input type="search" id="aq" placeholder="Buscar aplicación…" value="${esc(root.dataset.q || '')}"><button class="btn sec" id="aadd">＋ Añadir</button><button class="btn ${appsEdit ? '' : 'sec'}" id="aed">${appsEdit ? 'Listo' : '✎ Editar'}</button></div>
+    <div class="applist ${appsEdit ? 'editing' : ''}">${list.map(a => appHtml(a, appsEdit)).join('')}</div>`;
+  const s = $('#aq', root); s.oninput = () => { root.dataset.q = s.value; const p = s.selectionStart; renderers.apps(); const n = $('#aq', root); n.focus(); n.setSelectionRange(p, p); };
+  $('#aadd', root).onclick = () => addAppDlg(); $('#aed', root).onclick = () => { appsEdit = !appsEdit; renderers.apps(); };
+  $$('.app', root).forEach(d => d.onclick = e => {
+    const a = appById(d.dataset.id);
+    if (e.target.closest('[data-del]')) { S.apps = S.apps.filter(x => x !== a); S.quick = S.quick.filter(i => i !== a.id); save(); renderers.apps(); bus.emit('apps'); }
+    else if (appsEdit) addAppDlg(a); else openApp(a);
+  });
+};
+bus.on('apps', () => $$('.js-appw').forEach(widgetApps));
 
-  // Ya desbloqueado: mostrar el contenido de Privado + opción de bloquear.
-  const node = el(`<div class="screen">
-    <div class="appbar"><button id="back">‹</button><h1>Privado</h1>
-      <button id="lock" title="Bloquear gestión">🔓</button></div>
-    <div class="content" id="cont"><div class="loading-full"><div class="spinner dark"></div></div></div>
-  </div>`);
-  render(node);
-  node.querySelector('#back').onclick=()=>go('main');
-  node.querySelector('#lock').onclick=()=>{
-    Auth.manageMode = false; toast('Gestión bloqueada'); go('main');
-  };
-  const cont = node.querySelector('#cont');
-  async function reload(){
-    try {
-      const rows = await SB.select('content_items', `category=eq.privado&select=*&order=created_at.desc`);
-      cont.innerHTML='';
-      const info = el(`<div style="padding:14px 16px 0;color:var(--on-var);font-size:14px">
-        ✅ Modo gestión activo. Ya puedes añadir y borrar contenido en todas las secciones.</div>`);
-      cont.appendChild(info);
+/* ───────────── Home ───────────── */
+const WIDGETS = {
+  clock: { n: 'Reloj', cls: 'w-1x1', render: el => el.innerHTML = `<div class="clock"><div class="hi js-greet"></div><div class="big js-clock">--:--</div><div class="dt js-date"></div></div>` },
+  weather: { n: 'Clima', cls: 'w-1x1', render: el => { el.classList.add('js-wx'); el.innerHTML = '<h4>Clima</h4>'; renderWeather(); el.onclick = e => e.target.closest('[data-act=city]') && pickCity(); } },
+  music: { n: 'Música y letras', cls: 'w-2x1', render: el => { el.classList.add('js-musw'); widgetMusic(el); } },
+  map: { n: 'Mapa', cls: 'w-2x2 mapc', render: el => { el.classList.add('js-mapw'); widgetMap(el); } },
+  speed: { n: 'Velocidad GPS', cls: 'w-1x1', render: el => { el.innerHTML = `<div class="spd"><div class="v js-spd">0</div><div class="u">${spdUnit()}</div><div class="bar"><i class="js-spdbar"></i></div><div class="m"><span>Máx <b class="js-max">0</b></span><span>Viaje <b class="js-trip">0.0</b> ${S.speedUnit === 'mph' ? 'mi' : 'km'}</span></div></div>`; renderSpeedUI(); } },
+  tpms: { n: 'Neumáticos (TPMS)', cls: 'w-1x1', render: el => { el.classList.add('js-tpw'); widgetTpms(el); } },
+  apps: { n: 'Accesos rápidos', cls: 'w-2x1', render: el => { el.classList.add('js-appw'); widgetApps(el); } },
+};
+renderers.home = () => {
+  const root = $('#p-home'); root.innerHTML = '<div class="grid"></div>'; const g = $('.grid', root);
+  S.widgets.filter(([id, on]) => on && WIDGETS[id]).forEach(([id]) => {
+    const c = document.createElement('div'); c.className = 'card ' + WIDGETS[id].cls; c.dataset.w = id; g.append(c); WIDGETS[id].render(c);
+  });
+  tickClock(); renderWeather();
+};
 
-      // ── Gestor de carpetas de la pantalla de inicio ──
-      const folderBox = el(`<div style="padding:16px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-          <b style="font-size:16px">Carpetas de inicio</b>
-          <button id="newFolder" class="btn" style="width:auto;padding:8px 16px;font-size:14px">＋ Nueva</button>
-        </div>
-        <div id="folderList"></div>
-      </div>`);
-      cont.appendChild(folderBox);
-      folderBox.querySelector('#newFolder').onclick = () => openNewFolderModal(reload);
-      try {
-        const folders = await SB.getFolders();
-        const fl = folderBox.querySelector('#folderList');
-        if (!folders.length) {
-          fl.appendChild(el(`<div style="color:var(--on-var);font-size:14px">No has creado carpetas aún.</div>`));
-        } else {
-          folders.forEach(f => {
-            const row = el(`<div class="item" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px">
-              <span style="font-weight:600">${esc(f.title)}</span>
-              <button class="it-del" style="float:none">Borrar</button>
-            </div>`);
-            row.querySelector('.it-del').onclick = async () => {
-              if(!confirm(`¿Borrar la carpeta "${f.title}" y todo su contenido?`)) return;
-              try { await SB.deleteFolder(f.id, f.cat_key); toast('Carpeta borrada'); reload(); }
-              catch(e){ toast('Error al borrar'); }
-            };
-            fl.appendChild(row);
-          });
-        }
-      } catch(e){ console.warn('folders', e); }
+/* ───────────── Acciones globales (teclas, FAB) ───────────── */
+const ACTIONS = {
+  none: ['— Ninguna —', () => { }],
+  home: ['Ir a inicio', () => go('home')], apps: ['Abrir aplicaciones', () => go('apps')], music: ['Abrir música', () => go('music')], map: ['Abrir mapa', () => go('map')], settings: ['Abrir ajustes', () => go('settings')],
+  pp: ['Reproducir / pausar', togglePlay], next: ['Siguiente canción', () => playIdx(Mus.i + 1)], prev: ['Canción anterior', () => playIdx(Mus.i - 1)],
+  volup: ['Subir volumen', () => { audio.volume = clamp(audio.volume + .1, 0, 1); toast('Volumen ' + Math.round(audio.volume * 100) + '%'); }],
+  voldown: ['Bajar volumen', () => { audio.volume = clamp(audio.volume - .1, 0, 1); toast('Volumen ' + Math.round(audio.volume * 100) + '%'); }],
+  mute: ['Silenciar / restaurar', () => { audio.muted = !audio.muted; toast(audio.muted ? 'Silenciado' : 'Sonido activado'); }],
+  daynight: ['Cambiar día / noche', () => { S.theme = isDark() ? 'light' : 'dark'; save(); applyTheme(); toast(isDark() ? 'Modo noche' : 'Modo día'); }],
+  fullscreen: ['Pantalla completa', toggleFS], closefloats: ['Cerrar ventanas flotantes', () => { floats.splice(0).forEach(f => f.remove()); }],
+};
+const run = k => ACTIONS[k]?.[1]();
+function toggleFS() { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.().catch(() => { }); }
+$('#btnFS').onclick = toggleFS; $('#btnDN').onclick = () => run('daynight');
 
-      // ── Contenido de la sección Privado ──
-      cont.appendChild(el(`<div class="section-title" style="padding-top:8px">Contenido privado</div>`));
-      if(!rows.length) cont.appendChild(el(`<div class="empty">${ICONS.privado}<p>Zona privada vacía.</p></div>`));
-      else { const list=el(`<div class="list"></div>`);
-        rows.forEach(r=>list.appendChild(renderItem(r,'privado',reload))); cont.appendChild(list); }
-    } catch(e){ cont.innerHTML=''; cont.appendChild(el(`<div class="empty"><p>Error: ${esc(e.message)}</p></div>`)); }
-  }
-  await reload();
-  const fab=el(`<button class="fab">＋</button>`); fab.onclick=()=>openAddModal('privado',reload); node.appendChild(fab);
+let capturing = null;
+addEventListener('keydown', e => {
+  if (capturing) { e.preventDefault(); const cb = capturing; capturing = null; return cb(e); }
+  if (e.target.closest?.('input,textarea,select')) return;
+  const k = S.keys.find(x => x.code === e.code); if (k) { e.preventDefault(); run(k.action); }
 });
 
-// Modal para crear una carpeta nueva
-function openNewFolderModal(reload){
-  const bg = el(`<div class="modal-bg"><div class="modal">
-    <h3>Nueva carpeta</h3>
-    <input id="fName" placeholder="Nombre de la carpeta" autocomplete="off">
-    <div class="err" id="fErr"></div>
-    <div class="modal-actions">
-      <button class="btn btn-sec" id="fCancel">Cancelar</button>
-      <button class="btn" id="fSave">Crear</button>
-    </div>
-  </div></div>`);
-  document.body.appendChild(bg);
-  const close = () => bg.remove();
-  bg.onclick = e => { if(e.target===bg) close(); };
-  bg.querySelector('#fCancel').onclick = close;
-  bg.querySelector('#fName').focus();
-  bg.querySelector('#fSave').onclick = async () => {
-    const name = bg.querySelector('#fName').value.trim();
-    const err = bg.querySelector('#fErr');
-    if (name.length < 2) { err.textContent='Escribe un nombre.'; return; }
-    const btn = bg.querySelector('#fSave');
-    btn.disabled=true; btn.innerHTML='<span class="spinner"></span>';
-    try { await SB.createFolder(name); toast('Carpeta creada'); close(); reload(); }
-    catch(e){ err.textContent='Error: '+e.message; btn.disabled=false; btn.textContent='Crear'; }
-  };
+const fab = $('#fab');
+function placeFab() {
+  fab.classList.toggle('on', S.fab.on);
+  const x = S.fab.x ?? innerWidth - 80, y = S.fab.y ?? innerHeight - 90;
+  fab.style.left = clamp(x, 0, innerWidth - 58) + 'px'; fab.style.top = clamp(y, 0, innerHeight - 58) + 'px';
 }
+(() => {
+  let sx, sy, ox, oy, moved, lp, long;
+  fab.onpointerdown = e => { fab.setPointerCapture(e.pointerId); sx = e.clientX; sy = e.clientY; ox = fab.offsetLeft; oy = fab.offsetTop; moved = false; long = false; lp = setTimeout(() => { if (!moved) { long = true; run(S.fab.long); } }, 600); };
+  fab.onpointermove = e => { if (sx == null) return; if (Math.hypot(e.clientX - sx, e.clientY - sy) > 8) moved = true; if (moved) { fab.style.left = clamp(ox + e.clientX - sx, 0, innerWidth - 58) + 'px'; fab.style.top = clamp(oy + e.clientY - sy, 0, innerHeight - 58) + 'px'; } };
+  fab.onpointerup = () => { clearTimeout(lp); if (moved) { S.fab.x = fab.offsetLeft; S.fab.y = fab.offsetTop; save(); } else if (!long) run(S.fab.click); sx = null; };
+})();
+addEventListener('resize', placeFab);
 
-// ─────────────────────────── Arranque ───────────────────────────────────
-if (CFG.SUPABASE_URL.includes('REEMPLAZAR')) {
-  app.innerHTML = `<div class="login"><div class="biglogo"><span></span></div>
-    <h2>Configura la app</h2>
-    <p style="max-width:340px">Edita el archivo <b>config.js</b> y pega tu URL y clave de Supabase
-    (los mismos de la app Android). Luego recarga.</p></div>`;
-} else {
-  handleRoute();
+/* ───────────── Ajustes ───────────── */
+const OPT = {
+  theme: [['auto-time', 'Automático por hora (19:00–06:00)'], ['light-sensor', 'Sensor de luz (si existe)'], ['system', 'Seguir al sistema'], ['dark', 'Siempre noche'], ['light', 'Siempre día']],
+  wallMode: [['default', 'Predeterminado'], ['custom', 'Una imagen'], ['carousel', 'Carrusel']],
+  wallEffect: [['fade', 'Desvanecer'], ['zoom', 'Zoom'], ['slide', 'Deslizar'], ['blur', 'Desenfoque'], ['none', 'Sin efecto']],
+  openMode: [['float', 'Ventana flotante (PiP)'], ['full', 'Pantalla completa'], ['tab', 'Nueva pestaña']],
+  sort: [['default', 'Predeterminado'], ['az', 'Nombre A-Z'], ['za', 'Nombre Z-A']],
+  speedUnit: [['kmh', 'km/h'], ['mph', 'mph']], tempUnit: [['c', '°C'], ['f', '°F']], pressUnit: [['bar', 'bar'], ['psi', 'psi'], ['kpa', 'kPa']],
+};
+const CATS = {
+  inicio: ['🏠 Inicio', [
+    { t: 'widgets' },
+    { k: 'rows', l: 'Filas de widgets', d: 'Número de filas de la pantalla de inicio', type: 'range', min: 1, max: 3, step: 1 },
+    { k: 'colw', l: 'Ancho mínimo de columna', d: 'Mayor valor = menos columnas visibles (200–500 px)', type: 'range', min: 200, max: 500, step: 10 },
+    { k: 'radius', l: 'Bordes redondeados', d: 'Radio de las tarjetas', type: 'range', min: 0, max: 40, step: 2 },
+    { k: 'rhd', l: 'Disposición para conducción a la derecha', d: 'Mueve la barra de navegación al lado derecho', type: 'toggle' },
+  ]],
+  tema: ['🌓 Tema', [
+    { k: 'theme', l: 'Cambio día / noche', d: 'Lógica del cambio automático de tema', type: 'select' },
+    { k: 'accent', l: 'Color de acento', type: 'color' },
+  ]],
+  fondo: ['🖼 Fondo', [{ t: 'walls' },
+    { k: 'wallMode', l: 'Modo de fondo', type: 'select' }, { k: 'wallEffect', l: 'Efecto de transición', type: 'select' },
+    { k: 'wallInterval', l: 'Segundos entre fondos (carrusel)', type: 'range', min: 5, max: 300, step: 5 }]],
+  apps: ['▦ Aplicaciones', [
+    { k: 'openMode', l: 'Modo de apertura', d: 'Cómo se abren las apps: ventana flotante, pantalla completa o pestaña', type: 'select' },
+    { k: 'sort', l: 'Regla de ordenación', type: 'select' },
+    { t: 'btn', l: 'Gestionar aplicaciones', f: () => { appsEdit = true; go('apps'); } },
+  ]],
+  musica: ['🎵 Música', [
+    { k: 'hideLyrics', l: 'Ocultar letras', d: 'Oculta las letras en el widget y en la página de música', type: 'toggle' },
+    { k: 'visualizer', l: 'Visualizador de audio', d: 'Desactívalo para ahorrar batería en pantallas lentas', type: 'toggle' },
+    { k: 'lyricSize', l: 'Tamaño de letra', type: 'range', min: 14, max: 60, step: 2 },
+    { k: 'lyricCur', l: 'Color de la línea actual', type: 'color' }, { k: 'lyricNorm', l: 'Color del resto de líneas', type: 'color' },
+  ]],
+  tpms: ['🛞 Neumáticos', [
+    { k: 'pressUnit', l: 'Unidad de presión', type: 'select' },
+    { k: 'tpWarn', l: 'Presión de aviso (bar)', d: 'Por debajo se marca en ámbar', type: 'number', step: .1 },
+    { k: 'tpDanger', l: 'Presión peligrosa (bar)', d: 'Por debajo se marca en rojo y salta una alerta', type: 'number', step: .1 },
+    { t: 'note', l: 'Una PWA no puede leer sensores TPMS Bluetooth de forma genérica: toca cada neumático en el widget para introducir su presión. Los valores se guardan en el dispositivo.' },
+  ]],
+  unidades: ['📏 Unidades', [{ k: 'speedUnit', l: 'Velocidad', type: 'select' }, { k: 'tempUnit', l: 'Temperatura', type: 'select' }, { t: 'btn', l: 'Reiniciar viaje y velocidad máxima', f: () => { S.trip = 0; S.maxSpeed = 0; save(); renderSpeedUI(); toast('Reiniciado'); } }]],
+  controles: ['🎛 Controles', [
+    { k: 'fab.on', l: 'Botón flotante', d: 'Punto arrastrable. Toque = acción corta, pulsación larga = acción larga', type: 'toggle' },
+    { k: 'fab.click', l: 'Acción al tocar', type: 'action' }, { k: 'fab.long', l: 'Acción al mantener', type: 'action' },
+    { t: 'keys' },
+  ]],
+  datos: ['💾 Datos', [
+    { t: 'btn', l: 'Exportar copia de seguridad', f: backup }, { t: 'btn', l: 'Restaurar copia de seguridad', f: () => $('#fileCfg').click() },
+    { t: 'btn', l: 'Restablecer valores de fábrica', f: () => confirm('¿Borrar todos los ajustes?') && (localStorage.removeItem('leco.v1'), location.reload()) },
+  ]],
+  acerca: ['ℹ️ Acerca de', [{ t: 'note', l: 'LecoAuto PWA — launcher web para pantallas de coche, de código abierto en este repositorio. Es un proyecto independiente: no está afiliado ni incluye código, marcas o recursos de la app Android LecoAuto. Clima: Open-Meteo. Mapa: © OpenStreetMap.' }]],
+};
+const getK = k => k.split('.').reduce((o, p) => o?.[p], S);
+const setK = (k, v) => { const p = k.split('.'), l = p.pop(); p.reduce((o, x) => o[x], S)[l] = v; };
+let cat = 'inicio';
+renderers.settings = () => {
+  const root = $('#p-settings');
+  root.innerHTML = `<div class="set"><div class="cats">${Object.entries(CATS).map(([k, v]) => `<button data-c="${k}" class="${k === cat ? 'act' : ''}">${v[0]}</button>`).join('')}</div><div class="body"></div></div>`;
+  $$('.cats button', root).forEach(b => b.onclick = () => { cat = b.dataset.c; renderers.settings(); });
+  const body = $('.body', root);
+  CATS[cat][1].forEach(it => body.append(settingRow(it)));
+};
+function el(html) { const t = document.createElement('div'); t.innerHTML = html.trim(); return t.firstChild; }
+function settingRow(it) {
+  if (it.t === 'note') return el(`<div class="note">${esc(it.l)}</div>`);
+  if (it.t === 'btn') { const r = el(`<div class="row"><div class="tx"><b>${esc(it.l)}</b></div><button class="btn sec">Abrir</button></div>`); $('button', r).onclick = it.f; return r; }
+  if (it.t === 'widgets') return widgetsEditor();
+  if (it.t === 'walls') return wallsEditor();
+  if (it.t === 'keys') return keysEditor();
+  const val = getK(it.k), r = el(`<div class="row"><div class="tx"><b>${esc(it.l)}</b>${it.d ? `<small>${esc(it.d)}</small>` : ''}</div><div class="ctrl"></div></div>`), c = $('.ctrl', r);
+  const commit = v => { setK(it.k, v); save(); applyTheme(); placeFab(); if (['wallMode', 'wallEffect', 'wallInterval'].includes(it.k)) Wall.apply(); if (['speedUnit', 'tempUnit', 'pressUnit', 'rows', 'colw', 'visualizer', 'hideLyrics'].includes(it.k)) refreshHome(); };
+  if (it.type === 'toggle') { const s = el(`<div class="sw ${val ? 'on' : ''}"></div>`); s.onclick = () => { s.classList.toggle('on'); commit(s.classList.contains('on')); }; c.append(s); }
+  else if (it.type === 'select' || it.type === 'action') {
+    const opts = it.type === 'action' ? Object.entries(ACTIONS).map(([k, v]) => [k, v[0]]) : OPT[it.k];
+    const s = el(`<select>${opts.map(([v, l]) => `<option value="${v}" ${v == val ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`); s.onchange = () => commit(s.value); c.append(s);
+  } else if (it.type === 'range') { const s = el(`<input type="range" min="${it.min}" max="${it.max}" step="${it.step}" value="${val}">`); const o = el(`<span class="note">${val}</span>`); s.oninput = () => { o.textContent = s.value; }; s.onchange = () => commit(+s.value); c.append(s, o); }
+  else if (it.type === 'color') { const s = el(`<input type="color" value="${val}">`); s.oninput = () => commit(s.value); c.append(s); }
+  else if (it.type === 'number') { const s = el(`<input type="number" step="${it.step}" value="${val}" style="width:90px">`); s.onchange = () => commit(parseFloat(s.value) || val); c.append(s); }
+  return r;
 }
+function refreshHome() { renderers.home(); }
+function widgetsEditor() {
+  const w = el('<div class="wgl"><div class="sec-t">Widgets de la pantalla de inicio (orden y visibilidad)</div></div>');
+  S.widgets.forEach(([id, on], i) => {
+    const r = el(`<div class="row"><div class="tx"><b>${esc(WIDGETS[id].n)}</b></div><button class="mini" data-d="-1">▲</button><button class="mini" data-d="1">▼</button><div class="sw ${on ? 'on' : ''}"></div></div>`);
+    $('.sw', r).onclick = () => { S.widgets[i][1] = on ? 0 : 1; save(); renderers.settings(); refreshHome(); };
+    $$('.mini', r).forEach(b => b.onclick = () => { const j = i + +b.dataset.d; if (j < 0 || j >= S.widgets.length) return; [S.widgets[i], S.widgets[j]] = [S.widgets[j], S.widgets[i]]; save(); renderers.settings(); refreshHome(); });
+    w.append(r);
+  });
+  return w;
+}
+function wallsEditor() {
+  const w = el('<div><div class="sec-t">Imágenes de fondo (se guardan en el dispositivo; usa imágenes ligeras)</div><div class="walls"></div><button class="btn sec" id="wadd">＋ Añadir imágenes</button><div style="height:14px"></div></div>');
+  const box = $('.walls', w);
+  Wall.list.forEach((x, i) => { const t = el(`<div class="th ${S.wallMode === 'custom' && S.wallSel === i ? 'sel' : ''}" style="background-image:url('${Wall.urls[i]}')"><button>✕</button></div>`); t.onclick = e => { if (e.target.tagName === 'BUTTON') return; S.wallMode = 'custom'; S.wallSel = i; save(); Wall.apply(); renderers.settings(); }; $('button', t).onclick = async () => { await idb.del(x.id); await Wall.load(); Wall.apply(); renderers.settings(); }; box.append(t); });
+  if (!Wall.list.length) box.append(el('<span class="note">Aún no hay imágenes.</span>'));
+  $('#wadd', w).onclick = () => $('#fileImg').click(); return w;
+}
+$('#fileImg').onchange = async e => {
+  for (const f of e.target.files) { if (f.size > 4e6) { toast(`${f.name}: supera 4 MB`); continue; } await idb.add(f); }
+  e.target.value = ''; await Wall.load(); if (S.wallMode === 'default') { S.wallMode = 'custom'; save(); } Wall.apply(); renderers.settings();
+};
+function keysEditor() {
+  const w = el('<div><div class="sec-t">Extensiones de teclas</div><div class="note">Asigna acciones a las teclas de tu teclado o volante (si envía teclas estándar).</div></div>');
+  S.keys.forEach((k, i) => { const r = el(`<div class="row"><div class="tx"><b>${esc(k.label)}</b><small>${esc(ACTIONS[k.action]?.[0] || '')}</small></div><button class="btn bad">Borrar</button></div>`); $('button', r).onclick = () => { S.keys.splice(i, 1); save(); renderers.settings(); }; w.append(r); });
+  const add = el('<button class="btn">＋ Añadir tecla</button>');
+  add.onclick = () => {
+    toast('Pulsa la tecla que quieres asignar…', 4000);
+    capturing = e => {
+      if (e.code === 'Escape') return;
+      dlg(`<h3>Tecla: ${esc(e.key.length === 1 ? e.key.toUpperCase() : e.code)}</h3><div class="f"><select class="in" id="ka">${Object.entries(ACTIONS).filter(([k]) => k !== 'none').map(([k, v]) => `<option value="${k}">${esc(v[0])}</option>`).join('')}</select></div><div class="acts"><button class="btn sec" id="c">Cancelar</button><button class="btn" id="k">Guardar</button></div>`, d => {
+        $('#c', d).onclick = closeDlg; $('#k', d).onclick = () => { S.keys = S.keys.filter(x => x.code !== e.code); S.keys.push({ code: e.code, label: e.key.length === 1 ? e.key.toUpperCase() : e.code, action: $('#ka', d).value }); save(); closeDlg(); renderers.settings(); };
+      });
+    };
+  };
+  w.append(add); return w;
+}
+function backup() {
+  const b = new Blob([JSON.stringify({ app: 'lecoauto-pwa', v: 1, settings: S }, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'lecoauto-backup.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+$('#fileCfg').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  if (f.size > 1e6) return toast('Archivo demasiado grande');
+  try { const j = JSON.parse(await f.text()); if (j.app !== 'lecoauto-pwa') throw 0; S = Object.assign(structuredClone(DEF), j.settings); save(); toast('Restaurado'); setTimeout(() => location.reload(), 600); } catch { toast('Copia de seguridad no válida'); }
+};
+
+/* ───────────── Arranque ───────────── */
+(async function init() {
+  await Wall.load(); applyTheme(); Wall.apply(); placeFab();
+  go('home'); tickClock(); setInterval(tickClock, 1000);
+  startGPS(); loadWeather(); setInterval(() => loadWeather(), 15 * 60e3);
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => { });
+  try { navigator.wakeLock?.request('screen').catch(() => { }); document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && navigator.wakeLock?.request('screen').catch(() => { })); } catch { }
+})();
