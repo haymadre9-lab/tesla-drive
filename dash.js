@@ -4,6 +4,7 @@
 
 const PRESETS = [
   { id: 'classic', n: 'Clásico', i: '🏠', d: 'Reloj, clima, música, mapa y neumáticos', skin: 'glass', w: [['clock', 1, '1x1'], ['weather', 1, '1x1'], ['music', 1, '2x1'], ['map', 1, '2x2'], ['speed', 1, '1x1'], ['tpms', 1, '1x1'], ['apps', 1, '2x1']] },
+  { id: 'cockpit', n: 'Cockpit + GPS', i: '🏎️', d: 'Velocímetro grande con datos a la izquierda y navegador GPS a la derecha', skin: 'carbon', accent: '#2ea8ff', rows: 1, colw: 200, w: [['cockpit', 1, '2x1'], ['navmap', 1, '2x1']] },
   { id: 'drive', n: 'Conducción', i: '🚗', d: 'Velocímetro analógico, guía de ruta y mapa', skin: 'carbon', accent: '#ff6a1a', rows: 2, w: [['gauge', 1, '2x2'], ['navinfo', 1, '2x1'], ['map', 1, '2x1'], ['trip', 1, '1x1'], ['tpms', 1, '1x1']] },
   { id: 'speed', n: 'Velocímetro', i: '⚡', d: 'Velocidad grande, límite y brújula', skin: 'neon', accent: '#00e5ff', rows: 2, w: [['speedbig', 1, '2x2'], ['navinfo', 1, '2x1'], ['compass', 1, '1x1'], ['clock', 1, '1x1']] },
   { id: 'media', n: 'Música', i: '🎵', d: 'Reproductor y letras a pantalla grande', skin: 'sky', accent: '#b388ff', rows: 2, w: [['music', 1, '2x2'], ['lyrics', 1, '2x2'], ['clock', 1, '1x1'], ['weather', 1, '1x1']] },
@@ -75,6 +76,41 @@ const Dash = (() => {
       el.innerHTML = `<h4>Viaje</h4><div class="trip"><div><b>${d.toFixed(1)}</b><small>${mi ? 'mi' : 'km'}</small></div><div><b>${Math.round(spdConv(S.maxSpeed))}</b><small>máx ${spdUnit()}</small></div><div><b>${Math.round(avg)}</b><small>media ${spdUnit()}</small></div><div><b>${h}:${String(m).padStart(2, '0')}</b><small>en marcha</small></div></div>`;
     });
   }
+  /* Cockpit: velocímetro grande con datos dentro y alrededor */
+  WIDGETS.cockpit = {
+    n: 'Cockpit (velocímetro + datos)', cls: 'w-2x1', render: el => {
+      const max = gaugeMax(), step = max === 150 ? 10 : 20; let ticks = '';
+      for (let v = 0; v <= max; v += step) { const deg = -120 + v / max * 240, big = v % (step * 2) === 0, [x1, y1] = arcPt(80, deg), [x2, y2] = arcPt(big ? 68 : 72, deg), [tx, ty] = arcPt(57, deg);
+        ticks += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="tk"/>` + (big ? `<text x="${tx}" y="${(+ty + 3).toFixed(1)}" class="tl">${v}</text>` : ''); }
+      const [sx, sy] = arcPt(88, -120), [ex, ey] = arcPt(88, 120), arc = `M${sx} ${sy} A88 88 0 1 1 ${ex} ${ey}`;
+      el.classList.add('cockcard');
+      el.innerHTML = `<div class="cock">
+        <div class="ck-top"><span>🕒 <b class="js-clock">--:--</b></span><span>🌡 <b class="js-ckt">--</b></span><span class="js-cknav ck-nav">🧭 sin ruta</span></div>
+        <div class="ck-mid">
+          <div class="ck-side"><div><b class="js-ckdir">—</b><small>rumbo</small></div><div><b class="js-ckalt">—</b><small>altitud m</small></div><div><b class="js-cktire">—</b><small>neumático mín.</small></div></div>
+          <div class="ck-gauge"><svg viewBox="-100 -100 200 175"><path d="${arc}" class="gr"/><path d="${arc}" class="ga js-arc" pathLength="100" stroke-dasharray="0 100"/>${ticks}
+            <g class="js-needle" transform="rotate(-120)"><line x1="0" y1="6" x2="0" y2="-74" class="nd"/></g><circle r="6" class="hub"/>
+            <text y="40" class="gv js-spd" style="font-size:44px">0</text><text y="57" class="gu">${spdUnit()}</text></svg><div class="limchip ckl" hidden></div></div>
+          <div class="ck-side"><div><b class="js-cktrip">0.0</b><small class="js-ckku">km viaje</small></div><div><b class="js-ckmax">0</b><small>máx</small></div><div><b class="js-ckavg">0</b><small>media</small></div></div>
+        </div>
+        <div class="ck-bot"><span>⏱ <b class="js-cktime">0:00</b> en marcha</span><span>📡 GPS <b class="js-ckacc">—</b></span></div></div>`;
+      cockUpd(); renderSpeedUI(); Poi.renderLimit();
+    },
+  };
+  WIDGETS.navmap = { n: 'Navegador GPS (mapa y ruta)', cls: 'w-2x1 navhost', render: el => { el.classList.add('navhost'); Nav.render(el, true); } };
+  function cockUpd() {
+    if (!$('.cock')) return;
+    const mi = S.speedUnit === 'mph', d = mi ? S.trip / 1609.34 : S.trip / 1000, t = S.tripT || 0, avg = t > 30 ? d / (t / 3600) : 0, h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), s = Nav.summary(), p = GPS.pos;
+    const set = (c, v) => $$('.' + c).forEach(e => e.textContent = v);
+    set('js-cktrip', d.toFixed(1)); set('js-ckku', (mi ? 'mi' : 'km') + ' viaje'); set('js-ckmax', Math.round(spdConv(S.maxSpeed))); set('js-ckavg', Math.round(avg)); set('js-cktime', `${h}:${String(m).padStart(2, '0')}`);
+    set('js-ckalt', p && p.altitude != null && !isNaN(p.altitude) ? Math.round(p.altitude) : '—'); set('js-ckacc', p && p.accuracy != null ? '±' + Math.round(p.accuracy) + ' m' : '—');
+    set('js-ckt', WX.data ? tmp(WX.data.current.temperature_2m) : '--');
+    const hd = Poi.state.heading ?? (p && p.heading != null && !isNaN(p.heading) ? p.heading : null); set('js-ckdir', hd == null ? '—' : `${CARD[Math.round(hd / 45) % 8]} ${Math.round(hd)}°`);
+    const mn = Math.min(...Object.values(S.tires)); set('js-cktire', fmtP(mn)); $$('.js-cktire').forEach(e => { e.style.color = tireState(mn) === 'bad' ? 'var(--bad)' : tireState(mn) === 'warn' ? 'var(--warn)' : ''; });
+    set('js-cknav', s ? `${s.icon} ${s.dist} · ${s.text}` : '🧭 sin ruta');
+    const pct = clamp(spdConv(GPS.speed) / gaugeMax(), 0, 1) * 100; $$('.js-arc').forEach(a => a.setAttribute('stroke-dasharray', `${pct.toFixed(1)} 100`));
+  }
+  setInterval(cockUpd, 1000); bus.on('nav', cockUpd);
   const CARD = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
   WIDGETS.compass = {
     n: 'Brújula', cls: 'w-1x1', render: el => {
@@ -112,7 +148,7 @@ const Dash = (() => {
   const _rs = renderSpeedUI;
   renderSpeedUI = function () { // eslint-disable-line no-func-assign
     _rs(); const v = spdConv(GPS.speed), deg = -120 + clamp(v / gaugeMax(), 0, 1) * 240;
-    $$('.js-needle').forEach(n => n.setAttribute('transform', `rotate(${deg.toFixed(1)})`)); tripUpd(); compUpd();
+    $$('.js-needle').forEach(n => n.setAttribute('transform', `rotate(${deg.toFixed(1)})`)); tripUpd(); compUpd(); cockUpd();
   };
   bus.on('pos', () => compUpd());
 

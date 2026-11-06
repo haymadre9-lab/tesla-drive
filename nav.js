@@ -67,7 +67,7 @@ const Nav = (() => {
     $$('[data-fav]', box).forEach(c => c.onclick = () => { const d = S.favs[c.dataset.fav]; d ? routeTo(d) : toast('Termina una ruta y pulsa ⭐ para guardarla aquí', 3500); });
     $$('[data-r]', box).forEach(c => c.onclick = () => routeTo(S.navRecent[+c.dataset.r]));
   }
-  function render(root) {
+  function render(root, emb) {
     if (!N.el) {
       N.el = build();
       N.el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; });
@@ -83,7 +83,7 @@ const Nav = (() => {
       $$('#nlay [data-l]', N.el).forEach(b => b.onclick = () => { S.layers[b.dataset.l] = !S.layers[b.dataset.l]; save(); sync(); Poi.draw(); Poi.refresh(); });
       sync();
     }
-    root.innerHTML = ''; root.append(N.el); initMap(); chips(); N.map.invalidateSize();
+    root.innerHTML = ''; root.append(N.el); N.el.classList.toggle('emb', !!emb); initMap(); chips(); N.map.invalidateSize(); setTimeout(() => N.map && N.map.invalidateSize(), 150);
     $('#nph', N.el).style.display = S.teslaMode ? 'none' : '';
   }
   function initMap() {
@@ -186,5 +186,5 @@ const Nav = (() => {
     }, 1000);
   }
   function prefill(q) { go('map'); setTimeout(() => { const i = $('#nq', N.el); if (i) { i.focus(); if (q) { i.value = q; search(q); } } }, 150); }
-  return { render, onPos, prefill, routeTo, search, state: N, instr, distToLine: distToRoute, summary: () => N.sum };
+  return { render, mount: el => render(el, true), onPos, prefill, routeTo, search, state: N, instr, distToLine: distToRoute, summary: () => N.sum };
 })();
