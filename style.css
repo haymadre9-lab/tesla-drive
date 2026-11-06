@@ -140,9 +140,10 @@ body.nolyr .lyr1,body.nolyr .lyrics{display:none;}
 
 /* ── Ventanas flotantes (PiP) ── */
 .fw{position:fixed;z-index:50;width:min(46vw,520px);height:min(56vh,360px);min-width:240px;min-height:160px;background:var(--bg);border:1px solid var(--bd);border-radius:18px;box-shadow:0 18px 50px rgba(0,0,0,.55);display:flex;flex-direction:column;resize:both;overflow:hidden;}
-.fw .hd{display:flex;align-items:center;gap:6px;padding:6px 8px 6px 14px;background:var(--card);cursor:grab;touch-action:none;font-size:13px;}
-.fw .hd b{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;} .fw .hd button{width:30px;height:30px;border-radius:50%;background:var(--card2);font-size:14px;}
-.fw iframe{flex:1;border:0;width:100%;background:#fff;} .fw.full{inset:0 !important;width:auto;height:auto;border-radius:0;resize:none;}
+.fw .hd{display:flex;align-items:center;gap:6px;padding:8px 8px 8px 14px;min-height:48px;flex:none;background:var(--card);cursor:grab;touch-action:none;font-size:13px;}
+.fw .hd b{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;} .fw .hd button{width:36px;height:36px;border-radius:50%;background:var(--card2);font-size:16px;flex:none;}
+.fw .ft{flex:none;text-align:center;font-size:12px;letter-spacing:2px;color:var(--dim);background:var(--card);padding:10px 0;cursor:grab;touch-action:none;}
+.fw iframe{flex:1;border:0;width:100%;background:#fff;} .fw.full{inset:0 !important;width:auto !important;height:auto !important;border-radius:0;resize:none;}
 .fw .hint{font-size:12px;color:var(--dim);padding:6px 12px;background:var(--card2);}
 
 /* ── FAB, toast, modal ── */
