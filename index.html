@@ -23,7 +23,7 @@
     <div class="st-time"><b id="stTime">--:--</b><span id="stDate"></span></div>
     <div class="st-mid" id="stWeather"></div>
     <div class="st-right">
-      <span id="stSpeed" title="Velocidad GPS">-- km/h</span>
+      <span id="stLimit" class="lim" hidden></span><span id="stSpeed" title="Velocidad GPS">-- km/h</span>
       <span id="stGps" class="dot" title="GPS"></span>
       <button id="btnDN" class="ic" title="Día / noche">🌓</button>
       <button id="btnFS" class="ic" title="Pantalla completa">⛶</button>
@@ -49,6 +49,7 @@
 
 <button id="fab" aria-label="Botón flotante"></button>
 <div id="floats"></div>
+<div id="alertbar" hidden></div>
 <div id="toast"></div>
 <div id="modal" hidden></div>
 <input type="file" id="fileAudio" accept="audio/*" multiple hidden>
@@ -58,6 +59,7 @@
 <audio id="audio" preload="metadata"></audio>
 <script src="vendor/leaflet.js"></script>
 <script src="nav.js"></script>
+<script src="poi.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

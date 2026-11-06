@@ -33,7 +33,7 @@ const DEF = {
   speedUnit: 'kmh', pressUnit: 'bar', tempUnit: 'c', tpWarn: 2.0, tpDanger: 1.6, spare: false,
   tires: { fl: 2.4, fr: 2.4, rl: 2.5, rr: 2.5 },
   fab: { on: true, click: 'home', long: 'daynight', x: null, y: null }, keys: [],
-  city: null, lastPos: null, last: {}, recent: [], teslaMode: IS_TESLA, voice: true, navRecent: [], favs: { home: null, work: null }, maxSpeed: 0, trip: 0,
+  city: null, lastPos: null, last: {}, recent: [], teslaMode: IS_TESLA, voice: true, radarAlerts: true, layers: { cams: true, chargers: false, fuel: false, reports: true }, reports: [], navRecent: [], favs: { home: null, work: null }, maxSpeed: 0, trip: 0,
 };
 let S;
 try { S = Object.assign(structuredClone(DEF), JSON.parse(localStorage.getItem('leco.v1') || '{}')); } catch { S = structuredClone(DEF); }
@@ -334,6 +334,7 @@ function widgetMap(el) {
 }
 renderers.map = () => Nav.render($('#p-map'));
 bus.on('pos', c => Nav.onPos(c));
+bus.on('pos', c => Poi.onPos(c));
 bus.on('pos', () => {
   const p = GPS.pos; if (!p) return; const key = p.latitude.toFixed(3) + p.longitude.toFixed(3); if (key === mapKey) return; mapKey = key;
   $$('.js-mapw iframe').forEach(f => f.src = mapSrc());
@@ -580,6 +581,14 @@ const CATS = {
     { k: 'tpDanger', l: 'Presión peligrosa (bar)', d: 'Por debajo se marca en rojo y salta una alerta', type: 'number', step: .1 },
     { t: 'note', l: 'Una PWA no puede leer sensores TPMS Bluetooth de forma genérica: toca cada neumático en el widget para introducir su presión. Los valores se guardan en el dispositivo.' },
   ]],
+  mapa: ['🗺 Mapa y avisos', [
+    { k: 'radarAlerts', l: 'Avisos de radares fijos', d: 'Aviso en pantalla y por voz cuando se acerca un radar fijo por delante. Datos de OpenStreetMap: pueden estar incompletos o desactualizados. Comprueba la normativa de tu país', type: 'toggle' },
+    { k: 'layers.cams', l: 'Mostrar radares en el mapa', type: 'toggle' }, { k: 'layers.chargers', l: 'Mostrar cargadores', d: 'Los de Tesla se marcan en rojo', type: 'toggle' },
+    { k: 'layers.fuel', l: 'Mostrar gasolineras', type: 'toggle' }, { k: 'layers.reports', l: 'Mostrar mis reportes', type: 'toggle' },
+    { t: 'btn', l: 'Actualizar radares y puntos de interés', f: () => { Poi.refresh(true); toast('Actualizando…'); } },
+    { t: 'btn', l: 'Borrar mis reportes', f: () => { Poi.clearReports(); toast('Reportes borrados'); } },
+    { t: 'note', l: 'No se incluyen avisos de controles móviles de policía. Los reportes (accidente, peligro, bache…) se guardan solo en este dispositivo durante 3 horas.' },
+  ]],
   unidades: ['📏 Unidades', [{ k: 'speedUnit', l: 'Velocidad', type: 'select' }, { k: 'tempUnit', l: 'Temperatura', type: 'select' }, { t: 'btn', l: 'Reiniciar viaje y velocidad máxima', f: () => { S.trip = 0; S.maxSpeed = 0; save(); renderSpeedUI(); toast('Reiniciado'); } }]],
   controles: ['🎛 Controles', [
     { k: 'teslaMode', l: 'Modo Tesla', d: 'Botones grandes y navegación propia dentro de la app (el navegador de Tesla no abre las apps de Maps/Waze). Se activa solo en el navegador del coche', type: 'toggle' },
@@ -612,7 +621,7 @@ function settingRow(it) {
   if (it.t === 'walls') return wallsEditor();
   if (it.t === 'keys') return keysEditor();
   const val = getK(it.k), r = el(`<div class="row"><div class="tx"><b>${esc(it.l)}</b>${it.d ? `<small>${esc(it.d)}</small>` : ''}</div><div class="ctrl"></div></div>`), c = $('.ctrl', r);
-  const commit = v => { setK(it.k, v); save(); applyTheme(); placeFab(); if (['wallMode', 'wallEffect', 'wallInterval'].includes(it.k)) Wall.apply(); if (['speedUnit', 'tempUnit', 'pressUnit', 'rows', 'colw', 'visualizer', 'hideLyrics'].includes(it.k)) refreshHome(); };
+  const commit = v => { setK(it.k, v); save(); applyTheme(); placeFab(); if (['wallMode', 'wallEffect', 'wallInterval'].includes(it.k)) Wall.apply(); if (['speedUnit', 'tempUnit', 'pressUnit', 'rows', 'colw', 'visualizer', 'hideLyrics'].includes(it.k)) refreshHome(); if (it.k === 'radarAlerts' || it.k.startsWith('layers.')) { Poi.draw(); Poi.refresh(); } };
   if (it.type === 'toggle') { const s = el(`<div class="sw ${val ? 'on' : ''}"></div>`); s.onclick = () => { s.classList.toggle('on'); commit(s.classList.contains('on')); }; c.append(s); }
   else if (it.type === 'select' || it.type === 'action') {
     const opts = it.type === 'action' ? Object.entries(ACTIONS).map(([k, v]) => [k, v[0]]) : OPT[it.k];
@@ -674,7 +683,7 @@ $('#fileCfg').onchange = async e => {
   S.apps.forEach(a => { const d = DEF_APPS.find(x => x.id === a.id); if (d && !a.k) a.k = d.k; });
   await Wall.load(); applyTheme(); Wall.apply(); placeFab();
   go('home'); tickClock(); setInterval(tickClock, 1000);
-  startGPS(); loadWeather(); setInterval(() => loadWeather(), 15 * 60e3);
+  Poi.init(); startGPS(); loadWeather(); setInterval(() => loadWeather(), 15 * 60e3);
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => { });
   try { navigator.wakeLock?.request('screen').catch(() => { }); document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && navigator.wakeLock?.request('screen').catch(() => { })); } catch { }
 })();

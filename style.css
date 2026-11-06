@@ -189,3 +189,17 @@ html[data-theme="dark"] #navmap .leaflet-tile-pane{filter:invert(.92) hue-rotate
 body.tesla{font-size:17px;} body.tesla #shell{grid-template-columns:104px 1fr;} body.tesla.rhd #shell{grid-template-columns:1fr 104px;}
 body.tesla #dock button{height:88px;font-size:32px;} body.tesla #dock button i{font-size:13px;} body.tesla .ic{width:52px;height:52px;} body.tesla .btn{padding:14px 20px;} body.tesla .st-time b{font-size:34px;}
 @media (max-width:760px),(max-aspect-ratio:1/1){ .navguide .ni{font-size:44px;width:52px;} .navguide .nt b{font-size:26px;} .navbar{flex-wrap:wrap;} .navbar .btn.bad{margin-left:0;} }
+
+/* ── Capa estilo Waze ── */
+.spdbub{position:absolute;z-index:500;left:12px;bottom:12px;width:84px;height:84px;border-radius:50%;background:var(--bg);border:4px solid var(--acc);display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 6px 20px rgba(0,0,0,.5);transition:.2s;}
+.guiding .spdbub,.guiding .limsign{bottom:92px;} .spdbub b{font-size:30px;line-height:1;font-variant-numeric:tabular-nums;} .spdbub small{font-size:11px;color:var(--dim);}
+.spdbub.over{border-color:var(--bad);background:#4a1010;animation:pulse 1s infinite;}
+.limsign{position:absolute;z-index:500;left:106px;bottom:12px;width:64px;height:64px;border-radius:50%;background:#fff;color:#111;border:7px solid #d71920;display:grid;place-items:center;font-size:24px;font-weight:700;box-shadow:0 6px 20px rgba(0,0,0,.5);} .limsign[hidden]{display:none;}
+.lim{display:inline-grid;place-items:center;min-width:30px;height:30px;border-radius:50%;background:#fff;color:#111;border:3px solid #d71920;font-size:13px;font-weight:700;} .lim[hidden]{display:none;}
+#stSpeed.over{color:var(--bad);font-weight:700;}
+.navlayers{position:absolute;z-index:500;right:12px;top:108px;display:flex;flex-direction:column;gap:8px;}
+.navlayers button{width:50px;height:50px;border-radius:50%;background:var(--bg);border:2px solid var(--bd);font-size:22px;box-shadow:0 4px 14px rgba(0,0,0,.4);opacity:.7;} .navlayers button.on{opacity:1;border-color:var(--acc);} .navlayers #nrep{background:var(--acc);opacity:1;border-color:transparent;}
+.poi{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-size:19px;background:var(--bg);border:3px solid var(--warn);box-shadow:0 3px 10px rgba(0,0,0,.5);}
+.poi.tesla{border-color:#e82127;} .poi.chg{border-color:var(--ok);} .poi.fuel{border-color:#5b9cff;} .poi.cam{border-color:var(--bad);} .poi.rep{border-color:var(--warn);}
+#alertbar{position:fixed;z-index:75;top:70px;left:50%;transform:translateX(-50%);background:var(--warn);color:#111;padding:12px 26px;border-radius:18px;font-size:22px;font-weight:700;box-shadow:0 8px 30px rgba(0,0,0,.5);white-space:nowrap;} #alertbar[hidden]{display:none;}
+#alertbar.over{background:var(--bad);color:#fff;animation:pulse .8s infinite;}
