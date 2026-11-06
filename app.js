@@ -11,17 +11,17 @@ const bus = (() => { const m = {}; return { on: (e, f) => (m[e] ||= []).push(f),
 
 /* ───────────── Estado ───────────── */
 const DEF_APPS = [
-  { id: 'maps', n: 'Google Maps', u: 'https://www.google.com/maps', e: '📍' },
-  { id: 'waze', n: 'Waze', u: 'https://www.waze.com/live-map', e: '🚙' },
-  { id: 'yt', n: 'YouTube', u: 'https://m.youtube.com', e: '▶️' },
-  { id: 'spot', n: 'Spotify', u: 'https://open.spotify.com', e: '🎧' },
-  { id: 'nflx', n: 'Netflix', u: 'https://www.netflix.com', e: '🎬' },
-  { id: 'twitch', n: 'Twitch', u: 'https://m.twitch.tv', e: '🟣' },
-  { id: 'wa', n: 'WhatsApp', u: 'https://web.whatsapp.com', e: '💬' },
+  { id: 'maps', n: 'Google Maps', u: 'https://www.google.com/maps', e: '📍', k: 'gmaps' },
+  { id: 'waze', n: 'Waze', u: 'https://www.waze.com/live-map', e: '🚙', k: 'waze' },
+  { id: 'yt', n: 'YouTube', u: 'https://m.youtube.com', e: '▶️', k: 'yt' },
+  { id: 'spot', n: 'Spotify', u: 'https://open.spotify.com', e: '🎧', k: 'spot' },
+  { id: 'nflx', n: 'Netflix', u: 'https://www.netflix.com', e: '🎬', k: 'blocked' },
+  { id: 'twitch', n: 'Twitch', u: 'https://m.twitch.tv', e: '🟣', k: 'twitch' },
+  { id: 'wa', n: 'WhatsApp', u: 'https://web.whatsapp.com', e: '💬', k: 'blocked' },
   { id: 'radio', n: 'Radio Garden', u: 'https://radio.garden', e: '📻' },
-  { id: 'windy', n: 'Windy', u: 'https://www.windy.com', e: '🌬️' },
+  { id: 'windy', n: 'Windy', u: 'https://www.windy.com', e: '🌬️', k: 'windy' },
   { id: 'hud', n: 'Tesla HUD (antiguo)', u: 'old-hud/index.html', e: '🚘' },
-  { id: 'gmail', n: 'Gmail', u: 'https://mail.google.com', e: '✉️' },
+  { id: 'gmail', n: 'Gmail', u: 'https://mail.google.com', e: '✉️', k: 'blocked' },
   { id: 'wiki', n: 'Wikipedia', u: 'https://es.m.wikipedia.org', e: '📚' },
 ];
 const DEF = {
@@ -33,7 +33,7 @@ const DEF = {
   speedUnit: 'kmh', pressUnit: 'bar', tempUnit: 'c', tpWarn: 2.0, tpDanger: 1.6, spare: false,
   tires: { fl: 2.4, fr: 2.4, rl: 2.5, rr: 2.5 },
   fab: { on: true, click: 'home', long: 'daynight', x: null, y: null }, keys: [],
-  city: null, lastPos: null, maxSpeed: 0, trip: 0,
+  city: null, lastPos: null, last: {}, recent: [], maxSpeed: 0, trip: 0,
 };
 let S;
 try { S = Object.assign(structuredClone(DEF), JSON.parse(localStorage.getItem('leco.v1') || '{}')); } catch { S = structuredClone(DEF); }
@@ -332,9 +332,9 @@ function widgetMap(el) {
   el.querySelector('.tag').onclick = () => go('map');
 }
 renderers.map = () => {
-  $('#p-map').innerHTML = `<div class="mapfull"><div class="bar"><input id="mq" placeholder="Abrir destino en Google Maps…"><button id="mgo">Ir</button><button id="mfl" class="btn sec">▢ Flotante</button></div><iframe title="Mapa" src="${mapSrc(true)}"></iframe></div>`;
-  const q = () => { const v = $('#mq').value.trim(); if (v) window.open('https://www.google.com/maps/search/' + encodeURIComponent(v), '_blank', 'noopener'); };
-  $('#mgo').onclick = q; $('#mq').onkeydown = e => e.key === 'Enter' && q();
+  $('#p-map').innerHTML = `<div class="mapfull"><div class="bar"><input id="mq" placeholder="Destino: dirección, lugar o lat,lon"><button id="mgo">📍 Maps</button><button id="mwz">🚙 Waze</button><button id="mgeo" class="btn sec">📲 Otra app</button><button id="mfl" class="btn sec">▢</button></div><iframe title="Mapa" src="${mapSrc(true)}"></iframe></div>`;
+  const q = $('#mq'); $('#mgo').onclick = () => navigateTo('gmaps', q.value); $('#mwz').onclick = () => navigateTo('waze', q.value); $('#mgeo').onclick = () => navigateTo('geo', q.value);
+  q.onkeydown = e => e.key === 'Enter' && navigateTo('gmaps', q.value);
   $('#mfl').onclick = () => openFloat({ n: 'Mapa', u: mapSrc(true) });
 };
 bus.on('pos', () => {
@@ -351,9 +351,67 @@ function sortedApps(list) {
   if (S.sort === 'az') l.sort((a, b) => a.n.localeCompare(b.n)); else if (S.sort === 'za') l.sort((a, b) => b.n.localeCompare(a.n));
   return l;
 }
-function openApp(a, mode = S.openMode) {
+async function openApp(a, mode = S.openMode) {
+  if (a.k === 'gmaps' || a.k === 'waze') return navDlg(a);
   if (mode === 'tab') return window.open(a.u, '_blank', 'noopener');
-  openFloat(a, mode === 'full');
+  const r = await embedFor(a); if (!r) return;
+  openFloat({ ...a, u: r.u || a.u, orig: r.orig || a.u, blocked: r.blocked, smart: r.smart }, mode === 'full');
+}
+/* Cada servicio tiene su versión incrustable oficial (los sitios normales prohíben el iframe). */
+const myPos = () => GPS.pos ? [GPS.pos.latitude, GPS.pos.longitude] : S.lastPos || (S.city && [S.city.lat, S.city.lon]) || [40.4168, -3.7038];
+function ytEmbed(t) {
+  const id = (t.match(/(?:v=|youtu\.be\/|shorts\/|embed\/)([\w-]{11})/) || [])[1], list = (t.match(/[?&]list=([\w-]+)/) || [])[1];
+  if (id) return `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0${list ? '&list=' + list : ''}`;
+  if (list) return `https://www.youtube-nocookie.com/embed/videoseries?list=${list}&autoplay=1`;
+}
+async function embedFor(a) {
+  const L = S.last, ask = async (k, title, ph) => { const v = await promptDlg(title, ph, L[k] || ''); if (v) { L[k] = v; save(); } return v; };
+  const bad = m => (toast(m, 3000), null);
+  switch (a.k) {
+    case 'blocked': return { blocked: true };
+    case 'gmaps': { const q = await ask('gmaps', 'Google Maps: lugar o dirección (vacío = tu posición)', 'Ej. Gasolinera cerca'); if (q === null) return null; const p = myPos(); return { u: `https://maps.google.com/maps?q=${encodeURIComponent(q || p.join(','))}&z=15&output=embed`, orig: 'https://www.google.com/maps/search/' + encodeURIComponent(q || p.join(',')), smart: 1 }; }
+    case 'waze': { const p = myPos(); return { u: `https://embed.waze.com/iframe?zoom=14&lat=${p[0]}&lon=${p[1]}&pin=1`, smart: 1 }; }
+    case 'windy': { const p = myPos(); return { u: `https://embed.windy.com/embed2.html?lat=${p[0].toFixed(2)}&lon=${p[1].toFixed(2)}&zoom=7&level=surface&overlay=wind&product=ecmwf&marker=true&message=true`, smart: 1 }; }
+    case 'yt': { const v = await ask('yt', 'YouTube: pega el enlace de un vídeo o lista', 'https://youtu.be/…'); if (v === null) return null; const u = ytEmbed(v); return u ? { u, orig: v, smart: 1 } : bad('Enlace de YouTube no válido'); }
+    case 'spot': { const v = await ask('spot', 'Spotify: pega el enlace de canción, álbum o lista', 'https://open.spotify.com/…'); if (v === null) return null; const m = v.match(/open\.spotify\.com\/(?:intl-\w+\/)?(track|album|playlist|episode|show|artist)\/(\w+)/); return m ? { u: `https://open.spotify.com/embed/${m[1]}/${m[2]}`, orig: v, smart: 1 } : bad('Enlace de Spotify no válido'); }
+    case 'twitch': { const c = await ask('twitch', 'Twitch: nombre del canal', 'Ej. ibai'); if (c === null) return null; return /^\w{3,25}$/.test(c) ? { u: `https://player.twitch.tv/?channel=${c}&parent=${location.hostname || 'localhost'}`, orig: 'https://www.twitch.tv/' + c, smart: 1 } : bad('Canal no válido'); }
+  }
+  return {};
+}
+
+/* ───────────── Navegación: abre la app de GPS con la ruta ───────────── */
+function navUrl(via, q) {
+  const enc = encodeURIComponent(q), coords = /^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/.test(q);
+  if (via === 'waze') return !q ? 'https://waze.com/ul' : coords ? `https://waze.com/ul?ll=${encodeURIComponent(q.replace(/\s/g, ''))}&navigate=yes` : `https://waze.com/ul?q=${enc}&navigate=yes`;
+  if (via === 'geo') return `geo:0,0?q=${enc}`;
+  return q ? `https://www.google.com/maps/dir/?api=1&destination=${enc}&travelmode=driving&dir_action=navigate` : 'https://www.google.com/maps';
+}
+function navigateTo(via, q) {
+  q = (q || '').trim();
+  if (q) { S.recent = [q, ...S.recent.filter(x => x !== q)].slice(0, 6); save(); }
+  const u = navUrl(via, q);
+  if (via === 'geo') location.href = u; else window.open(u, '_blank', 'noopener');
+  toast(q ? 'Abriendo ruta a ' + q : 'Abriendo navegación…');
+}
+function navDlg(a) {
+  const via = a.k === 'waze' ? 'waze' : 'gmaps';
+  dlg(`<h3>${esc(a.e)} Navegar con ${esc(a.n)}</h3><div class="f"><input class="in" id="nd" placeholder="Destino: dirección, lugar o lat,lon" autocomplete="off">
+    <div>${S.recent.map(r => `<span class="chip" data-r="${esc(r)}" style="cursor:pointer">🕘 ${esc(r)}</span>`).join('')}</div>
+    <button class="btn" id="n1">🧭 Iniciar navegación en ${esc(a.n)}</button>
+    <button class="btn sec" id="n3">📲 Elegir otra app de GPS</button>
+    <button class="btn sec" id="n2">▢ Solo ver el mapa en ventana</button></div>
+    <div class="note">Se abre la app instalada en el dispositivo con la ruta lista. Dejando el destino vacío se abre la app sin ruta.</div>
+    <div class="acts"><button class="btn sec" id="c">Cerrar</button></div>`, d => {
+    const i = $('#nd', d); i.focus();
+    $$('[data-r]', d).forEach(c => c.onclick = () => { i.value = c.dataset.r; });
+    const go1 = v => { closeDlg(); navigateTo(v, i.value); };
+    $('#n1', d).onclick = () => go1(via); $('#n3', d).onclick = () => go1('geo'); i.onkeydown = e => e.key === 'Enter' && go1(via);
+    $('#c', d).onclick = closeDlg;
+    $('#n2', d).onclick = () => {
+      const q = i.value.trim(), p = myPos(); closeDlg();
+      openFloat({ ...a, smart: 1, orig: navUrl(via, q), u: via === 'waze' ? `https://embed.waze.com/iframe?zoom=14&lat=${p[0]}&lon=${p[1]}&pin=1` : `https://maps.google.com/maps?q=${encodeURIComponent(q || p.join(','))}&z=15&output=embed` });
+    };
+  });
 }
 const floats = [];
 function openFloat(a, full = false) {
@@ -362,12 +420,13 @@ function openFloat(a, full = false) {
   const n = floats.length, W = innerWidth, H = innerHeight;
   w.style.left = clamp(W * .3 + n * 40, 10, W - 260) + 'px'; w.style.top = clamp(H * .18 + n * 40, 10, H - 180) + 'px';
   w.innerHTML = `<div class="hd"><b>${esc(a.e || '🌐')} ${esc(a.n)}</b><button data-b="tab" title="Abrir en pestaña">↗</button><button data-b="full" title="Pantalla completa">⛶</button><button data-b="x" title="Cerrar">✕</button></div>
-    <div class="hint">Algunos sitios bloquean el modo incrustado. Si ves la ventana en blanco, usa ↗.</div>
-    <iframe src="${esc(a.u)}" allow="geolocation; autoplay; fullscreen; encrypted-media; picture-in-picture" referrerpolicy="no-referrer-when-downgrade"></iframe>`;
+    ${a.blocked ? `<div class="blk"><div style="font-size:44px">🔒</div><p><b>${esc(a.n)}</b> no permite abrirse dentro de otra ventana.<br>Es una restricción del propio servicio.</p><button class="btn" data-b="tab">Abrir ${esc(a.n)}</button></div>`
+    : `${a.smart ? '' : '<div class="hint">Si ves la ventana en blanco, este sitio bloquea el modo incrustado: usa ↗.</div>'}
+    <iframe src="${esc(a.u)}" allow="geolocation; autoplay; fullscreen; encrypted-media; picture-in-picture" referrerpolicy="no-referrer-when-downgrade"></iframe>`}`;
   $('#floats').append(w); floats.push(w);
   $('[data-b=x]', w).onclick = () => { w.remove(); floats.splice(floats.indexOf(w), 1); };
   $('[data-b=full]', w).onclick = () => w.classList.toggle('full');
-  $('[data-b=tab]', w).onclick = () => window.open(a.u, '_blank', 'noopener');
+  $$('[data-b=tab]', w).forEach(b => b.onclick = () => window.open(a.orig || a.u, '_blank', 'noopener'));
   const hd = $('.hd', w); let dx, dy, drag = false;
   hd.onpointerdown = e => { if (e.target.closest('button') || w.classList.contains('full')) return; drag = true; dx = e.clientX - w.offsetLeft; dy = e.clientY - w.offsetTop; hd.setPointerCapture(e.pointerId); hd.style.cursor = 'grabbing'; $$('.fw').forEach(x => x.style.zIndex = 50); w.style.zIndex = 51; };
   hd.onpointermove = e => { if (drag) { w.style.left = clamp(e.clientX - dx, -w.offsetWidth + 80, innerWidth - 80) + 'px'; w.style.top = clamp(e.clientY - dy, 0, innerHeight - 40) + 'px'; } };
@@ -594,6 +653,7 @@ $('#fileCfg').onchange = async e => {
 
 /* ───────────── Arranque ───────────── */
 (async function init() {
+  S.apps.forEach(a => { const d = DEF_APPS.find(x => x.id === a.id); if (d && !a.k) a.k = d.k; });
   await Wall.load(); applyTheme(); Wall.apply(); placeFab();
   go('home'); tickClock(); setInterval(tickClock, 1000);
   startGPS(); loadWeather(); setInterval(() => loadWeather(), 15 * 60e3);
