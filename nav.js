@@ -50,7 +50,7 @@ const Nav = (() => {
   function build() {
     const el = document.createElement('div'); el.className = 'navwrap';
     el.innerHTML = `<div id="navmap"></div>
-      <div class="navtop"><div class="navsearch"><input id="nq" type="search" placeholder="¿A dónde vamos? Dirección, lugar o lat,lon" autocomplete="off"><button class="btn" id="ngo">🔍</button><button class="btn sec" id="nph" title="Abrir en app de GPS del móvil">📲</button></div>
+      <div class="navtop"><div class="navsearch"><input id="nq" type="search" placeholder="¿A dónde vamos? Dirección, lugar o lat,lon" autocomplete="off"><button class="btn" id="ngo">🔍</button><button class="btn sec" id="nph" title="Abrir en app de GPS del móvil">📲</button><button class="btn sec" id="nmaps" title="Cambiar de mapa">🗺</button></div>
         <div class="navres" id="nres" hidden></div><div class="navchips" id="nchips"></div></div>
       <div class="navguide" id="nguide" hidden><div class="ni" id="nicon">⬆</div><div class="nt"><b id="ndist">—</b><span id="ntext"></span></div></div>
       <div class="navbar" id="nbar" hidden><div><b id="nrem">—</b><small>restante</small></div><div><b id="neta">—</b><small>llegada</small></div><div><b id="nspd">0</b><small id="nspu">km/h</small></div>
@@ -74,6 +74,7 @@ const Nav = (() => {
       $('#ngo', N.el).onclick = () => search($('#nq', N.el).value);
       $('#nq', N.el).onkeydown = e => e.key === 'Enter' && search(e.target.value);
       $('#nph', N.el).onclick = () => navDlg(appById('maps') || { n: 'GPS', e: '🧭', k: 'gmaps' });
+      $('#nmaps', N.el).onclick = () => Maps.switchFrom(N.el);
       $('#nstop', N.el).onclick = stop; $('#nsim', N.el).onclick = simulate;
       $('#nctr', N.el).onclick = () => { N.follow = true; if (N.pos) N.map.setView(N.pos, N.map.getZoom()); };
       $('#nmute', N.el).onclick = () => { N.muted = !N.muted; $('#nmute', N.el).textContent = N.muted ? '🔇' : '🔊'; if (N.muted) try { speechSynthesis.cancel(); } catch { } };

@@ -65,10 +65,11 @@ const Win = (() => {
     $$('.wcover,.wtool,.wres,.wdots,.wgrip', f).forEach(n => n.remove()); f.classList.toggle('editing', editing); if (!editing) f.classList.remove('sel');
     const card = $('.wc', f); f.style.zIndex = editing ? 'auto' : (w.z || 1); card.style.zIndex = editing ? (w.z || 1) * 2 : '';
     if (editing) {
-      f.insertAdjacentHTML('beforeend', `<div class="wcover"><span class="wname">${esc(w.type === 'web' ? (w.title || Ed.hostOf(w.url) || 'PWA') : (WIDGETS[w.wid]?.n || '?'))}</span></div><div class="wtool"><button data-t="cfg" title="Cambiar función o PWA">⚙</button><button data-t="del" title="Quitar ventana">✕</button></div><div class="wres" title="Redimensionar"></div>`);
+      f.insertAdjacentHTML('beforeend', `<div class="wcover"><span class="wname">${esc(w.type === 'web' ? (w.title || Ed.hostOf(w.url) || 'PWA') : (WIDGETS[w.wid]?.n || '?'))}</span></div><div class="wtool"><button data-t="cfg" title="Cambiar función o PWA">⚙</button>${w.mapSlot || w.wid === 'navmap' ? '<button data-t="map" title="Cambiar de mapa">🗺</button>' : ''}<button data-t="del" title="Quitar ventana">✕</button></div><div class="wres" title="Redimensionar"></div>`);
       $('.wcover', f).style.zIndex = (w.z || 1) * 2 + 1; bindEdit(f, w);
     } else {
       if (S.winDots !== false) { f.insertAdjacentHTML('beforeend', '<button class="wdots" title="Configurar ventana">⋮</button>'); $('.wdots', f).onclick = e => { e.stopPropagation(); edit(w.id); }; }
+      if (w.mapSlot && w.type === 'web') { f.insertAdjacentHTML('beforeend', '<button class="wmap" title="Cambiar de mapa">🗺</button>'); $('.wmap', f).onclick = e => { e.stopPropagation(); Maps.pick(id => setMap(w.id, id), w.mapId || 'builtin'); }; }
       if (w.type === 'web' && w.bar === false) f.insertAdjacentHTML('beforeend', '<div class="wgrip"></div>'); // franja para poder mantener pulsado sobre una PWA
     }
   }
@@ -95,7 +96,15 @@ const Win = (() => {
     $('.wres', f).onpointerdown = e => { e.preventDefault(); e.stopPropagation(); track({ pointerId: e.pointerId, x: e.clientX, y: e.clientY }, f, w, SIZE); };
     $('[data-t=cfg]', f).onclick = e => { e.stopPropagation(); edit(w.id); };
     $('[data-t=del]', f).onclick = e => { e.stopPropagation(); remove(w.id); };
+    const mb = $('[data-t=map]', f); if (mb) mb.onclick = e => { e.stopPropagation(); Maps.pick(id => setMap(w.id, id), w.mapId || 'builtin'); };
     ['pointerdown', 'click'].forEach(ev => $('.wtool', f).addEventListener(ev, e => e.stopPropagation()));
+  }
+  /* Cambia lo que muestra la ventana del mapa: el mapa integrado u otro de la biblioteca */
+  function setMap(id, mapId) {
+    const D = Dash.cur(), w = D.win.find(x => x.id === id); if (!w) return;
+    if (mapId === 'builtin') { w.type = 'widget'; w.wid = 'navmap'; delete w.url; delete w.mapId; delete w.title; w.mapSlot = true; }
+    else { const m = Maps.get(mapId); if (!m) return; if (w.wid) w.prev = w.wid; Object.assign(w, { type: 'web', url: m.u, title: m.n, bar: false, mapSlot: true, mapId }); delete w.wid; }
+    save(); renderFree(D); toast(mapId === 'builtin' ? 'Mapa integrado' : 'Mapa: ' + Maps.get(mapId).n);
   }
   /* Mantener pulsado una ventana y arrastrar en el mismo gesto */
   function lift(id, p) {
@@ -148,6 +157,7 @@ const Win = (() => {
       <div id="wweb" class="f">
         <label>Dirección de la PWA<div class="inline"><input class="in" id="wu" placeholder="https://…" value="${esc(W.url || '')}"><button class="btn sec" id="wp" type="button">📋 Pegar</button></div></label>
         <label>…o elegir una de mis apps<select class="in" id="wa"><option value="">— elegir —</option>${S.apps.map(a => `<option value="${esc(a.id)}">${esc(a.n)}</option>`).join('')}</select></label>
+        <label>…o uno de mis mapas<select class="in" id="wmp"><option value="">— elegir —</option>${(S.maps || []).map(m => `<option value="${esc(m.id)}">${esc(m.n)}</option>`).join('')}</select></label>
         <label>Título<input class="in" id="wti" value="${esc(W.title || '')}" placeholder="(automático)"></label>
         <div class="inline"><label class="chk"><input type="checkbox" id="wbar" ${W.bar === false ? '' : 'checked'}> Mostrar barra de título</label><label>Escala <input type="range" id="wsc" min="40" max="160" step="5" value="${W.scale || 100}"> <b id="wscv">${W.scale || 100}%</b></label></div>
       </div>
@@ -162,11 +172,12 @@ const Win = (() => {
       $('#wsc', d).oninput = e => { $('#wscv', d).textContent = e.target.value + '%'; };
       $('#wp', d).onclick = async () => { const t = await Ed.paste(), u = Ed.urlFrom(t) || t; if (u) { $('#wu', d).value = u; if (!$('#wti', d).value) $('#wti', d).value = Ed.hostOf(u).replace(/^www\./, ''); } };
       $('#wa', d).onchange = e => { const a = appById(e.target.value); if (a) { $('#wu', d).value = a.u; $('#wti', d).value = a.n; } };
+      $('#wmp', d).onchange = e => { const m = Maps.get(e.target.value); if (m) { $('#wu', d).value = m.u; $('#wti', d).value = m.n; W.mapSlot = true; W.mapId = m.id; } };
       $$('#wq button', d).forEach(b => b.onclick = () => { W.r[pr] = QS[+b.dataset.i].slice(); toast('Posición aplicada: guarda para confirmar'); });
       const finish = () => {
         const t = $('#wt', d).value; W.bg = $('#wbgc', d).checked ? $('#wbg', d).value : ''; W.alpha = +$('#wal', d).value; W.rad = +$('#wr', d).value;
         if (t === 'web') { const u = Ed.normUrl($('#wu', d).value); W.type = 'web'; W.url = u; W.title = $('#wti', d).value.trim(); W.bar = $('#wbar', d).checked; W.scale = +$('#wsc', d).value; if (W.wid) W.prev = W.wid; delete W.wid; }
-        else { W.type = 'widget'; W.wid = t.slice(2); delete W.url; delete W.prev; }
+        else { W.type = 'widget'; W.wid = t.slice(2); delete W.url; delete W.prev; if (W.wid === 'navmap') { W.mapSlot = true; delete W.mapId; } else { delete W.mapSlot; delete W.mapId; } }
         Object.assign(w, W); if (!w.bg) delete w.bg; save();
       };
       $('#wc', d).onclick = () => { if (isNew) D.win = D.win.filter(x => x !== w); closeDlg(); renderFree(D); };
@@ -214,5 +225,5 @@ const Win = (() => {
     }
     return w;
   };
-  return { edit, enter, leave, menu, fromCard, useUrl, add, ensureFree, remove, lift };
+  return { edit, enter, leave, menu, fromCard, useUrl, add, ensureFree, remove, lift, setMap };
 })();
