@@ -93,8 +93,8 @@ const Sync = (() => {
   function incoming() {
     const q = new URLSearchParams(location.search), u = Ed.urlFrom(q.get('url') || '') || Ed.urlFrom(q.get('text') || ''); if (!u) return;
     const title = (q.get('title') || '').trim(); history.replaceState(null, '', location.pathname);
-    dlg(`<h3>🔗 Enlace recibido</h3><div class="note" style="word-break:break-all">${esc(u)}</div><div class="f"><button class="btn" id="r1" type="button">＋ Añadir como app</button><button class="btn sec" id="r2" type="button">▢ Ponerlo en una ventana del dashboard</button></div><div class="acts"><button class="btn sec" id="rc" type="button">Cancelar</button></div>`, d => {
-      $('#rc', d).onclick = closeDlg; $('#r1', d).onclick = () => { closeDlg(); Ed.appEditor(null, { u, n: title || Ed.hostOf(u).replace(/^www\./, '') }); }; $('#r2', d).onclick = () => { closeDlg(); go('home'); Win.useUrl(u, title); };
+    dlg(`<h3>🔗 Enlace recibido</h3><div class="note" style="word-break:break-all">${esc(u)}</div><div class="f"><button class="btn" id="r1" type="button">＋ Añadir como app</button><button class="btn sec" id="r2" type="button">▢ Ponerlo en una ventana del dashboard</button><button class="btn sec" id="r3" type="button">🗺 Guardar como mapa</button></div><div class="acts"><button class="btn sec" id="rc" type="button">Cancelar</button></div>`, d => {
+      $('#rc', d).onclick = closeDlg; $('#r1', d).onclick = () => { closeDlg(); Ed.appEditor(null, { u, n: title || Ed.hostOf(u).replace(/^www\./, '') }); }; $('#r2', d).onclick = () => { closeDlg(); go('home'); Win.useUrl(u, title); }; $('#r3', d).onclick = () => { closeDlg(); Maps.edit(null, { u, n: title || Ed.hostOf(u).replace(/^www\./, '') }); };
     });
   }
   addEventListener('DOMContentLoaded', () => { setTimeout(() => { incoming(); check(); }, 900); });
