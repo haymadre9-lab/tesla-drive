@@ -270,3 +270,11 @@ body.tesla .ck-side b{font-size:24px;}
 @media (max-width:760px),(max-aspect-ratio:1/1){ #layedbar span{display:none;} #layedbar .btn{padding:9px 10px;font-size:13px;} }
 
 body.layedit #dashtag,body.layedit #fab{display:none !important;}
+
+/* ── Mover con el dedo ── */
+html,body{overscroll-behavior:none;} .fwin{-webkit-touch-callout:none;}
+.fwin.lifted{transform:scale(1.02);box-shadow:0 18px 50px rgba(0,0,0,.6);transition:none;} .fwin.sel .wcover{border-color:#fff;background:rgba(62,155,255,.28);}
+.wgrip{position:absolute;left:0;right:0;top:0;height:22px;z-index:4;}
+.fwin.editing .wcover{touch-action:none;} .fwin.editing .wres{touch-action:none;}
+
+.fwin.editing .wtool,.fwin.editing .wres{z-index:1000 !important;}

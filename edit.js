@@ -131,27 +131,28 @@ const Ed = (() => {
 
   /* ── Pulsación larga (delegada, sirve para elementos que se vuelven a pintar) ── */
   (() => {
-    let timer, sx, sy, fired = false;
+    let timer, sx, sy, lx, ly, fired = false;
     const SEL = '.app[data-id], #dock button[data-did], .fwin, .grid > .card[data-w], #dock, .free';
     const stop = () => { clearTimeout(timer); timer = 0; };
     document.addEventListener('pointerdown', e => {
       if (document.body.classList.contains('layedit') || !$('#modal').hidden) return;
       const t = e.target.closest(SEL); if (!t) return;
-      if (t.matches('.fwin') && e.target.closest('input,select,textarea,.leaflet-container,.wdots')) return; // el mapa se arrastra con normalidad
+      if (t.matches('.fwin') && e.target.closest('input,select,textarea,.wdots')) return;
       if (t.matches('#dock') && e.target !== t) return; if (t.matches('.free') && e.target !== t) return;
-      sx = e.clientX; sy = e.clientY; fired = false; stop();
+      sx = lx = e.clientX; sy = ly = e.clientY; fired = false; stop();
       timer = setTimeout(() => {
         fired = true; navigator.vibrate?.(25);
         if (t.matches('.app[data-id]')) { const a = appById(t.dataset.id); a && appEditor(a); }
         else if (t.matches('#dock button')) dockEditor(S.dock.find(x => x.id === t.dataset.did));
         else if (t.matches('#dock')) dockEditor(null);
-        else if (t.matches('.fwin')) Win.edit(t.dataset.win);
+        else if (t.matches('.fwin')) Win.lift(t.dataset.win, { pointerId: e.pointerId, x: lx, y: ly });
         else if (t.matches('.grid > .card')) Win.fromCard(t);
         else if (t.matches('.free')) Win.menu();
       }, 600);
     }, true);
     ['pointerup', 'pointercancel', 'scroll', 'dragstart'].forEach(ev => document.addEventListener(ev, () => { stop(); if (fired) setTimeout(() => { fired = false; }, 200); }, true)); // el clic de la pulsación larga llega enseguida; después se deja de filtrar
-    document.addEventListener('pointermove', e => { if (timer && Math.hypot(e.clientX - sx, e.clientY - sy) > 10) stop(); }, true);
+    document.addEventListener('pointermove', e => { lx = e.clientX; ly = e.clientY; if (timer && Math.hypot(e.clientX - sx, e.clientY - sy) > 10) stop(); }, true);
+    document.addEventListener('contextmenu', e => { if (e.target.closest('.fwin,.app,#dock')) e.preventDefault(); });
     document.addEventListener('click', e => { if (fired) { e.stopPropagation(); e.preventDefault(); fired = false; } }, true); // evita que la pulsación larga abra la app
   })();
 
