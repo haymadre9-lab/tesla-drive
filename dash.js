@@ -194,5 +194,5 @@ const Dash = (() => {
   $('#btnDash').onclick = picker;
   const t = document.createElement('div'); t.id = 'dashtag'; t.innerHTML = '<button data-d="-1">◀</button><b></b><button data-d="1">▶</button>'; $('#pages').append(t);
   $$('button', t).forEach(b => b.onclick = () => next(+b.dataset.d)); $('b', t).onclick = picker;
-  return { cur, accent, use, next, picker };
+  return { cur, accent, use, next, picker, tag };
 })();

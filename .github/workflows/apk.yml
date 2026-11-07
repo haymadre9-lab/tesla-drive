@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths-ignore: ['old-hud/**', '**.md']
+    paths-ignore: ['old-hud/**', '**.md', 'config.json']
 jobs:
   apk:
     runs-on: ubuntu-latest

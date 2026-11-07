@@ -33,7 +33,7 @@ const DEF = {
   speedUnit: 'kmh', pressUnit: 'bar', tempUnit: 'c', tpWarn: 2.0, tpDanger: 1.6, spare: false,
   tires: { fl: 2.4, fr: 2.4, rl: 2.5, rr: 2.5 },
   fab: { on: true, click: 'home', long: 'daynight', x: null, y: null }, keys: [],
-  city: null, lastPos: null, last: {}, recent: [], teslaMode: IS_TESLA, voice: true, tripT: 0, dash: 'classic', dashboards: null, radarAlerts: true, layers: { cams: true, chargers: false, fuel: false, reports: true }, reports: [], navRecent: [], favs: { home: null, work: null }, maxSpeed: 0, trip: 0,
+  city: null, lastPos: null, last: {}, recent: [], teslaMode: IS_TESLA, voice: true, tripT: 0, dash: 'classic', dashboards: null, dock: null, syncMode: 'ask', syncUrl: '', winDots: true, cfgRev: 0, radarAlerts: true, layers: { cams: true, chargers: false, fuel: false, reports: true }, reports: [], navRecent: [], favs: { home: null, work: null }, maxSpeed: 0, trip: 0,
 };
 let S;
 try { S = Object.assign(structuredClone(DEF), JSON.parse(localStorage.getItem('leco.v1') || '{}')); } catch { S = structuredClone(DEF); }
@@ -349,7 +349,7 @@ function sortedApps(list) {
   if (S.sort === 'az') l.sort((a, b) => a.n.localeCompare(b.n)); else if (S.sort === 'za') l.sort((a, b) => b.n.localeCompare(a.n));
   return l;
 }
-async function openApp(a, mode = S.openMode) {
+async function openApp(a, mode = (a.mode && a.mode !== 'default' ? a.mode : S.openMode)) {
   if (a.k === 'gmaps' || a.k === 'waze') return S.teslaMode ? Nav.prefill() : navDlg(a);
   if (mode === 'tab') return window.open(a.u, '_blank', 'noopener');
   const r = await embedFor(a); if (!r) return;

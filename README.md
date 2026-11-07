@@ -7,3 +7,7 @@ Launcher web para pantallas de coche (widgets, música con letras LRC, clima, ma
 - `old-hud/`: el antiguo Tesla Drive HUD.
 
 Proyecto independiente; no incluye código ni recursos de la app Android LecoAuto.
+
+## Configuración desde el móvil
+
+Ajustes → ☁️ Sincronizar: publica la configuración (iconos, ventanas, dashboards) en `config.json` y la pantalla del coche la aplica al abrir. Requiere un token de GitHub de grano fino (solo este repo, *Contents: read and write*), que se guarda únicamente en el dispositivo.
