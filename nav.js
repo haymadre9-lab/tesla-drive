@@ -50,7 +50,7 @@ const Nav = (() => {
   function build() {
     const el = document.createElement('div'); el.className = 'navwrap';
     el.innerHTML = `<div id="navmap"></div>
-      <div class="navtop"><div class="navsearch"><input id="nq" type="search" placeholder="¿A dónde vamos? Dirección, lugar o lat,lon" autocomplete="off"><button class="btn" id="ngo">🔍</button><button class="btn sec" id="nph" title="Abrir en app de GPS del móvil">📲</button><button class="btn sec" id="nmaps" title="Cambiar de mapa">🗺</button></div>
+      <button class="btn sec nsbtn" id="nsb" type="button" title="Buscar destino">🔍</button><div class="navtop"><div class="navsearch"><input id="nq" type="search" placeholder="¿A dónde vamos? Dirección, lugar o lat,lon" autocomplete="off"><button class="btn" id="ngo">🔍</button><button class="btn sec" id="nph" title="Abrir en app de GPS del móvil">📲</button><button class="btn sec" id="nmaps" title="Cambiar de mapa">🗺</button></div>
         <div class="navres" id="nres" hidden></div><div class="navchips" id="nchips"></div></div>
       <div class="navguide" id="nguide" hidden><div class="ni" id="nicon">⬆</div><div class="nt"><b id="ndist">—</b><span id="ntext"></span></div></div>
       <div class="navbar" id="nbar" hidden><div><b id="nrem">—</b><small>restante</small></div><div><b id="neta">—</b><small>llegada</small></div><div><b id="nspd">0</b><small id="nspu">km/h</small></div>
@@ -67,7 +67,7 @@ const Nav = (() => {
     $$('[data-fav]', box).forEach(c => c.onclick = () => { const d = S.favs[c.dataset.fav]; d ? routeTo(d) : toast('Termina una ruta y pulsa ⭐ para guardarla aquí', 3500); });
     $$('[data-r]', box).forEach(c => c.onclick = () => routeTo(S.navRecent[+c.dataset.r]));
   }
-  function render(root, emb) {
+  function render(root, emb, opt) {
     if (!N.el) {
       N.el = build();
       N.el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; });
@@ -75,6 +75,7 @@ const Nav = (() => {
       $('#nq', N.el).onkeydown = e => e.key === 'Enter' && search(e.target.value);
       $('#nph', N.el).onclick = () => navDlg(appById('maps') || { n: 'GPS', e: '🧭', k: 'gmaps' });
       $('#nmaps', N.el).onclick = () => Maps.switchFrom(N.el);
+      $('#nsb', N.el).onclick = () => N.el.classList.toggle('showsearch');
       $('#nstop', N.el).onclick = stop; $('#nsim', N.el).onclick = simulate;
       $('#nctr', N.el).onclick = () => { N.follow = true; if (N.pos) N.map.setView(N.pos, N.map.getZoom()); };
       $('#nmute', N.el).onclick = () => { N.muted = !N.muted; $('#nmute', N.el).textContent = N.muted ? '🔇' : '🔊'; if (N.muted) try { speechSynthesis.cancel(); } catch { } };
@@ -84,7 +85,7 @@ const Nav = (() => {
       $$('#nlay [data-l]', N.el).forEach(b => b.onclick = () => { S.layers[b.dataset.l] = !S.layers[b.dataset.l]; save(); sync(); Poi.draw(); Poi.refresh(); });
       sync();
     }
-    root.innerHTML = ''; root.append(N.el); N.el.classList.toggle('emb', !!emb); initMap(); chips(); N.map.invalidateSize(); setTimeout(() => N.map && N.map.invalidateSize(), 150);
+    root.innerHTML = ''; root.append(N.el); N.el.classList.toggle('emb', !!emb); N.el.classList.toggle('nosearch', !!emb && !!opt && opt.search === false); N.el.classList.toggle('nolayers', !!emb && !!opt && opt.layers === false); initMap(); chips(); N.map.invalidateSize(); setTimeout(() => N.map && N.map.invalidateSize(), 150);
     $('#nph', N.el).style.display = S.teslaMode ? 'none' : '';
   }
   function initMap() {

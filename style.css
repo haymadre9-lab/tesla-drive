@@ -412,3 +412,40 @@ table.wk{width:100%;border-collapse:collapse;font-size:13.5px;} table.wk td,tabl
 .dimg{width:100%;max-height:240px;object-fit:cover;border-radius:12px;} .dmiss{font-size:13.5px;line-height:1.5;} .dlinks{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:8px;} .ai-sum{margin-top:8px;padding:10px 12px;border-radius:12px;background:var(--card2);font-size:14px;line-height:1.45;} .ai-sum:empty{display:none;}
 .draw summary{cursor:pointer;color:var(--dim);font-size:13px;} .raw{margin-top:8px;max-height:220px;overflow:auto;font-size:12px;line-height:1.6;} .raw code{color:var(--acc);}
 @media (max-height:560px) and (min-aspect-ratio:1/1){ .adv-row{padding:8px;gap:8px;} .adv-more{padding:2px 10px 10px;} .dgrid2{grid-template-columns:1fr 1fr;} }
+
+/* ══ Foto en la lista de resultados ══ */
+.adv-row .ai.ph{width:68px;height:68px;border-radius:14px;overflow:hidden;position:relative;background:var(--bd);flex:none;} .ai.ph img{width:100%;height:100%;object-fit:cover;display:block;} .ai.ph .ic{position:absolute;left:4px;bottom:4px;font-size:14px;background:rgba(0,0,0,.6);border-radius:8px;padding:1px 5px;line-height:1.3;}
+.ai.ph.noimg{background:none;} .ai.ph.noimg .ic{position:static;font-size:30px;background:none;padding:0;display:block;text-align:center;}
+
+/* ══ Reloj de velocidad redondo (estilo Tesla) ══ */
+.sp-rd{position:relative;height:100%;aspect-ratio:1;max-width:100%;margin:auto;} .sp-rd svg{position:absolute;inset:0;}
+.rd-disc{fill:#05080f;} .rd-ring{fill:none;stroke:color-mix(in srgb,var(--sc) 55%,#000);stroke-width:2;filter:drop-shadow(0 0 10px var(--sc));} .sp-arc.thin2{stroke-width:5;filter:drop-shadow(0 0 8px var(--sc));}
+.rd-num{font-weight:200;font-size:82px;} .rd-gps{fill:var(--dim);font-size:9px;letter-spacing:5px;text-anchor:middle;} .sp-rd .limchip{top:9%;left:50%;right:auto;transform:translateX(-50%);}
+
+/* ══ Reloj de carretera ══ */
+.rgw{padding:6px !important;} .rg{position:relative;height:100%;aspect-ratio:1;max-width:100%;margin:auto;container-type:size;} .rg svg{position:absolute;inset:0;width:100%;height:100%;}
+.rg-ring{fill:#05080f;stroke:var(--bd);stroke-width:2;} .rg-prog{fill:none;stroke:var(--ok);stroke-width:5;stroke-linecap:round;transition:stroke-dasharray .35s;filter:drop-shadow(0 0 8px currentColor);}
+.rg[data-lvl=red] .rg-prog{stroke:var(--bad);} .rg[data-lvl=amber] .rg-prog{stroke:var(--warn);} .rg[data-lvl=blue] .rg-prog{stroke:var(--acc);}
+.rg-in{position:absolute;inset:11%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:1.5cqmin;color:var(--txt);}
+.rg .limchip{position:absolute;top:2%;left:50%;right:auto;transform:translateX(-50%);width:15cqmin;height:15cqmin;min-width:34px;min-height:34px;font-size:6cqmin;border-width:1.4cqmin;}
+.rg-ic{font-size:19cqmin;line-height:1;margin-top:10cqmin;} .rg-d{font-size:15cqmin;font-weight:600;line-height:1;font-variant-numeric:tabular-nums;} .rg-n{font-size:6.2cqmin;color:var(--dim);max-width:80%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rg[data-lvl=red] .rg-d{color:var(--bad);} .rg[data-lvl=amber] .rg-d{color:var(--warn);} .rg-w{display:flex;gap:4cqmin;font-size:7cqmin;margin-top:2cqmin;} .rg.rain .js-rg-r{color:#5ab0ff;font-weight:700;}
+@media (prefers-reduced-motion:no-preference){ .rg[data-lvl=red] .rg-ic{animation:pulse 1s infinite;} }
+
+/* ══ Tarjetas del dashboard «Tres ventanas» ══ */
+.ncw,.npw,.tbw,.rbw{padding:10px 14px !important;container-type:size;}
+.nc{display:flex;align-items:center;gap:12px;height:100%;} .nc-i{font-size:min(14cqh,40px);width:1.2em;text-align:center;color:var(--acc);} .nc-t{min-width:0;} .nc-t b{display:block;font-size:min(22cqh,26px);line-height:1.1;} .nc-t span{display:block;color:var(--dim);font-size:min(14cqh,14px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;} .nc.idle{opacity:.75;}
+.np{display:flex;align-items:center;gap:10px;height:100%;} .np-a{height:100%;aspect-ratio:1;max-height:56px;border-radius:12px;background:linear-gradient(135deg,#3a2c6b,#1e5aa8);display:grid;place-items:center;font-size:22px;overflow:hidden;flex:none;} .np-a img{width:100%;height:100%;object-fit:cover;} .np-t{flex:1;min-width:0;} .np-t b{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;} .np-t span{color:var(--dim);font-size:12.5px;} .np-b{width:38px;height:38px;border-radius:50%;background:var(--card2);font-size:15px;flex:none;}
+.tb{display:flex;align-items:center;gap:16px;height:100%;} .tb-t{display:flex;align-items:baseline;gap:12px;} .tb-t b{font-size:min(60cqh,30px);font-weight:500;} .tb-t i{font-style:normal;color:var(--dim);font-size:min(46cqh,20px);} .tb-c{display:flex;align-items:center;gap:8px;margin-left:auto;padding:5px 14px;border-radius:18px;background:var(--card2);font-size:13px;} .tb-dot{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok);} .tb-c[data-ok="2"] .tb-dot{background:var(--warn);box-shadow:0 0 8px var(--warn);} .tb-c[data-ok="0"] .tb-dot{background:var(--bad);box-shadow:0 0 8px var(--bad);} .tb-g{width:36px;height:36px;border-radius:50%;background:var(--card2);font-size:17px;}
+.rb{display:flex;align-items:center;gap:18px;height:100%;font-size:min(58cqh,18px);} .rb-r{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;} .rb-o{color:var(--txt);font-variant-numeric:tabular-nums;} .rb-o i{font-style:normal;color:var(--dim);letter-spacing:2px;margin-right:6px;font-size:.8em;}
+/* skin: Tesla OS */
+body[data-skin=teslaos]{--bg:#000;} body[data-skin=teslaos] #shade{background:radial-gradient(70% 60% at 50% 10%,rgba(30,90,170,.18),transparent 70%);}
+body[data-skin=teslaos] .card{background:rgba(10,14,22,.72);border:1px solid rgba(255,255,255,.06);border-radius:30px;box-shadow:0 18px 50px rgba(0,0,0,.45);} body[data-skin=teslaos] .card h4{letter-spacing:2px;}
+body[data-skin=teslaos] .fwin .wdots{opacity:.25;}
+
+/* ══ Estilos solo oscuros: tema fijo para que los relojes oscuros se lean siempre ══ */
+body[data-skin=teslaos],body[data-skin=hud]{--txt:#f2f5fa;--dim:#93a0b4;--card:rgba(10,14,22,.72);--card2:rgba(255,255,255,.08);--bd:rgba(255,255,255,.09);}
+.sp-rd,.rg{--txt:#f2f5fa;--dim:#93a0b4;--bd:rgba(255,255,255,.09);}
+/* mapa sin barra de búsqueda ni capas (para dashboards con tarjetas encima) */
+.nsbtn{display:none;} .navwrap.nosearch .navtop{display:none;} .navwrap.nosearch .nsbtn{display:block;position:absolute;left:12px;top:12px;z-index:500;width:46px;height:46px;border-radius:50%;padding:0;} .navwrap.nosearch.showsearch .navtop{display:block;} .navwrap.nosearch.showsearch .nsbtn{display:none;}
+.navwrap.nolayers .navlayers{display:none;} .navwrap.emb.nosearch .leaflet-top.leaflet-right{top:auto;bottom:86px;}
