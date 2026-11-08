@@ -78,7 +78,7 @@ const Road = (() => {
   }
   bus.on('road', rgUpd);
 
-  WIDGETS.navcard = { n: 'Tarjeta del próximo giro', cls: 'w-1x1', render: el => { el.classList.add('ncw'); ncUpd(); el.onclick = () => go('map'); } };
+  WIDGETS.navcard = { n: 'Tarjeta del próximo giro', cls: 'w-1x1', render: el => { el.classList.add('ncw'); ncUpd(); el.onclick = () => (Nav.summary() || typeof Search === 'undefined') ? go('map') : Search.open(); } };
   function ncUpd() { const s = Nav.summary(); $$('.ncw').forEach(e => { e.innerHTML = s ? `<div class="nc"><div class="nc-i">${esc(s.icon)}</div><div class="nc-t"><b>${esc(s.dist)}</b><span>${esc(s.text)}</span></div></div>` : '<div class="nc idle"><div class="nc-i">🧭</div><div class="nc-t"><b>Sin ruta</b><span>Toca para ir a…</span></div></div>'; }); }
   bus.on('nav', ncUpd);
 
