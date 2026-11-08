@@ -115,6 +115,8 @@ const Road = (() => {
       el.style.background = o.side === 'all' ? `radial-gradient(ellipse at center, rgba(0,0,0,0) 40%, rgba(0,0,0,${(a * .8).toFixed(2)}) 100%)` : `linear-gradient(${dir}, rgba(0,0,0,${a}) 0%, rgba(0,0,0,${(a * .62).toFixed(2)}) 40%, rgba(0,0,0,${(a * .2).toFixed(2)}) 75%, rgba(0,0,0,0) 100%)`;
     },
   };
+  OPT.mapStyle = [['auto', 'Automático (según día/noche)'], ['dark', 'Oscuro'], ['light', 'Claro'], ['sat', 'Satélite'], ['hybrid', 'Satélite con calles y nombres']]; OPT.navIcon = [['dot', 'Punto con flecha'], ['chev', 'Flecha roja'], ['car', 'Coche visto desde arriba']];
+  CATS.mapa[1].unshift({ k: 'mapStyle', l: 'Estilo del mapa integrado', d: 'El satélite usa imágenes de Esri: necesita conexión y puede consumir más datos', type: 'select' }, { k: 'navIcon', l: 'Icono de mi vehículo en el mapa', type: 'select' });
   CATS.mapa[1].push({ k: 'roadVoice', l: 'Avisos por voz de señales (stop, ceda, semáforo)', d: 'Se anuncian a unos 100–150 m. Datos de OpenStreetMap: no hay información del estado de los semáforos', type: 'toggle' });
   return { state: R, TYPES, compute, onPos };
 })();

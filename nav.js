@@ -56,7 +56,7 @@ const Nav = (() => {
       <div class="navbar" id="nbar" hidden><div><b id="nrem">—</b><small>restante</small></div><div><b id="neta">—</b><small>llegada</small></div><div><b id="nspd">0</b><small id="nspu">km/h</small></div>
         <button class="btn sec" id="nmute">🔊</button><button class="btn sec" id="nctr">🎯</button><button class="btn sec" id="nfav">⭐</button><button class="btn bad" id="nstop">✕ Terminar</button></div>
       <button class="btn sec navsim" id="nsim" hidden>🧪 Simular ruta</button>
-      <div class="navlayers" id="nlay"><button data-l="cams" title="Radares fijos">📷</button><button data-l="chargers" title="Cargadores">⚡</button><button data-l="fuel" title="Gasolineras">⛽</button><button data-l="reports" title="Reportes">⚠️</button><button id="nrep" title="Reportar">➕</button></div>
+      <div class="navlayers" id="nlay"><button data-l="cams" title="Radares fijos">📷</button><button data-l="chargers" title="Cargadores">⚡</button><button data-l="fuel" title="Gasolineras">⛽</button><button data-l="reports" title="Reportes">⚠️</button><button id="nsty" title="Cambiar el estilo del mapa (satélite, oscuro…)">🛰</button><button id="nrep" title="Reportar">➕</button></div>
       <div class="spdbub"><b class="js-spd">0</b><small>${spdUnit()}</small></div><div class="limsign" hidden></div>`;
     return el;
   }
@@ -67,6 +67,27 @@ const Nav = (() => {
     $$('[data-fav]', box).forEach(c => c.onclick = () => { const d = S.favs[c.dataset.fav]; d ? routeTo(d) : toast('Termina una ruta y pulsa ⭐ para guardarla aquí', 3500); });
     $$('[data-r]', box).forEach(c => c.onclick = () => routeTo(S.navRecent[+c.dataset.r]));
   }
+  /* Estilo del mapa y del icono del vehículo (de la ventana o, si no, del ajuste general) */
+  const TILE = { osm: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png', '© OpenStreetMap'], sat: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', 'Imágenes © Esri, Maxar, Earthstar Geographics'], road: ['https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', ''], place: ['https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', ''] };
+  const ICONS = {
+    dot: ['<div class="nme"><i></i></div>', [34, 34]],
+    chev: ['<div class="nme chev"><svg viewBox="-20 -20 40 40"><path d="M0 -17 L13 15 L0 8 L-13 15Z" fill="#ff3b3b" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/></svg></div>', [44, 44]],
+    car: ['<div class="nme car"><svg viewBox="-20 -34 40 68"><rect x="-14" y="-31" width="28" height="62" rx="12" fill="#eef2f8" stroke="#0b0f17" stroke-width="2"/><rect x="-10" y="-17" width="20" height="13" rx="4" fill="#243247"/><rect x="-10" y="9" width="20" height="9" rx="3" fill="#243247"/><rect x="-17" y="-22" width="4" height="10" rx="2" fill="#0b0f17"/><rect x="13" y="-22" width="4" height="10" rx="2" fill="#0b0f17"/><rect x="-17" y="12" width="4" height="10" rx="2" fill="#0b0f17"/><rect x="13" y="12" width="4" height="10" rx="2" fill="#0b0f17"/></svg></div>', [40, 68]],
+  };
+  const meIcon = k => { const [h, s] = ICONS[k] || ICONS.dot; return L.divIcon({ className: '', html: h, iconSize: s, iconAnchor: [s[0] / 2, s[1] / 2] }); };
+  function applyStyle(opt) {
+    if (!N.map) return; if (opt) N.opt = opt;
+    const o = N.opt || {}, st = o.mapstyle || S.mapStyle || 'auto', ic = o.icon || S.navIcon || 'dot';
+    if (st !== N.styleKey) {
+      N.tiles.forEach(l => N.map.removeLayer(l)); N.tiles = [];
+      const add = (k, z) => { const t = TILE[k]; N.tiles.push(L.tileLayer(t[0], { maxZoom: 19, attribution: t[1], zIndex: z }).addTo(N.map)); };
+      if (st === 'sat' || st === 'hybrid') { add('sat', 1); if (st === 'hybrid') { add('road', 2); add('place', 3); } } else add('osm', 1);
+      N.styleKey = st;
+    }
+    N.el.dataset.ms = st;
+    if (ic !== N.iconKey) { N.me.setIcon(meIcon(ic)); N.iconKey = ic; }
+  }
+  const STYLE_CYCLE = ['auto', 'sat', 'hybrid', 'dark', 'light'], STYLE_NAME = { auto: 'Automático', sat: 'Satélite', hybrid: 'Satélite con calles', dark: 'Oscuro', light: 'Claro' };
   function centerOn(p, z, anim) { // coloca mi posición en el punto de enfoque (centro, derecha o izquierda)
     N.map.setView(p, z, { animate: !!anim }); if (N.fx && N.fx !== .5) N.map.panBy([-(N.fx - .5) * N.map.getSize().x, 0], { animate: false });
   }
@@ -84,20 +105,21 @@ const Nav = (() => {
       $('#nmute', N.el).onclick = () => { N.muted = !N.muted; $('#nmute', N.el).textContent = N.muted ? '🔇' : '🔊'; if (N.muted) try { speechSynthesis.cancel(); } catch { } };
       $('#nfav', N.el).onclick = saveFav;
       $('#nrep', N.el).onclick = () => Poi.reportDlg();
+      $('#nsty', N.el).onclick = () => { const cur = (N.opt && N.opt.mapstyle) || S.mapStyle || 'auto', nx = STYLE_CYCLE[(STYLE_CYCLE.indexOf(cur) + 1) % STYLE_CYCLE.length]; S.mapStyle = nx; if (N.opt) delete N.opt.mapstyle; save(); applyStyle(); toast('Mapa: ' + STYLE_NAME[nx]); };
       const sync = () => $$('#nlay [data-l]', N.el).forEach(b => b.classList.toggle('on', !!S.layers[b.dataset.l]));
       $$('#nlay [data-l]', N.el).forEach(b => b.onclick = () => { S.layers[b.dataset.l] = !S.layers[b.dataset.l]; save(); sync(); Poi.draw(); Poi.refresh(); });
       sync();
     }
-    root.innerHTML = ''; root.append(N.el); N.el.classList.toggle('emb', !!emb); N.fx = ({ right: .72, left: .28 })[emb && opt && opt.focus] || .5; N.el.classList.toggle('nosearch', !!emb && !!opt && opt.search === false); N.el.classList.toggle('nolayers', !!emb && !!opt && opt.layers === false); initMap(); chips(); N.map.invalidateSize(); setTimeout(() => N.map && N.map.invalidateSize(), 150);
+    root.innerHTML = ''; root.append(N.el); N.opt = emb ? (opt || {}) : {}; N.el.classList.toggle('emb', !!emb); N.fx = ({ right: .72, left: .28 })[emb && opt && opt.focus] || .5; N.el.classList.toggle('nosearch', !!emb && !!opt && opt.search === false); N.el.classList.toggle('nolayers', !!emb && !!opt && opt.layers === false); initMap(); applyStyle(N.opt); chips(); N.map.invalidateSize(); setTimeout(() => N.map && N.map.invalidateSize(), 150);
     $('#nph', N.el).style.display = S.teslaMode ? 'none' : '';
   }
   function initMap() {
     if (N.map || typeof L === 'undefined') return;
     const p = myPos();
     N.map = L.map('navmap', { zoomControl: false, attributionControl: true, tap: true }).setView(p, 15);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(N.map);
+    N.tiles = []; N.styleKey = null;
     L.control.zoom({ position: 'topright' }).addTo(N.map);
-    N.me = L.marker(p, { icon: L.divIcon({ className: '', html: '<div class="nme"><i></i></div>', iconSize: [34, 34], iconAnchor: [17, 17] }), zIndexOffset: 1000 }).addTo(N.map);
+    N.me = L.marker(p, { icon: meIcon(S.navIcon || 'dot'), zIndexOffset: 1000 }).addTo(N.map); N.iconKey = S.navIcon || 'dot'; applyStyle();
     N.map.on('dragstart', () => { N.follow = false; });
     N.map.on('moveend', () => { if (Date.now() - (Poi.state.lastDraw || 0) > 4000) { Poi.state.lastDraw = Date.now(); Poi.draw(); } });
     Poi.attach(N.map);
@@ -191,5 +213,5 @@ const Nav = (() => {
     }, 1000);
   }
   function prefill(q) { go('map'); setTimeout(() => { const i = $('#nq', N.el); if (i) { i.focus(); if (q) { i.value = q; search(q); } } }, 150); }
-  return { render, mount: el => render(el, true), onPos, prefill, routeTo, search, state: N, instr, distToLine: distToRoute, summary: () => N.sum };
+  return { applyStyle: () => applyStyle(), render, mount: el => render(el, true), onPos, prefill, routeTo, search, state: N, instr, distToLine: distToRoute, summary: () => N.sum };
 })();

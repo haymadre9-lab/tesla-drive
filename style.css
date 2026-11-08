@@ -473,3 +473,11 @@ body.immersive.rhd #imm{left:auto;right:10px;}
 
 .fwin.flat .leaflet-control-zoom{display:none;}
 body.immersive #fab{opacity:.45;transform:scale(.85);}
+
+/* ══ Estilos de mapa e iconos de vehículo ══ */
+.navwrap[data-ms=dark] #navmap .leaflet-tile-pane{filter:invert(.92) hue-rotate(180deg) saturate(.7) brightness(.95) !important;}
+.navwrap[data-ms=light] #navmap .leaflet-tile-pane{filter:none !important;}
+.navwrap[data-ms=sat] #navmap .leaflet-tile-pane,.navwrap[data-ms=hybrid] #navmap .leaflet-tile-pane{filter:brightness(.82) saturate(1.12) !important;}
+.nme.chev,.nme.car{width:auto;height:auto;} .nme.chev svg{width:44px;height:44px;display:block;filter:drop-shadow(0 3px 6px rgba(0,0,0,.6));} .nme.car svg{width:40px;height:68px;display:block;filter:drop-shadow(0 4px 8px rgba(0,0,0,.65));} .nme.chev::before,.nme.car::before{display:none;}
+/* relojes redondos: disco translúcido que deja ver el mapa */
+.rd-disc{fill:rgba(4,8,16,.6);} .rg-ring{fill:rgba(4,8,16,.6);} .rd-ring{stroke-width:1.6;}
