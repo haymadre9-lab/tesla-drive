@@ -5,7 +5,7 @@
 
 const Adv = (() => {
   S.trips ||= [];
-  const A = { errLog: [], note: '', loc: S.advLoc || null, q: '', cat: null, res: null, loading: false, err: '', pick: null, open: null, here: null, dest: null, destKey: '', hereAt: 0, expand: null };
+  const A = { chat: [], thinking: false, errLog: [], note: '', loc: S.advLoc || null, q: '', cat: null, res: null, loading: false, err: '', pick: null, open: null, here: null, dest: null, destKey: '', hereAt: 0, expand: null };
   const rad = x => x * Math.PI / 180;
   const dist = (a, b) => { const R = 6371000, dLa = rad(b[0] - a[0]), dLo = rad(b[1] - a[1]), x = Math.sin(dLa / 2) ** 2 + Math.cos(rad(a[0])) * Math.cos(rad(b[0])) * Math.sin(dLo / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); };
   const fd = m => m >= 1000 ? (m / 1000).toFixed(m >= 10000 ? 0 : 1) + ' km' : Math.round(m / 10) * 10 + ' m';
@@ -222,7 +222,7 @@ const Adv = (() => {
     el.innerHTML = compact
       ? `<div class="adv w"><div class="adv-card">${nowCard(true)}</div>${chips}<div class="adv-res">${res}</div></div>`
       : `<div class="adv p"><div class="adv-l"><div class="adv-card">${nowCard(false)}</div><div class="adv-card">${sugCard(4)}</div></div>
-        <div class="adv-r"><div class="adv-card"><h4>Pídeme consejo</h4><div class="adv-ask"><input class="in" id="aq" type="search" placeholder="Ej. dónde comer pizza cerca, parking, cargar…" value="${esc(A.q)}"><button class="btn" id="ago">Preguntar</button>${'webkitSpeechRecognition' in window || 'SpeechRecognition' in window ? '<button class="btn sec" id="amic" title="Hablar">🎤</button>' : ''}</div><div class="adv-loc">📍 Buscando cerca de: <b>${esc((ref() || { label: 'sin ubicación' }).label)}</b> <button class="btn sec" id="aloc" type="button">Cambiar</button></div>${chips}</div>
+        <div class="adv-r"><div class="adv-card"><h4>Pídeme consejo</h4><div class="adv-ask"><input class="in" id="aq" type="search" placeholder="${AI.ready() ? 'Pregúntame lo que quieras: «un sitio tranquilo para comer algo rápido»…' : 'Ej. dónde comer pizza cerca, parking, cargar…'}" value="${esc(A.q)}"><button class="btn" id="ago">Preguntar</button>${'webkitSpeechRecognition' in window || 'SpeechRecognition' in window ? '<button class="btn sec" id="amic" title="Hablar">🎤</button>' : ''}</div><div class="adv-loc">📍 Buscando cerca de: <b>${esc((ref() || { label: 'sin ubicación' }).label)}</b> <button class="btn sec" id="aloc" type="button">Cambiar</button></div>${chips}${chatHtml()}</div>
         <div class="adv-res card">${res}<div class="adv-map">Al pulsar 🧭 Ir se abre en: <b>🗺 ${esc(sel)}</b> <button class="btn sec" id="amap">Cambiar</button></div></div></div></div>`;
     $$('[data-cat]', el).forEach(b => b.onclick = () => { if (compact) { A.q = ''; go('advisor'); } search(b.dataset.cat); });
     $$('[data-s]', el).forEach(b => b.onclick = () => { const o = suggest()[+b.dataset.s]; if (o) Maps.openPlace({ n: o.n, lat: o.lat, lon: o.lon }); });
@@ -233,7 +233,35 @@ const Adv = (() => {
     ['#aloc', '#aloc2'].forEach(id => { const b = $(id, el); if (b) b.onclick = locDlg; }); const rt = $('#aretry', el); if (rt) rt.onclick = () => A.last ? search(...A.last) : ask(A.q);
     const mp = $('#amap', el); if (mp) mp.onclick = () => Maps.pick(id => { S.mapPage = id; save(); refresh(); }, S.mapPage);
   }
+  const SYS = 'Eres el copiloto de un coche. Hablas en español, claro y breve (máximo 4 frases). Solo usas los datos que se te dan: no inventes sitios, horarios, precios ni valoraciones de clientes (no las tienes). Si faltan datos, dilo. No des instrucciones que distraigan al conductor ni de conducción arriesgada. Recomienda como mucho 3 opciones y explica el motivo (cercanía, si está abierto ahora, características).';
+  const parseJSON = t => { try { const a = t.indexOf('{'), b = t.lastIndexOf('}'); return a >= 0 && b > a ? JSON.parse(t.slice(a, b + 1)) : null; } catch { return null; } };
+  function context() { // sin coordenadas: solo lo necesario para aconsejar
+    const n = new Date(), cur = A.here && A.here.current, s = Nav.summary(), d = Nav.state.dest, c = { hora: n.toTimeString().slice(0, 5), dia: ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'][n.getDay()] };
+    if (cur) c.tiempo_aqui = `${Math.round(cur.temperature_2m)}°C, ${wxDesc(cur.weather_code)[1]}`;
+    if (s && d) { c.ruta = { destino: d.name, restante: s.rem, llegada: s.eta }; if (A.dest) { const at = wxAt(A.dest.d, s.etaMs || Date.now()); if (at) c.ruta.tiempo_en_destino = `${Math.round(at.t)}°C, probabilidad de lluvia ${at.p}%`; } }
+    if (AI.habits()) c.destinos_habituales = suggest().slice(0, 3).map(o => `${o.n} (${o.why})`);
+    const R = ref(); if (R) c.zona = R.label === 'Tu posición (GPS)' ? 'cerca de donde estoy' : R.label;
+    return c;
+  }
+  function speakAI(t) { if (AI.voice() && 'speechSynthesis' in window) { try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t); u.lang = 'es-ES'; speechSynthesis.speak(u); } catch { } } }
+  async function askAI(text) {
+    A.chat.push({ r: 'u', t: text }); A.chat = A.chat.slice(-8); A.thinking = true; refresh();
+    try {
+      const ctx = context(), plan = parseJSON(await AI.call(SYS, `Pregunta del conductor: «${text}»\nContexto: ${JSON.stringify(ctx)}\nDecide qué hacer. Responde SOLO con JSON: {"accion":"buscar"|"responder","categoria":"eat|cafe|charge|park|fuel|shop|pharm|hotel|wc|wash|sight"|null,"cocina":"palabras en inglés separadas por | (ej. pizza|italian)"|null,"nombre":"texto si buscas por nombre"|null,"respuesta":"respuesta breve si accion es responder"}`, { json: true }));
+      let out;
+      if (plan && plan.accion === 'buscar' && (CATS[plan.categoria] || plan.nombre)) {
+        await search(CATS[plan.categoria] ? plan.categoria : null, plan.cocina || null, plan.nombre || text);
+        const items = (A.res || []).slice(0, 8).map(x => ({ nombre: x.n, minutos_en_coche: x.min, distancia: fd(x.d), estado: x.open.msg, detalles: x.info.slice(0, 5) }));
+        out = items.length ? await AI.call(SYS, `Pregunta del conductor: «${text}»\nContexto: ${JSON.stringify(ctx)}\nSitios encontrados (OpenStreetMap, ya ordenados por mi criterio de cercanía y horario): ${JSON.stringify(items)}\nRedacta tu consejo usando solo estos datos. Si el horario no está, dilo.`) : 'No he encontrado sitios cerca con esos datos. Prueba a cambiar el lugar o la búsqueda.';
+      } else if (plan && plan.respuesta) out = plan.respuesta;
+      else { const k = parse(text); if (k.cat) { await search(k.cat, k.cui); out = advice((A.res || [])[0]) || 'No he encontrado nada cerca.'; } else out = 'No he entendido bien qué buscas. Prueba con «dónde comer», «cargador» o «parking».'; }
+      A.chat.push({ r: 'a', t: out.trim() }); speakAI(out);
+    } catch (e) { A.chat.push({ r: 'e', t: AI.explain(e) }); }
+    A.chat = A.chat.slice(-8); A.thinking = false; refresh();
+  }
+  const chatHtml = () => `<div class="adv-ai">${AI.ready() ? '🤖 IA activa: ' + esc(AI.label()) : '💡 Modo básico. Activa la IA gratuita en Ajustes → Asistente IA para preguntas libres.'}</div>${A.chat.length || A.thinking ? `<div class="adv-chat">${A.chat.map(m => `<div class="bub ${m.r}">${esc(m.t)}</div>`).join('')}${A.thinking ? '<div class="bub a think">Pensando…</div>' : ''}</div>` : ''}`;
   function ask(text) {
+    if (AI.ready() && (text || '').trim()) { A.q = ''; return askAI(text.trim()); }
     A.q = text = (text || '').trim(); if (!text) return toast('Escribe qué necesitas');
     const k = parse(text); if (k.cat) search(k.cat, k.cui); else search(null, null, text);
   }
