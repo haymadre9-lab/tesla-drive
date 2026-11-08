@@ -481,3 +481,6 @@ body.immersive #fab{opacity:.45;transform:scale(.85);}
 .nme.chev,.nme.car{width:auto;height:auto;} .nme.chev svg{width:44px;height:44px;display:block;filter:drop-shadow(0 3px 6px rgba(0,0,0,.6));} .nme.car svg{width:40px;height:68px;display:block;filter:drop-shadow(0 4px 8px rgba(0,0,0,.65));} .nme.chev::before,.nme.car::before{display:none;}
 /* relojes redondos: disco translúcido que deja ver el mapa */
 .rd-disc{fill:rgba(4,8,16,.6);} .rg-ring{fill:rgba(4,8,16,.6);} .rd-ring{stroke-width:1.6;}
+
+/* ══ Disposición rápida del reloj ══ */
+.scn{display:flex;flex-direction:column;gap:6px;margin:6px 0;} .scn small{color:var(--dim);font-size:12px;} .seg{display:flex;gap:6px;flex-wrap:wrap;} .seg button{flex:1;min-width:92px;padding:10px 12px;border-radius:14px;background:var(--card2);font-size:14px;} .seg button.on{background:var(--acc);color:#fff;font-weight:700;}

@@ -156,7 +156,7 @@ const Win = (() => {
     const wopts = Object.entries(WIDGETS).map(([k, v]) => `<option value="w:${k}">${esc(v.n)}</option>`).join('');
     dlg(`<h3>${isNew ? 'Nueva ventana' : 'Configurar ventana'}</h3><div class="f ed">
       <label>¿Qué muestra esta ventana?<select class="in" id="wt"><optgroup label="Funciones de la app">${wopts}</optgroup><optgroup label="Otras"><option value="web">🌐 PWA / página web (dirección)</option></optgroup></select></label>
-      <div id="wopts" class="f"></div>
+      <div id="wopts" class="f"></div><div id="wscene" class="f"></div>
       ${W.prev && WIDGETS[W.prev] ? `<button class="btn sec" id="wback" type="button">↩ Volver a «${esc(WIDGETS[W.prev].n)}»</button>` : ''}
       <div class="note" style="padding:0">Para poner otra PWA en esta ventana elige «PWA / página web». Podrás volver a la función original cuando quieras.</div>
       <div id="wweb" class="f">
@@ -177,7 +177,7 @@ const Win = (() => {
       const wb = $('#wback', d); if (wb) wb.onclick = () => { $('#wt', d).value = 'w:' + W.prev; showWeb(); buildOpts(); };
       /* Opciones propias de cada función (p. ej. modelo de velocímetro) */
       function buildOpts() {
-        const key = $('#wt', d).value, Wd = key.startsWith('w:') ? WIDGETS[key.slice(2)] : null, box = $('#wopts', d); box.innerHTML = ''; if (!Wd || !Wd.opts) return;
+        const key = $('#wt', d).value, Wd = key.startsWith('w:') ? WIDGETS[key.slice(2)] : null, box = $('#wopts', d); box.innerHTML = ''; const sb = $('#wscene', d); sb.innerHTML = ''; if (key === 'w:speedo' && typeof Scene !== 'undefined' && Scene.available()) sb.append(Scene.controls(() => closeDlg())); if (!Wd || !Wd.opts) return;
         const cur = W.wid === key.slice(2) ? (W.opt || {}) : {};
         Wd.opts.forEach(o => {
           const v = cur[o.k] ?? o.d;
