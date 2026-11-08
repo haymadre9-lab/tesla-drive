@@ -624,7 +624,7 @@ function settingRow(it) {
   if (it.t === 'walls') return wallsEditor();
   if (it.t === 'keys') return keysEditor();
   const val = getK(it.k), r = el(`<div class="row"><div class="tx"><b>${esc(it.l)}</b>${it.d ? `<small>${esc(it.d)}</small>` : ''}</div><div class="ctrl"></div></div>`), c = $('.ctrl', r);
-  const commit = v => { setK(it.k, v); save(); applyTheme(); placeFab(); if (['wallMode', 'wallEffect', 'wallInterval'].includes(it.k)) Wall.apply(); if (['speedUnit', 'tempUnit', 'pressUnit', 'rows', 'colw', 'visualizer', 'hideLyrics'].includes(it.k)) refreshHome(); if (it.k === 'radarAlerts' || it.k.startsWith('layers.')) { Poi.draw(); Poi.refresh(); } };
+  const commit = v => { setK(it.k, v); save(); applyTheme(); placeFab(); if (['wallMode', 'wallEffect', 'wallInterval'].includes(it.k)) Wall.apply(); if (['speedUnit', 'tempUnit', 'pressUnit', 'rows', 'colw', 'visualizer', 'hideLyrics'].includes(it.k)) refreshHome(); if (it.k === 'radarAlerts' || it.k.startsWith('layers.')) { Poi.draw(); Poi.refresh(); } if (it.k === 'mapStyle' || it.k === 'navIcon') Nav.applyStyle(); };
   if (it.type === 'toggle') { const s = el(`<div class="sw ${val ? 'on' : ''}"></div>`); s.onclick = () => { s.classList.toggle('on'); commit(s.classList.contains('on')); }; c.append(s); }
   else if (it.type === 'select' || it.type === 'action') {
     const opts = it.type === 'action' ? Object.entries(ACTIONS).map(([k, v]) => [k, v[0]]) : OPT[it.k];
