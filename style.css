@@ -449,3 +449,27 @@ body[data-skin=teslaos],body[data-skin=hud]{--txt:#f2f5fa;--dim:#93a0b4;--card:r
 /* mapa sin barra de búsqueda ni capas (para dashboards con tarjetas encima) */
 .nsbtn{display:none;} .navwrap.nosearch .navtop{display:none;} .navwrap.nosearch .nsbtn{display:block;position:absolute;left:12px;top:12px;z-index:500;width:46px;height:46px;border-radius:50%;padding:0;} .navwrap.nosearch.showsearch .navtop{display:block;} .navwrap.nosearch.showsearch .nsbtn{display:none;}
 .navwrap.nolayers .navlayers{display:none;} .navwrap.emb.nosearch .leaflet-top.leaflet-right{top:auto;bottom:86px;}
+
+/* ══ Escena integrada: ventanas sin tarjeta, bordes difuminados y relojes con halo ══ */
+.fwin.flat > .card{background:transparent;border:0 !important;box-shadow:none !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;border-radius:0;}
+.fwin.flat .wdots{opacity:.12;} .fwin.noptr{pointer-events:none;} .fwin.noptr .wdots{display:none;} .fwin.noptr.editing{pointer-events:auto;}
+.fwin.feather:not(.editing){-webkit-mask-image:linear-gradient(to right,transparent,#000 var(--fade,12%),#000 calc(100% - var(--fade,12%)),transparent),linear-gradient(to bottom,transparent,#000 var(--fade,12%),#000 calc(100% - var(--fade,12%)),transparent);-webkit-mask-composite:source-in;mask-image:linear-gradient(to right,transparent,#000 var(--fade,12%),#000 calc(100% - var(--fade,12%)),transparent),linear-gradient(to bottom,transparent,#000 var(--fade,12%),#000 calc(100% - var(--fade,12%)),transparent);mask-composite:intersect;}
+.fwin.flat .navwrap.emb{border-radius:0;} .fwin.flat #navmap{background:#0a0f18;}
+/* relojes redondos que se funden con el mapa */
+.sp-rd{filter:drop-shadow(0 0 34px rgba(0,0,0,.8)) drop-shadow(0 0 70px rgba(0,0,0,.55));} .rd-disc{fill:rgba(4,8,16,.86);} .rg{filter:drop-shadow(0 0 30px rgba(0,0,0,.8)) drop-shadow(0 0 60px rgba(0,0,0,.5));} .rg-ring{fill:rgba(4,8,16,.86);}
+.fwin.flat .tb,.fwin.flat .rb,.fwin.flat .clock,.fwin.flat .tb *,.fwin.flat .rb *{text-shadow:0 1px 10px rgba(0,0,0,.9);} .fwin.flat .tb-c{background:rgba(255,255,255,.1);backdrop-filter:blur(12px);}
+.fwin.flat .stmcard,.fwin.flat .mus{text-shadow:0 1px 10px rgba(0,0,0,.8);}
+body[data-skin=teslaos] #shade{background:none;}
+
+.fwin.flat .wdots{display:none;}
+/* ══ Modo inmersivo: la escena ocupa toda la pantalla; barra y menú se abren con ☰ ══ */
+#imm{display:none;} body.immersive #imm{display:grid;position:fixed;left:10px;top:10px;z-index:66;width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.4);backdrop-filter:blur(10px);color:#fff;place-items:center;font-size:19px;opacity:.55;transition:opacity .2s;} body.immersive #imm:active,body.immersive.imm-open #imm{opacity:1;}
+body.immersive #shell{grid-template-columns:1fr;grid-template-rows:1fr;grid-template-areas:"pages";padding:0;} body.immersive .page,body.immersive.rhd .page{inset:0;}
+body.immersive #status,body.immersive #dock{position:fixed;z-index:65;background:rgba(6,10,18,.9);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);transition:transform .25s ease;box-shadow:0 0 40px rgba(0,0,0,.6);}
+body.immersive #status{top:0;left:0;right:0;height:64px;transform:translateY(-115%);padding-left:66px;} body.immersive #dock{left:0;top:0;bottom:0;width:92px;padding-top:70px;transform:translateX(-115%);}
+body.immersive.imm-open #status,body.immersive.imm-open #dock{transform:none;} body.immersive #dashtag{display:none;}
+body.immersive.rhd #imm{left:auto;right:10px;}
+@media (max-height:560px) and (min-aspect-ratio:1/1){ body.immersive #status{height:46px;} body.immersive #dock{width:70px;padding-top:56px;} }
+
+.fwin.flat .leaflet-control-zoom{display:none;}
+body.immersive #fab{opacity:.45;transform:scale(.85);}

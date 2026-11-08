@@ -27,6 +27,7 @@ const Dash = (() => {
     Object.keys(WIDGETS).forEach(id => { if (!D.w.find(x => x[0] === id)) D.w.push([id, 0, (WIDGETS[id].cls.match(/w-\d+x\d+/) || ['w-1x1'])[0].slice(2)]); });
     return D;
   }
+  function syncImm(p) { document.body.classList.toggle('immersive', (p || page) === 'home' && !!cur().immersive); document.body.classList.remove('imm-open'); }
   function use(id) { S.dash = id; save(); applyTheme(); go('home'); renderers.home(); tag(); }
   function next(d) { const l = S.dashboards, i = l.findIndex(x => x.id === S.dash); use(l[(i + d + l.length) % l.length].id); toast(cur().i + ' ' + cur().n); }
   function tag() { const t = $('#dashtag'); if (t) { $('b', t).textContent = cur().i + ' ' + cur().n; t.style.display = page === 'home' ? '' : 'none'; } }
@@ -97,7 +98,7 @@ const Dash = (() => {
       cockUpd(); renderSpeedUI(); Poi.renderLimit();
     },
   };
-  WIDGETS.navmap = { n: 'Navegador GPS (mapa y ruta)', cls: 'w-2x1 navhost', opts: [{ k: 'search', l: 'Mostrar la barra de búsqueda', type: 'bool', d: true }, { k: 'layers', l: 'Mostrar los botones de capas', type: 'bool', d: true }], render: el => { el.classList.add('navhost'); Nav.render(el, true, el.wopt); } };
+  WIDGETS.navmap = { n: 'Navegador GPS (mapa y ruta)', cls: 'w-2x1 navhost', opts: [{ k: 'search', l: 'Mostrar la barra de búsqueda', type: 'bool', d: true }, { k: 'layers', l: 'Mostrar los botones de capas', type: 'bool', d: true }, { k: 'focus', l: 'Dónde mostrar mi posición en el mapa', type: 'select', o: [['center', 'En el centro'], ['right', 'A la derecha (con relojes a la izquierda)'], ['left', 'A la izquierda']], d: 'center' }], render: el => { el.classList.add('navhost'); Nav.render(el, true, el.wopt); } };
   function cockUpd() {
     if (!$('.cock')) return;
     const mi = S.speedUnit === 'mph', d = mi ? S.trip / 1609.34 : S.trip / 1000, t = S.tripT || 0, avg = t > 30 ? d / (t / 3600) : 0, h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), s = Nav.summary(), p = GPS.pos;
@@ -155,7 +156,7 @@ const Dash = (() => {
   /* ── Navegación entre dashboards ── */
   ACTIONS.nextdash = ['Siguiente dashboard', () => next(1)]; ACTIONS.prevdash = ['Dashboard anterior', () => next(-1)]; ACTIONS.dashpick = ['Elegir dashboard', picker];
   const _go = go;
-  go = function (p) { _go(p); tag(); }; // eslint-disable-line no-func-assign
+  go = function (p) { _go(p); tag(); syncImm(p); }; // eslint-disable-line no-func-assign
 
   renderers.home = () => {
     const D = sync(cur()), root = $('#p-home'); root.innerHTML = '<div class="grid"></div>'; const g = $('.grid', root);
@@ -174,6 +175,8 @@ const Dash = (() => {
     const row2 = el(`<div class="row"><div class="tx"><b>Estilo</b></div><select id="dskin">${SKINS.map(([k, l]) => `<option value="${k}" ${k === D.skin ? 'selected' : ''}>${l}</option>`).join('')}</select><input type="color" id="dacc" value="${D.accent || S.accent}"><select id="drows">${[0, 1, 2, 3].map(n => `<option value="${n}" ${(D.rows || 0) === n ? 'selected' : ''}>${n ? n + (n > 1 ? ' filas' : ' fila') : 'Filas: auto'}</option>`).join('')}</select></div>`);
     $('#dskin', row2).onchange = e => { D.skin = e.target.value; save(); applyTheme(); renderers.home(); };
     $('#dacc', row2).oninput = e => { D.accent = e.target.value; save(); applyTheme(); }; $('#drows', row2).onchange = e => { D.rows = +e.target.value || undefined; save(); renderers.home(); }; w.append(row2);
+    const imm = el(`<div class="row"><div class="tx"><b>Pantalla completa inmersiva</b><small>Oculta la barra superior y el menú lateral en este dashboard; se abren con el botón ☰</small></div><div class="sw ${D.immersive ? 'on' : ''}"></div></div>`);
+    $('.sw', imm).onclick = e => { D.immersive = !D.immersive; e.currentTarget.classList.toggle('on', !!D.immersive); save(); syncImm('home'); renderers.home(); }; w.append(imm);
     const acts = el('<div class="row"><div class="tx"><b>Gestionar</b></div><button class="btn sec" id="adup">Duplicar</button><button class="btn sec" id="aren">Renombrar</button><button class="btn bad" id="adel"></button></div>');
     const preset = PRESETS.find(p => p.id === D.id); $('#adel', acts).textContent = preset ? 'Restablecer' : 'Eliminar';
     $('#adup', acts).onclick = dup;
@@ -192,6 +195,8 @@ const Dash = (() => {
 
   /* ── UI global: botón y etiqueta ── */
   $('#btnDash').onclick = picker;
+  $('#imm').onclick = e => { e.stopPropagation(); document.body.classList.toggle('imm-open'); };
+  document.addEventListener('pointerdown', e => { if (document.body.classList.contains('imm-open') && !e.target.closest('#dock,#status,#imm,#modal')) document.body.classList.remove('imm-open'); }, true);
   const t = document.createElement('div'); t.id = 'dashtag'; t.innerHTML = '<button data-d="-1">◀</button><b></b><button data-d="1">▶</button>'; $('#pages').append(t);
   $$('button', t).forEach(b => b.onclick = () => next(+b.dataset.d)); $('b', t).onclick = picker;
   return { cur, accent, use, next, picker, tag };

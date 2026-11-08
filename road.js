@@ -105,6 +105,16 @@ const Road = (() => {
   function rbUpd() { const mi = S.speedUnit === 'mph', d = mi ? S.trip / 1609.34 : S.trip / 1000; $$('.rbw').forEach(e => { e.innerHTML = `<div class="rb"><span class="rb-r">🚗 <b>${esc(R.name || 'Vía sin identificar')}</b></span><span class="rb-o"><i>VIAJE</i> ${d.toFixed(1)} ${mi ? 'mi' : 'km'}</span></div>`; }); }
   bus.on('road', rbUpd); bus.on('pos', rbUpd);
 
+  WIDGETS.scrim = {
+    n: 'Degradado (para fundir el mapa con los relojes)', cls: 'w-2x2', noPointer: true, opts: [
+      { k: 'side', l: 'Lado oscuro', type: 'select', o: [['left', 'Izquierda'], ['right', 'Derecha'], ['top', 'Arriba'], ['bottom', 'Abajo'], ['all', 'Viñeta (todos los bordes)']], d: 'left' },
+      { k: 'strength', l: 'Intensidad', type: 'range', min: 20, max: 100, step: 5, d: 85 }],
+    render: el => {
+      const o = Object.assign({ side: 'left', strength: 85 }, el.wopt || {}), a = o.strength / 100, dir = { left: '90deg', right: '270deg', top: '180deg', bottom: '0deg' }[o.side];
+      el.classList.add('scrimw'); el.innerHTML = '';
+      el.style.background = o.side === 'all' ? `radial-gradient(ellipse at center, rgba(0,0,0,0) 40%, rgba(0,0,0,${(a * .8).toFixed(2)}) 100%)` : `linear-gradient(${dir}, rgba(0,0,0,${a}) 0%, rgba(0,0,0,${(a * .62).toFixed(2)}) 40%, rgba(0,0,0,${(a * .2).toFixed(2)}) 75%, rgba(0,0,0,0) 100%)`;
+    },
+  };
   CATS.mapa[1].push({ k: 'roadVoice', l: 'Avisos por voz de señales (stop, ceda, semáforo)', d: 'Se anuncian a unos 100–150 m. Datos de OpenStreetMap: no hay información del estado de los semáforos', type: 'toggle' });
   return { state: R, TYPES, compute, onPos };
 })();

@@ -52,13 +52,14 @@ const Win = (() => {
     const [x, y, ww, hh] = w.r[pr] || [20, 20, 40, 40];
     const f = document.createElement('div'); f.className = 'fwin'; f.dataset.win = w.id; f.style.cssText = `left:${x}%;top:${y}%;width:${ww}%;height:${hh}%;z-index:${w.z || 1}`;
     const c = document.createElement('div'); c.className = 'card wc'; f.append(c); root.append(f);
+    f.classList.toggle('flat', !!w.flat); if (w.fade) { f.classList.add('feather'); f.style.setProperty('--fade', w.fade + '%'); }
     if (w.bg) c.style.background = rgba(w.bg, w.alpha); if (w.rad != null && w.rad !== '') c.style.borderRadius = w.rad + 'px';
     if (w.type === 'web') {
       c.classList.add('webwin'); const s = (w.scale || 100) / 100;
       c.innerHTML = `${w.bar === false ? '' : `<div class="wbar"><b>${esc(w.title || Ed.hostOf(w.url) || 'PWA')}</b></div>`}<div class="wfr">${w.url ? `<iframe src="${esc(w.url)}" allow="geolocation; autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write" referrerpolicy="no-referrer-when-downgrade" style="width:${100 / s}%;height:${100 / s}%;transform:scale(${s})"></iframe>` : '<div class="wempty">Sin dirección.<br>Mantén pulsado (o toca ⋮) para elegir la PWA</div>'}</div>`;
     } else {
       const W = WIDGETS[w.wid];
-      if (W) { c.className += ' ' + (W.cls || '').replace(/w-\d+x\d+/g, '').trim(); c.dataset.w = w.wid; c.wopt = w.opt || {}; W.render(c); } else c.textContent = 'Widget no disponible';
+      if (W) { c.className += ' ' + (W.cls || '').replace(/w-\d+x\d+/g, '').trim(); c.dataset.w = w.wid; c.wopt = w.opt || {}; if (W.noPointer) f.classList.add('noptr'); W.render(c); } else c.textContent = 'Widget no disponible';
     }
     decorate(f, w);
     return f;
@@ -166,6 +167,7 @@ const Win = (() => {
         <div class="inline"><label class="chk"><input type="checkbox" id="wbar" ${W.bar === false ? '' : 'checked'}> Mostrar barra de título</label><label>Escala <input type="range" id="wsc" min="40" max="160" step="5" value="${W.scale || 100}"> <b id="wscv">${W.scale || 100}%</b></label></div>
       </div>
       <div class="inline"><label class="chk"><input type="checkbox" id="wbgc" ${W.bg ? 'checked' : ''}> Fondo <input type="color" id="wbg" value="${esc(W.bg || '#111827')}"></label><label>Opacidad <input type="range" id="wal" min="0" max="100" step="5" value="${W.alpha ?? 100}"></label></div>
+      <label class="chk"><input type="checkbox" id="wflat" ${W.flat ? 'checked' : ''}> Integrada en el fondo (sin tarjeta ni borde)</label><label>Difuminar los bordes <input type="range" id="wfade" min="0" max="40" step="2" value="${W.fade || 0}"></label>
       <label>Esquinas redondeadas <input type="range" id="wr" min="0" max="40" step="2" value="${W.rad ?? 22}"></label>
       <div><small style="color:var(--dim)">Posición rápida</small><div class="inline" id="wq">${[['½ izq.', [0.5, 0.5, 49, 99]], ['½ der.', [50.5, 0.5, 49, 99]], ['½ arriba', [0.5, 0.5, 99, 49]], ['½ abajo', [0.5, 50.5, 99, 49]], ['Centro', [15, 12, 70, 76]], ['Completa', [0, 0, 100, 100]]].map(([l, r], i) => `<button class="btn sec" data-i="${i}" type="button">${l}</button>`).join('')}</div></div></div>
       <div class="acts">${isNew ? '' : '<button class="btn bad" id="wd" type="button">Eliminar</button><button class="btn sec" id="wdu" type="button">Duplicar</button>'}<button class="btn sec" id="wm" type="button">✥ Mover / tamaño</button><button class="btn sec" id="wc" type="button">Cancelar</button><button class="btn" id="wk" type="button">Guardar</button></div>`, d => {
@@ -181,10 +183,11 @@ const Win = (() => {
           const v = cur[o.k] ?? o.d;
           box.insertAdjacentHTML('beforeend', o.type === 'select' ? `<label>${esc(o.l)}<select class="in" data-o="${o.k}">${o.o.map(([a, b]) => `<option value="${esc(a)}" ${String(v) === String(a) ? 'selected' : ''}>${esc(b)}</option>`).join('')}</select></label>`
             : o.type === 'bool' ? `<label class="chk"><input type="checkbox" data-o="${o.k}" ${v ? 'checked' : ''}> ${esc(o.l)}</label>`
+              : o.type === 'range' ? `<label>${esc(o.l)} <input type="range" data-o="${o.k}" min="${o.min}" max="${o.max}" step="${o.step || 1}" value="${v}"></label>`
               : `<label class="chk"><input type="checkbox" data-oc="${o.k}" ${v ? 'checked' : ''}> ${esc(o.l)} <input type="color" data-o="${o.k}" value="${esc(v || '#3e9bff')}"></label>`);
         });
       }
-      const readOpts = () => { const o = {}; $$('#wopts [data-o]', d).forEach(i => { const k = i.dataset.o, c = $(`#wopts [data-oc="${k}"]`, d); o[k] = i.type === 'checkbox' ? i.checked : c ? (c.checked ? i.value : '') : i.value; }); return o; };
+      const readOpts = () => { const o = {}; $$('#wopts [data-o]', d).forEach(i => { const k = i.dataset.o, c = $(`#wopts [data-oc="${k}"]`, d); o[k] = i.type === 'range' ? +i.value : i.type === 'checkbox' ? i.checked : c ? (c.checked ? i.value : '') : i.value; }); return o; };
       $('#wt', d).addEventListener('change', buildOpts); buildOpts();
       $('#wsc', d).oninput = e => { $('#wscv', d).textContent = e.target.value + '%'; };
       $('#wp', d).onclick = async () => { const t = await Ed.paste(), u = Ed.urlFrom(t) || t; if (u) { $('#wu', d).value = u; if (!$('#wti', d).value) $('#wti', d).value = Ed.hostOf(u).replace(/^www\./, ''); } };
@@ -192,7 +195,7 @@ const Win = (() => {
       $('#wmp', d).onchange = e => { const m = Maps.get(e.target.value); if (m) { $('#wu', d).value = m.u; $('#wti', d).value = m.n; W.mapSlot = true; W.mapId = m.id; } };
       $$('#wq button', d).forEach(b => b.onclick = () => { W.r[pr] = QS[+b.dataset.i].slice(); toast('Posición aplicada: guarda para confirmar'); });
       const finish = () => {
-        const t = $('#wt', d).value; W.bg = $('#wbgc', d).checked ? $('#wbg', d).value : ''; W.alpha = +$('#wal', d).value; W.rad = +$('#wr', d).value;
+        const t = $('#wt', d).value; W.bg = $('#wbgc', d).checked ? $('#wbg', d).value : ''; W.alpha = +$('#wal', d).value; W.rad = +$('#wr', d).value; W.flat = $('#wflat', d).checked; W.fade = +$('#wfade', d).value || 0; if (!W.flat) delete W.flat; if (!W.fade) delete W.fade;
         if (t === 'web') { const u = Ed.normUrl($('#wu', d).value); W.type = 'web'; W.url = u; W.title = $('#wti', d).value.trim(); W.bar = $('#wbar', d).checked; W.scale = +$('#wsc', d).value; if (W.wid) W.prev = W.wid; delete W.wid; }
         else { W.type = 'widget'; W.wid = t.slice(2); W.opt = readOpts(); delete W.url; delete W.prev; if (W.wid === 'navmap') { W.mapSlot = true; delete W.mapId; } else { delete W.mapSlot; delete W.mapId; } }
         Object.assign(w, W); if (!w.bg) delete w.bg; save();

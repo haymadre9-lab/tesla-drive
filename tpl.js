@@ -16,11 +16,16 @@ const Tpl = (() => {
       win: [{ type: 'web', url: '', title: 'Mi PWA', r: [0, 0, 100, 100], span: '2x2' }, W('navmap', [20, 12, 60, 76], '2x2', { rad: 26 }), W('speedo', [1, 70, 17, 28], '1x1', { pick: 1, opt: { style: 'ring' }, bg: '#000000', alpha: 55 })] },
     { id: 'media', n: 'Música + mapa', i: '🎵', d: 'Reproductor online y radio grande, mapa y velocidad', skin: 'aurora', accent: '#b388ff', style: 'ring',
       win: [W('stream', [1, 1, 46, 98], '2x2'), W('navmap', [48, 1, 51, 60], '2x1'), W('speedo', [48, 62, 51, 37], '2x1', { pick: 1 })] },
-    { id: 'tres', n: 'Tres ventanas: 2 relojes + mapa', i: '🛞', d: 'Reloj de velocidad GPS, reloj de carretera (límite, señales, radares, tiempo) y mapa con giros y música', skin: 'teslaos', accent: '#2e7bff', style: 'round',
-      win: [W('topbar', [1, 1, 98, 7], '2x1', { bg: '#000000', alpha: 0 }), W('speedo', [1, 9, 31, 81], '2x2', { pick: 1, bg: '#000000', alpha: 0 }), W('roadgauge', [33, 9, 31, 81], '2x2', { bg: '#000000', alpha: 0 }), W('navmap', [65, 9, 34, 81], '2x2', { opt: { search: false, layers: false } }),
-        W('navcard', [76, 11, 22, 13], '1x1', { bg: '#0b0f17', alpha: 82, rad: 22 }), W('nowplaying', [76, 76, 22, 13], '1x1', { bg: '#0b0f17', alpha: 82, rad: 22 }), W('roadbar', [1, 91.5, 63, 7.5], '2x1', { bg: '#000000', alpha: 0 })] },
-    { id: 'tesla2', n: 'Música + reloj + mapa (estilo Tesla)', i: '🚘', d: 'Música a la izquierda, reloj redondo en el centro y mapa a la derecha, con barra de estado', skin: 'teslaos', accent: '#2e7bff', style: 'round',
-      win: [W('topbar', [1, 1, 98, 7], '2x1', { bg: '#000000', alpha: 0 }), W('music', [1, 9, 28, 81], '1x2'), W('speedo', [30, 9, 36, 81], '2x2', { pick: 1, bg: '#000000', alpha: 0 }), W('navmap', [67, 9, 32, 81], '2x2', { opt: { search: false, layers: false } }), W('roadbar', [1, 91.5, 98, 7.5], '2x1', { bg: '#000000', alpha: 0 })] },
+    { id: 'tres', n: 'Escena Tesla: mapa de fondo + 2 relojes', i: '🛞', d: 'El mapa ocupa toda la pantalla y los relojes de velocidad y de carretera flotan encima, integrados y difuminados, sin bordes', skin: 'teslaos', accent: '#2e7bff', style: 'round', immersive: true,
+      win: [W('navmap', [0, 0, 100, 100], '2x2', { flat: true, rad: 0, opt: { search: false, layers: false, focus: 'right' } }),
+        W('scrim', [0, 0, 66, 100], '2x2', { flat: true, opt: { side: 'left', strength: 92 } }), W('scrim', [0, 0, 100, 17], '2x1', { flat: true, opt: { side: 'top', strength: 80 } }), W('scrim', [0, 82, 100, 18], '2x1', { flat: true, opt: { side: 'bottom', strength: 85 } }),
+        W('speedo', [1, 16, 41, 66], '2x2', { pick: 1, flat: true }), W('roadgauge', [37.5, 53, 25, 40], '2x2', { flat: true }),
+        W('topbar', [6, 1.5, 92.5, 8], '2x1', { flat: true }), W('navcard', [74, 11, 24.5, 13], '1x1', { bg: '#0b0f17', alpha: 70, rad: 22 }), W('nowplaying', [74, 70, 24.5, 14], '1x1', { bg: '#0b0f17', alpha: 70, rad: 22 }), W('roadbar', [1.5, 92.5, 60, 6], '2x1', { flat: true })] },
+    { id: 'tesla2', n: 'Escena: música + reloj sobre el mapa', i: '🚘', d: 'Mapa de fondo, reloj redondo grande y música, todo integrado como en la pantalla del coche', skin: 'teslaos', accent: '#2e7bff', style: 'round', immersive: true,
+      win: [W('navmap', [0, 0, 100, 100], '2x2', { flat: true, rad: 0, opt: { search: false, layers: false, focus: 'right' } }),
+        W('scrim', [0, 0, 100, 100], '2x2', { flat: true, opt: { side: 'all', strength: 90 } }), W('scrim', [0, 0, 60, 100], '2x2', { flat: true, opt: { side: 'left', strength: 80 } }),
+        W('music', [1.5, 14, 27, 66], '1x2', { flat: true, fade: 14 }), W('speedo', [27, 8, 40, 84], '2x2', { pick: 1, flat: true }),
+        W('topbar', [6, 1.5, 92.5, 8], '2x1', { flat: true }), W('roadbar', [1.5, 92.5, 97, 6], '2x1', { flat: true })] },
     { id: 'advisor', n: 'Asesor + mapa', i: '🧠', d: 'Tiempo, destinos habituales y consejos (comer, cargar, aparcar) junto al mapa y la velocidad', skin: 'tesla', accent: '#3e9bff', style: 'ring',
       win: [W('advisor', [1, 1, 40, 98], '2x2'), W('navmap', [42, 1, 57, 70], '2x2'), W('speedo', [42, 72, 57, 27], '2x1', { pick: 1 })] },
     { id: 'blank', n: 'En blanco', i: '⬜', d: 'Empieza vacío y añade las ventanas que quieras con ＋', skin: 'tesla', accent: '#3e9bff', style: 'digital', win: [] },
@@ -33,11 +38,11 @@ const Tpl = (() => {
       const o = { id: 'w' + Math.random().toString(36).slice(2, 7), type: s.type || 'widget', z: k + 1, span: s.span || '1x1', r: {} };
       if (o.type === 'web') Object.assign(o, { url: s.url || '', title: s.title || 'Mi PWA', bar: false });
       else { o.wid = s.wid; if (s.opt || s.pick) o.opt = Object.assign({}, s.opt || {}); if (s.pick && style) o.opt.style = style; }
-      if (s.bg) { o.bg = s.bg; o.alpha = s.alpha ?? 100; } if (s.rad != null) o.rad = s.rad;
+      if (s.bg) { o.bg = s.bg; o.alpha = s.alpha ?? 100; } if (s.rad != null) o.rad = s.rad; if (s.flat) o.flat = true; if (s.fade) o.fade = s.fade;
       o.r.land = s.r.slice(); if (key !== 'land' && key !== 'port') o.r[key] = s.r.slice(); // formato fijo (Tesla, móvil…): se usa tal cual
       return o;
     });
-    const D = { id, n: name || t.n, i: t.i, d: 'Personalizado', skin: t.skin, accent: t.accent, rows: 2, w: [], win };
+    const D = { id, n: name || t.n, i: t.i, d: 'Personalizado', skin: t.skin, accent: t.accent, immersive: !!t.immersive, rows: 2, w: [], win };
     S.dashboards.push(D); S.dash = id; save(); applyTheme(); go('home'); renderers.home(); Dash.tag();
     toast('Dashboard creado · mantén pulsada una ventana para moverla o cambiarla', 4500);
   }

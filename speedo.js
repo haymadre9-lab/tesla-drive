@@ -31,7 +31,7 @@ const Speedo = (() => {
     ring: () => `<svg viewBox="-100 -100 200 200"><circle r="80" class="sp-trk thin" style="fill:none"/><path d="M0 -80 A80 80 0 1 1 -0.01 -80" class="sp-arc" pathLength="100" stroke-dasharray="0 100" transform="rotate(0)"/>
       <text y="16" class="sp-num js-spd" style="font-size:62px">0</text><text y="40" class="sp-unit">${spdUnit()}</text></svg>${lim}`,
     linear: (o, max) => { const st = stepFor(max); let t = ''; for (let v = 0; v <= max; v += st * 2) t += `<span style="left:${v / max * 100}%">${v}</span>`; return `<div class="sp-l"><div class="l-top"><div class="l-num js-spd">0</div><div class="l-unit">${spdUnit()}</div>${lim}</div><div class="l-bar"><i class="sp-bar-i"></i></div><div class="l-ticks">${t}</div></div>`; },
-    round: () => `<div class="sp-rd"><svg viewBox="-100 -100 200 200"><circle r="97" class="rd-disc"/><circle r="91" class="rd-ring"/><path d="M0 -91 A91 91 0 1 1 -0.01 -91" class="sp-arc thin2" pathLength="100" stroke-dasharray="0 100"/><text y="-56" class="rd-gps">GPS</text><text y="28" class="sp-num rd-num js-spd">0</text><text y="54" class="sp-unit">${spdUnit()}</text></svg>${lim}</div>`,
+    round: () => `<div class="sp-rd"><svg viewBox="-100 -100 200 200"><circle r="97" class="rd-disc"/><circle r="91" class="rd-ring"/><path d="M0 -91 A91 91 0 1 1 -0.01 -91" class="sp-arc thin2" pathLength="100" stroke-dasharray="0 100"/><text y="28" class="sp-num rd-num js-spd">0</text><text y="54" class="sp-unit">${spdUnit()}</text></svg>${lim}</div>`,
     tesla: () => `<div class="sp-t">${lim}<div class="t-num js-spd">0</div><div class="t-unit">${spdUnit()}</div><div class="t-line"><i class="sp-bar-i"></i></div></div>`,
   };
   const OPTS = [
