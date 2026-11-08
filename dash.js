@@ -177,6 +177,7 @@ const Dash = (() => {
     $('#dacc', row2).oninput = e => { D.accent = e.target.value; save(); applyTheme(); }; $('#drows', row2).onchange = e => { D.rows = +e.target.value || undefined; save(); renderers.home(); }; w.append(row2);
     const imm = el(`<div class="row"><div class="tx"><b>Pantalla completa inmersiva</b><small>Oculta la barra superior y el menú lateral en este dashboard; se abren con el botón ☰</small></div><div class="sw ${D.immersive ? 'on' : ''}"></div></div>`);
     $('.sw', imm).onclick = e => { D.immersive = !D.immersive; e.currentTarget.classList.toggle('on', !!D.immersive); save(); syncImm('home'); renderers.home(); }; w.append(imm);
+    if (typeof Scene !== 'undefined' && Scene.available()) { const sr = el('<div class="row" style="flex-direction:column;align-items:stretch"><div class="tx"><b>Reloj de velocidad y mapa</b><small>Recoloca los relojes de la escena: lado y tamaño (el compacto deja ver más mapa)</small></div></div>'); sr.append(Scene.controls(() => renderers.settings())); w.append(sr); }
     const acts = el('<div class="row"><div class="tx"><b>Gestionar</b></div><button class="btn sec" id="adup">Duplicar</button><button class="btn sec" id="aren">Renombrar</button><button class="btn bad" id="adel"></button></div>');
     const preset = PRESETS.find(p => p.id === D.id); $('#adel', acts).textContent = preset ? 'Restablecer' : 'Eliminar';
     $('#adup', acts).onclick = dup;
