@@ -58,17 +58,26 @@ const Adv = (() => {
     for (const part of s.split(',')) { const m = part.toLowerCase().match(/^([a-z]{2})(?:-([a-z]{2}))?$/); if (!m || !(m[1] in DK) || (m[2] && !(m[2] in DK))) return null; const b = m[2] ? DK[m[2]] : DK[m[1]]; for (let d = DK[m[1]]; ; d = (d + 1) % 7) { set.add(d); if (d === b) break; } }
     return set;
   }
-  function openState(oh, now = new Date()) {
-    if (!oh) return { s: 'unknown', msg: 'Horario no disponible' };
-    const txt = String(oh).trim(); if (/^24\/7$/i.test(txt)) return { s: 'open', msg: 'Abierto 24 h' };
+  function parseRules(txt) { // días → [[inicio, fin]] en minutos; null si el formato no se entiende
     const by = Array.from({ length: 7 }, () => []);
     for (const rule of txt.split(';')) {
       const r = rule.trim(); if (!r) continue;
-      const m = r.match(/^(?:([A-Za-z,\- ]+?)\s+)?((?:\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}\s*,?\s*)+|off|closed)$/i); if (!m) return { s: 'unknown', msg: 'Horario no disponible' };
-      const ds = days((m[1] || '').replace(/\s/g, '')); if (!ds) return { s: 'unknown', msg: 'Horario no disponible' };
+      const m = r.match(/^(?:([A-Za-z,\- ]+?)\s+)?((?:\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}\s*,?\s*)+|off|closed)$/i); if (!m) return null;
+      const ds = days((m[1] || '').replace(/\s/g, '')); if (!ds) return null;
       const v = m[2].toLowerCase(), rg = /^(off|closed)$/.test(v) ? [] : [...v.matchAll(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/g)].map(x => [tm(x[1]), tm(x[2])]);
       ds.forEach(d => { by[d] = rg; });
     }
+    return by;
+  }
+  function weekTable(oh) { // lista Lunes…Domingo con su horario, o null si no se puede interpretar
+    if (!oh) return null; const t = String(oh).trim(), N = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const by = /^24\/7$/i.test(t) ? null : parseRules(t); if (!by && !/^24\/7$/i.test(t)) return null;
+    return [1, 2, 3, 4, 5, 6, 0].map(d => ({ d, n: N[d], v: !by ? 'Abierto 24 h' : by[d].length ? by[d].map(r => hm(r[0]) + '–' + hm(r[1])).join(', ') : 'Cerrado' }));
+  }
+  function openState(oh, now = new Date()) {
+    if (!oh) return { s: 'unknown', msg: 'Horario no disponible' };
+    const txt = String(oh).trim(); if (/^24\/7$/i.test(txt)) return { s: 'open', msg: 'Abierto 24 h' };
+    const by = parseRules(txt); if (!by) return { s: 'unknown', msg: 'Horario no disponible' };
     const day = now.getDay(), mins = now.getHours() * 60 + now.getMinutes();
     for (const r of by[day]) if (r[1] > r[0] ? mins >= r[0] && mins < r[1] : mins >= r[0]) return { s: 'open', msg: 'Abierto hasta las ' + hm(r[1]) };
     for (const r of by[(day + 6) % 7]) if (r[1] < r[0] && mins < r[1]) return { s: 'open', msg: 'Abierto hasta las ' + hm(r[1]) };
@@ -209,10 +218,11 @@ const Adv = (() => {
     const l = suggest().slice(0, n); if (!l.length) return `<h4>Tus destinos habituales</h4><div class="note">Aún no hay suficientes viajes. Cuando repitas destinos te los sugeriré según la hora y el día.</div>`;
     return `<h4>Sugerencias para ti</h4>${l.map((o, i) => `<div class="adv-sug"><div><b>${esc(o.n)}</b><small>${esc(o.why)}</small></div><button class="btn" data-s="${i}">Ir</button></div>`).join('')}`;
   }
-  function item(x, i, big) {
-    const best = i === 0;
-    return `<div class="adv-it ${best ? 'best' : ''} ${A.pick === x ? 'sel' : ''}" data-i="${i}"><div class="ai">${x.icon}</div><div class="at"><b>${best ? '⭐ ' : ''}${esc(x.n)}</b><small><span class="${x.open.s}">${esc(x.open.msg)}</span> · ${x.est ? '≈' : ''}${x.min} min · ${fd(x.d)}</small>${x.info.length ? `<div class="tags">${x.info.slice(0, big ? 8 : 4).map(t => `<i>${esc(t)}</i>`).join('')}</div>` : ''}</div>
-      <div class="ab"><button class="btn" data-go="${i}">🧭 Ir</button>${x.phone ? `<a class="btn sec" href="tel:${esc(x.phone)}">☎</a>` : ''}</div></div>`;
+  function item(x, i) {
+    const best = i === 0, open = A.expand === x;
+    return `<div class="adv-it ${best ? 'best' : ''} ${open ? 'open' : ''}" data-i="${i}"><div class="adv-row"><div class="ai">${x.icon}</div><div class="at"><b>${best ? '⭐ ' : ''}${esc(x.n)}</b><small><span class="${x.open.s}">${esc(x.open.msg)}</span> · ${x.est ? '≈' : ''}${x.min} min · ${fd(x.d)}</small>${x.info.length ? `<div class="tags">${x.info.slice(0, 4).map(t => `<i>${esc(t)}</i>`).join('')}</div>` : ''}</div>
+      <div class="ab"><button class="btn" data-go="${i}">🧭 Ir</button>${x.phone ? `<a class="btn sec" href="tel:${esc(String(x.phone).split(/[;,]/)[0].replace(/[^\d+]/g, ''))}">☎</a>` : ''}<button class="btn sec chev" type="button" title="Ver toda la información">${open ? 'Menos ▴' : 'Más info ▾'}</button></div></div>
+      <div class="adv-more" ${open ? '' : 'hidden'}>${open ? Info.html(x) : ''}</div></div>`;
   }
   function draw(el, mode) {
     mode = mode || 'page'; const compact = mode === 'widget', cats = Object.entries(CATS);
@@ -227,7 +237,17 @@ const Adv = (() => {
     $$('[data-cat]', el).forEach(b => b.onclick = () => { if (compact) { A.q = ''; go('advisor'); } search(b.dataset.cat); });
     $$('[data-s]', el).forEach(b => b.onclick = () => { const o = suggest()[+b.dataset.s]; if (o) Maps.openPlace({ n: o.n, lat: o.lat, lon: o.lon }); });
     $$('[data-go]', el).forEach(b => b.onclick = e => { e.stopPropagation(); const x = A.res[+b.dataset.go]; Maps.openPlace({ n: x.n, lat: x.lat, lon: x.lon }); });
-    $$('.adv-it', el).forEach(r => r.onclick = () => { A.pick = A.res[+r.dataset.i]; A.expand = A.pick; $$('.adv-it', el).forEach(z => z.classList.toggle('sel', z === r)); const full = $('.tags', r); if (full) full.innerHTML = A.pick.info.map(t => `<i>${esc(t)}</i>`).join('') + (A.pick.web ? `<i><a href="${esc(A.pick.web)}" target="_blank" rel="noopener">🌐 web</a></i>` : ''); });
+    $$('.adv-it', el).forEach(r => {
+      const x = A.res[+r.dataset.i], more = $('.adv-more', r), chev = $('.chev', r);
+      const tog = () => {
+        const was = A.expand === x;
+        $$('.adv-it.open', el).forEach(z => { z.classList.remove('open'); $('.adv-more', z).hidden = true; $('.chev', z).textContent = 'Más info ▾'; });
+        if (was) { A.expand = null; return; }
+        A.expand = A.pick = x; r.classList.add('open'); more.hidden = false; more.innerHTML = Info.html(x); chev.textContent = 'Menos ▴'; Info.bind(x, more); r.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      };
+      $('.adv-row', r).onclick = e => { if (e.target.closest('[data-go],a[href^="tel"]')) return; tog(); };
+      if (A.expand === x) Info.bind(x, more);
+    });
     const q = $('#aq', el); if (q) { q.oninput = () => { A.q = q.value; }; q.onkeydown = e => e.key === 'Enter' && ask(q.value); $('#ago', el).onclick = () => ask(q.value); }
     const mic = $('#amic', el); if (mic) mic.onclick = () => { const R = window.SpeechRecognition || window.webkitSpeechRecognition, r = new R(); r.lang = 'es-ES'; r.onresult = ev => { const t = ev.results[0][0].transcript; A.q = t; ask(t); }; r.onerror = () => toast('No se pudo usar el micrófono'); try { r.start(); toast('Escuchando…'); } catch { } };
     ['#aloc', '#aloc2'].forEach(id => { const b = $(id, el); if (b) b.onclick = locDlg; }); const rt = $('#aretry', el); if (rt) rt.onclick = () => A.last ? search(...A.last) : ask(A.q);
@@ -267,9 +287,9 @@ const Adv = (() => {
   }
   WIDGETS.advisor = { n: 'Asesor de viaje', cls: 'w-2x2', render: el => { el.classList.add('js-advw', 'advcard'); el.dataset.adv = 'widget'; draw(el, 'widget'); loadHere(); loadDest(); } };
   renderers.advisor = () => { const r = $('#p-advisor'); r.classList.add('js-advw'); r.dataset.adv = 'page'; draw(r, 'page'); loadHere(); loadDest(); };
-  setInterval(() => { if ($('.js-advw')) { loadHere(); refresh(); } }, 60e3);
+  setInterval(() => { if ($('.js-advw')) { loadHere(); if (!A.expand && !(document.activeElement && document.activeElement.closest && document.activeElement.closest('.adv'))) refresh(); } }, 60e3);
 
   /* Botón del asesor en la barra lateral (una sola vez) */
   if (!S.advDock && Array.isArray(S.dock) && !S.dock.some(x => x.t === 'page:advisor')) { S.dock.splice(Math.max(0, S.dock.length - 1), 0, { id: 'advisor', i: '🧠', n: 'Asesor', t: 'page:advisor' }); S.advDock = 1; save(); Ed.renderDock(); }
-  return { suggest, logTrip, arrived, openState, search, ask, parse, state: A, refresh };
+  return { suggest, logTrip, arrived, openState, week: weekTable, search, ask, parse, state: A, refresh };
 })();
