@@ -148,7 +148,7 @@ const Adv = (() => {
       items.forEach(x => { if (x.min == null) { x.min = Math.max(1, Math.round(x.d * 1.4 / 500)); x.est = 1; } describe(x, cat, cui); });
       items.sort((a, b) => b.score - a.score);
     }
-    A.res = items; A.cat = cat; A.pick = items[0] || null; A.errLog = log;
+    A.res = items; A.cat = cat; A.pick = items[0] || null; A.errLog = log; loadImages(items);
     if (!items.length) A.err = log.length ? 'No pude obtener datos ahora mismo (los servidores de mapas no respondieron).' : 'No encontré nada cerca. Prueba con otra búsqueda o cambia el lugar.';
     A.loading = false; A.last = [cat, cui, nameQ]; refresh();
   }
@@ -168,10 +168,18 @@ const Adv = (() => {
       $('#l2', d).onclick = go1; $('#lq', d).onkeydown = e => e.key === 'Enter' && go1();
     });
   }
+  async function loadImages(items) { // fotos desde Wikidata/Commons para los sitios que las tengan
+    let added = false;
+    await Promise.all(items.slice(0, 8).map(async x => {
+      if (x.img || !/^Q\d+$/.test(x.tags.wikidata || '')) return;
+      try { const j = await (await fetch(`https://www.wikidata.org/w/api.php?action=wbgetclaims&entity=${x.tags.wikidata}&property=P18&format=json&origin=*`)).json(), f = j.claims && j.claims.P18 && j.claims.P18[0].mainsnak.datavalue.value; if (f) { x.img = 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(f) + '?width=300'; added = true; } } catch { }
+    }));
+    if (added && A.res === items && !A.expand) refresh();
+  }
   function describe(x, cat, cui) {
     const t = x.tags, info = [], kind = cat || (t.amenity === 'charging_station' ? 'charge' : t.amenity === 'parking' ? 'park' : t.amenity === 'fuel' ? 'fuel' : t.amenity === 'restaurant' ? 'eat' : t.amenity === 'cafe' ? 'cafe' : null);
     x.kind = kind; x.icon = kind ? CATS[kind].i : '📍'; x.n = t.name || t.brand || t.operator || ({ eat: 'Restaurante sin nombre', cafe: 'Cafetería sin nombre', charge: 'Cargador', park: 'Parking', fuel: 'Gasolinera', shop: 'Supermercado', pharm: 'Farmacia', hotel: 'Alojamiento', wc: 'Aseos públicos', wash: 'Lavadero', sight: 'Lugar de interés' }[kind] || 'Lugar');
-    x.open = openState(t.opening_hours); x.phone = t.phone || t['contact:phone'] || ''; x.web = t.website || t['contact:website'] || '';
+    x.img = Info.imgOf(x); x.open = openState(t.opening_hours); x.phone = t.phone || t['contact:phone'] || ''; x.web = t.website || t['contact:website'] || '';
     let sc = -x.min * .35 + (x.open.s === 'open' ? 3 : x.open.s === 'closed' ? -6 : 0) + (t.name ? .5 : 0) + (x.phone || x.web ? .3 : 0);
     if (t.cuisine) { const c = t.cuisine.split(';').map(s => CUI[s.trim()] || s.trim().replace(/_/g, ' ')).slice(0, 2).join(', '); info.push(c); if (cui && new RegExp(cui, 'i').test(t.cuisine)) sc += 2; }
     if (t.outdoor_seating === 'yes') info.push('Terraza'); if (t.takeaway === 'yes' || t.takeaway === 'only') info.push('Para llevar'); if (t['diet:vegetarian'] === 'yes') info.push('Opción vegetariana'); if (t['diet:vegan'] === 'yes') info.push('Opción vegana');
@@ -220,7 +228,7 @@ const Adv = (() => {
   }
   function item(x, i) {
     const best = i === 0, open = A.expand === x;
-    return `<div class="adv-it ${best ? 'best' : ''} ${open ? 'open' : ''}" data-i="${i}"><div class="adv-row"><div class="ai">${x.icon}</div><div class="at"><b>${best ? '⭐ ' : ''}${esc(x.n)}</b><small><span class="${x.open.s}">${esc(x.open.msg)}</span> · ${x.est ? '≈' : ''}${x.min} min · ${fd(x.d)}</small>${x.info.length ? `<div class="tags">${x.info.slice(0, 4).map(t => `<i>${esc(t)}</i>`).join('')}</div>` : ''}</div>
+    return `<div class="adv-it ${best ? 'best' : ''} ${open ? 'open' : ''}" data-i="${i}"><div class="adv-row">${x.img ? `<div class="ai ph"><img src="${esc(x.img)}" alt="" loading="lazy" onerror="this.parentNode.classList.add('noimg');this.remove()"><span class="ic">${x.icon}</span></div>` : `<div class="ai">${x.icon}</div>`}<div class="at"><b>${best ? '⭐ ' : ''}${esc(x.n)}</b><small><span class="${x.open.s}">${esc(x.open.msg)}</span> · ${x.est ? '≈' : ''}${x.min} min · ${fd(x.d)}</small>${x.info.length ? `<div class="tags">${x.info.slice(0, 4).map(t => `<i>${esc(t)}</i>`).join('')}</div>` : ''}</div>
       <div class="ab"><button class="btn" data-go="${i}">🧭 Ir</button>${x.phone ? `<a class="btn sec" href="tel:${esc(String(x.phone).split(/[;,]/)[0].replace(/[^\d+]/g, ''))}">☎</a>` : ''}<button class="btn sec chev" type="button" title="Ver toda la información">${open ? 'Menos ▴' : 'Más info ▾'}</button></div></div>
       <div class="adv-more" ${open ? '' : 'hidden'}>${open ? Info.html(x) : ''}</div></div>`;
   }

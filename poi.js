@@ -4,7 +4,7 @@
    Los datos se cachean en el dispositivo. No hay avisos de controles móviles de policía. */
 
 const Poi = (() => {
-  const P = { cams: [], chargers: [], fuel: [], limit: null, limitPos: null, limitT: 0, limitBusy: false, fetched: {}, fbusy: {}, need: {}, map: null, groups: {}, said: {}, prev: null, heading: null, lastDraw: 0 };
+  const P = { cams: [], chargers: [], fuel: [], limit: null, way: null, limitPos: null, limitT: 0, limitBusy: false, fetched: {}, fbusy: {}, need: {}, map: null, groups: {}, said: {}, prev: null, heading: null, lastDraw: 0 };
   const OVP = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
   const KEY = 'leco.poi', CAP = { cams: 2500, chargers: 900, fuel: 900 };
   const rad = x => x * Math.PI / 180;
@@ -60,10 +60,14 @@ const Poi = (() => {
     const now = Date.now(); if (P.limitBusy || now - P.limitT < 8000) return; if (P.limitPos && dist(p, P.limitPos) < 50) return;
     P.limitBusy = true; P.limitT = now;
     try {
-      const j = await ovp(`[out:json][timeout:10];way(around:30,${p[0]},${p[1]})[highway][maxspeed];out geom 4;`);
-      let best = null, bd = 1e9;
-      for (const w of j.elements || []) { const m = parseMax(w.tags?.maxspeed); if (!m || !w.geometry) continue; const d = Nav.distToLine(p, w.geometry.map(g => [g.lat, g.lon])); if (d < bd) { bd = d; best = m; } }
-      P.limit = best; P.limitPos = p;
+      const j = await ovp(`[out:json][timeout:10];way(around:30,${p[0]},${p[1]})[highway];out geom tags 8;`), FOOT = /^(footway|path|cycleway|steps|pedestrian|track|bridleway|corridor)$/;
+      let near = null, nd = 1e9, best = null, bd = 1e9;
+      for (const w of j.elements || []) {
+        if (!w.geometry) continue; const hw = w.tags?.highway || '', geom = w.geometry.map(g => [g.lat, g.lon]), d = Nav.distToLine(p, geom); if (FOOT.test(hw)) continue;
+        if (d < nd) { nd = d; near = { name: w.tags?.name || '', ref: w.tags?.ref || '', highway: hw, geom }; }
+        const m = parseMax(w.tags?.maxspeed); if (m && d < bd) { bd = d; best = m; }
+      }
+      P.way = near; P.limit = best; P.limitPos = p;
     } catch { }
     P.limitBusy = false; renderLimit();
   }

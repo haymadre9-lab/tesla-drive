@@ -59,6 +59,7 @@ const idb = (() => {
 /* ───────────── Tema día/noche ───────────── */
 let ambientDark = null;
 function isDark() {
+  if (typeof Dash !== 'undefined' && /^(teslaos|hud)$/.test(Dash.cur().skin)) return true;
   switch (S.theme) {
     case 'dark': return true;
     case 'light': return false;
@@ -165,7 +166,7 @@ async function loadWeather(force) {
   if (!p) return;
   if (!force && WX.data && Date.now() - WX.at < 15 * 60e3) return;
   try {
-    const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${p[0].toFixed(3)}&longitude=${p[1].toFixed(3)}&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m&daily=temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=1`);
+    const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${p[0].toFixed(3)}&longitude=${p[1].toFixed(3)}&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m&daily=temperature_2m_max,temperature_2m_min&hourly=precipitation_probability&timezone=auto&forecast_days=1`);
     WX.data = await r.json(); WX.at = Date.now(); renderWeather();
   } catch { /* sin red */ }
 }
@@ -336,6 +337,7 @@ function widgetMap(el) {
 renderers.map = () => Nav.render($('#p-map'));
 bus.on('pos', c => Nav.onPos(c));
 bus.on('pos', c => Poi.onPos(c));
+bus.on('pos', c => Road.onPos(c));
 bus.on('pos', () => {
   const p = GPS.pos; if (!p) return; const key = p.latitude.toFixed(3) + p.longitude.toFixed(3); if (key === mapKey) return; mapKey = key;
   $$('.js-mapw iframe').forEach(f => f.src = mapSrc());

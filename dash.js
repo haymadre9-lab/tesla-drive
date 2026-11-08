@@ -13,7 +13,7 @@ const PRESETS = [
   { id: 'hud', n: 'HUD parabrisas', i: '🔆', d: 'Velocidad en espejo para reflejar en el cristal (móvil sobre el salpicadero)', skin: 'hud', accent: '#39ffb0', rows: 1, mirror: true, w: [['hud', 1, '1x1']] },
 ];
 const SPANS = ['1x1', '2x1', '1x2', '2x2'];
-const SKINS = [['glass', 'Cristal'], ['carbon', 'Carbono'], ['neon', 'Neón'], ['sky', 'Cielo'], ['minimal', 'Minimal'], ['hud', 'HUD'], ['tesla', 'Tesla'], ['aurora', 'Aurora'], ['sport', 'Deportivo']];
+const SKINS = [['glass', 'Cristal'], ['carbon', 'Carbono'], ['neon', 'Neón'], ['sky', 'Cielo'], ['minimal', 'Minimal'], ['hud', 'HUD'], ['tesla', 'Tesla'], ['aurora', 'Aurora'], ['sport', 'Deportivo'], ['teslaos', 'Tesla OS (negro y cristal)']];
 const clone = o => JSON.parse(JSON.stringify(o));
 
 const Dash = (() => {
@@ -97,7 +97,7 @@ const Dash = (() => {
       cockUpd(); renderSpeedUI(); Poi.renderLimit();
     },
   };
-  WIDGETS.navmap = { n: 'Navegador GPS (mapa y ruta)', cls: 'w-2x1 navhost', render: el => { el.classList.add('navhost'); Nav.render(el, true); } };
+  WIDGETS.navmap = { n: 'Navegador GPS (mapa y ruta)', cls: 'w-2x1 navhost', opts: [{ k: 'search', l: 'Mostrar la barra de búsqueda', type: 'bool', d: true }, { k: 'layers', l: 'Mostrar los botones de capas', type: 'bool', d: true }], render: el => { el.classList.add('navhost'); Nav.render(el, true, el.wopt); } };
   function cockUpd() {
     if (!$('.cock')) return;
     const mi = S.speedUnit === 'mph', d = mi ? S.trip / 1609.34 : S.trip / 1000, t = S.tripT || 0, avg = t > 30 ? d / (t / 3600) : 0, h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), s = Nav.summary(), p = GPS.pos;

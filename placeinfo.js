@@ -17,6 +17,7 @@ const Info = (() => {
   function addrOf(x) { const t = x.tags, s = t['addr:street']; return [s && s + (t['addr:housenumber'] ? ' ' + t['addr:housenumber'] : ''), t['addr:postcode'], t['addr:city']].filter(Boolean).join(', ') || x.addr || ''; }
   const osmLink = x => /^(node|way|relation)\d+$/.test(x.id) ? `https://www.openstreetmap.org/${x.id.replace(/(\d+)$/, '/$1')}` : `https://www.openstreetmap.org/?mlat=${x.lat}&mlon=${x.lon}#map=18/${x.lat}/${x.lon}`;
 
+  function imgOf(x, w = 240) { const t = x.tags || {}; return /^https:/i.test(t.image || '') ? t.image : t.wikimedia_commons && /^File:/i.test(t.wikimedia_commons) ? 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(t.wikimedia_commons.replace(/^File:/i, '')) + '?width=' + w : x.img || ''; }
   function html(x) {
     const t = x.tags, k = x.kind, phone = x.phone || t['contact:mobile'] || '', web = x.web, email = t.email || t['contact:email'];
     const addr = addrOf(x), out = [];
@@ -77,7 +78,7 @@ const Info = (() => {
     }
     if (!['eat', 'cafe', 'charge', 'park', 'fuel'].includes(k)) out.push(sec('ℹ️ Datos', [row('Marca', t.brand), row('Operador', t.operator), row('Estrellas', t.stars), row('Habitaciones', t.rooms), row('Descripción', t.description || t['description:es']), row('Acceso silla de ruedas', t.wheelchair && yn(t.wheelchair)), row('Entrada', t.fee && yn(t.fee)), row('Wi‑Fi', t.internet_access && yn(t.internet_access))]));
     // 4) Foto
-    const img = /^https:/i.test(t.image || '') ? t.image : t.wikimedia_commons && /^File:/i.test(t.wikimedia_commons) ? 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(t.wikimedia_commons.replace(/^File:/i, '')) + '?width=520' : '';
+    const img = imgOf(x, 520);
     if (img) out.push(`<div class="dsec wide"><h5>📷 Foto</h5><img class="dimg" src="${esc(img)}" alt="" loading="lazy" onerror="this.closest('.dsec').remove()"></div>`);
     // 5) Qué falta por saber
     const need = { eat: [['horario', t.opening_hours], ['teléfono', phone], ['web', web], ['tipo de cocina', t.cuisine], ['accesibilidad', t.wheelchair]], cafe: [['horario', t.opening_hours], ['teléfono', phone], ['web', web], ['accesibilidad', t.wheelchair]], charge: [['horario', t.opening_hours], ['potencia', t['charging_station:output'] || Object.keys(t).some(s => /^socket:.*:output$/.test(s)) || ''], ['enchufes', Object.keys(SOCK).some(s => t[s])], ['tarifa', t.fee || t.charge], ['acceso', t.access]], park: [['tarifa', t.fee || t.charge], ['plazas', t.capacity], ['horario', t.opening_hours], ['altura máxima', t.maxheight]], fuel: [['horario', t.opening_hours], ['combustibles', Object.keys(t).some(s => /^fuel:/.test(s))], ['marca', t.brand]] }[k] || [['horario', t.opening_hours], ['teléfono', phone], ['web', web]];
@@ -107,5 +108,5 @@ const Info = (() => {
       b.disabled = false; b.textContent = '✨ Resumen con IA';
     };
   }
-  return { html, bind, addrOf };
+  return { html, bind, addrOf, imgOf };
 })();
