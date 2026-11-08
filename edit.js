@@ -74,7 +74,7 @@ const Ed = (() => {
 
   /* ── Barra lateral configurable ── */
   const DOCK_DEF = [['home', '🏠', 'Inicio', 'page:home'], ['apps', '▦', 'Apps', 'page:apps'], ['music', '🎵', 'Música', 'page:music'], ['map', '🧭', 'Navegar', 'page:map'], ['settings', '⚙️', 'Ajustes', 'page:settings']];
-  const PAGES = [['home', 'Inicio'], ['apps', 'Aplicaciones'], ['music', 'Música'], ['map', 'Navegar'], ['settings', 'Ajustes']];
+  const PAGES = [['home', 'Inicio'], ['apps', 'Aplicaciones'], ['music', 'Música'], ['map', 'Navegar'], ['advisor', 'Asesor'], ['settings', 'Ajustes']];
   if (!Array.isArray(S.dock) || !S.dock.length) S.dock = DOCK_DEF.map(([id, i, n, t]) => ({ id, i, n, t }));
   if (!S.dock.some(x => x.t === 'page:settings')) S.dock.push({ id: 'settings', i: '⚙️', n: 'Ajustes', t: 'page:settings' });
 

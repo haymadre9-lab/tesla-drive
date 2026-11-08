@@ -127,7 +127,7 @@ const Nav = (() => {
       if (N.line) N.map.removeLayer(N.line); if (N.dm) N.map.removeLayer(N.dm);
       N.line = L.polyline(N.coords, { color: S.accent, weight: 8, opacity: .9 }).addTo(N.map);
       N.dm = L.marker([d.lat, d.lon], { icon: L.divIcon({ className: '', html: '<div class="poi" style="border-color:var(--acc);font-size:21px">🏁</div>', iconSize: [36, 36], iconAnchor: [18, 18] }) }).addTo(N.map);
-      if (!quiet) { N.map.fitBounds(N.line.getBounds(), { padding: [60, 60] }); setTimeout(() => { N.follow = true; }, 4000); S.navRecent = [d, ...(S.navRecent || []).filter(x => x.name !== d.name)].slice(0, 5); save(); chips(); say('Ruta calculada. ' + fmtD(rt.distance) + ' hasta ' + d.name); }
+      if (!quiet) { N.map.fitBounds(N.line.getBounds(), { padding: [60, 60] }); setTimeout(() => { N.follow = true; }, 4000); S.navRecent = [d, ...(S.navRecent || []).filter(x => x.name !== d.name)].slice(0, 5); save(); chips(); if (typeof Adv !== 'undefined') Adv.logTrip(d); say('Ruta calculada. ' + fmtD(rt.distance) + ' hasta ' + d.name); }
       $('#nres', N.el).hidden = true; $('.navtop', N.el).style.display = 'none'; $('#nguide', N.el).hidden = false; $('#nbar', N.el).hidden = false; N.el.classList.add('guiding'); $('#nsim', N.el).hidden = false; update(o);
     } catch (e) { toast('No se pudo calcular la ruta (sin conexión o servidor ocupado)', 3500); }
   }
@@ -154,7 +154,7 @@ const Nav = (() => {
     if (dN < 140 && !nx.v2) { nx.v2 = true; say(instr(nx)); }
     let rem = dN, dur = 0; for (let j = N.idx + 1; j <= last; j++) { rem += st[j].distance; dur += st[j].duration; }
     const cur = st[N.idx]; dur += cur.duration ? dN / (cur.distance / cur.duration || 10) : 0;
-    $('#nrem', N.el).textContent = fmtD(rem); const eta = new Date(Date.now() + dur * 1000); $('#neta', N.el).textContent = `${pad2(eta.getHours())}:${pad2(eta.getMinutes())}`; Object.assign(N.sum, { rem: fmtD(rem), eta: `${pad2(eta.getHours())}:${pad2(eta.getMinutes())}` }); bus.emit('nav');
+    $('#nrem', N.el).textContent = fmtD(rem); const eta = new Date(Date.now() + dur * 1000); $('#neta', N.el).textContent = `${pad2(eta.getHours())}:${pad2(eta.getMinutes())}`; Object.assign(N.sum, { etaMs: eta.getTime(), rem: fmtD(rem), eta: `${pad2(eta.getHours())}:${pad2(eta.getMinutes())}` }); bus.emit('nav');
     const v = Math.round(spdConv(GPS.speed)); $('#nspd', N.el).textContent = v; $('#nspu', N.el).textContent = spdUnit();
     // fuera de ruta
     if (!N.sim) {
@@ -162,7 +162,7 @@ const Nav = (() => {
     }
   }
   function arrive() {
-    $('#nicon', N.el).textContent = '🏁'; $('#ndist', N.el).textContent = '¡Llegaste!'; $('#ntext', N.el).textContent = N.dest ? N.dest.name : ''; say('Has llegado a tu destino'); N.sum = { icon: '🏁', dist: '¡Llegaste!', text: N.dest ? N.dest.name : '', rem: '0 m', eta: '--:--' }; bus.emit('nav');
+    $('#nicon', N.el).textContent = '🏁'; $('#ndist', N.el).textContent = '¡Llegaste!'; $('#ntext', N.el).textContent = N.dest ? N.dest.name : ''; say('Has llegado a tu destino'); if (typeof Adv !== 'undefined') Adv.arrived(N.dest); N.sum = { icon: '🏁', dist: '¡Llegaste!', text: N.dest ? N.dest.name : '', rem: '0 m', eta: '--:--' }; bus.emit('nav');
     N.active = false; clearInterval(N.simT); setTimeout(() => { if (!N.active) stop(); }, 8000);
   }
   function onPos(c) {
