@@ -110,19 +110,19 @@ const Poi = (() => {
   }
 
   /* ── Marcadores en el mapa ── */
-  const icon = (e, cls = '') => L.divIcon({ className: '', html: `<div class="poi ${cls}">${e}</div>`, iconSize: [36, 36], iconAnchor: [18, 18] });
-  function attach(map) { P.map = map; ['cams', 'chargers', 'fuel', 'reports'].forEach(k => P.groups[k] = L.layerGroup()); draw(); }
+  const icon = (e, cls = '') => `<div class="poi ${cls}">${e}</div>`, SZ = [36, 36];
+  function attach(map) { P.map = map; ['cams', 'chargers', 'fuel', 'reports'].forEach(k => P.groups[k] = map.group()); draw(); }
   function draw() {
     if (!P.map) return;
     const c = P.map.getCenter(), cc = [c.lat, c.lng], near = a => dist(cc, [a.lat, a.lon]) < 15000;
-    Object.values(P.groups).forEach(g => g.clearLayers());
+    Object.values(P.groups).forEach(g => g.clear());
     const on = k => S.layers[k] || (k === 'cams' && S.radarAlerts && S.layers.cams);
     ['cams', 'chargers', 'fuel', 'reports'].forEach(k => {
-      const g = P.groups[k]; if (!S.layers[k]) { P.map.removeLayer(g); return; } g.addTo(P.map);
-      if (k === 'cams') P.cams.filter(near).forEach(x => L.marker([x.lat, x.lon], { icon: icon('📷', 'cam') }).on('click', () => info(`📷 Radar${x.max ? ' · ' + x.max + ' km/h' : ''}`, 'Radar fijo (datos de OpenStreetMap). Puede no estar actualizado.', x)).addTo(g));
-      if (k === 'chargers') P.chargers.filter(near).forEach(x => L.marker([x.lat, x.lon], { icon: icon('⚡', x.tesla ? 'tesla' : 'chg') }).on('click', () => info('⚡ ' + x.name, [x.op, x.cap ? x.cap + ' puntos' : ''].filter(Boolean).join(' · '), x, true)).addTo(g));
-      if (k === 'fuel') P.fuel.filter(near).forEach(x => L.marker([x.lat, x.lon], { icon: icon('⛽', 'fuel') }).on('click', () => info('⛽ ' + x.name, x.op, x, true)).addTo(g));
-      if (k === 'reports') liveReports().forEach(r => L.marker([r.lat, r.lon], { icon: icon(REP[r.type][0], 'rep') }).on('click', () => dlg(`<h3>${REP[r.type][0]} ${REP[r.type][1]}</h3><div class="note">Reportado hace ${Math.round((Date.now() - r.t) / 60000)} min (solo en este dispositivo).</div><div class="acts"><button class="btn bad" id="d">Eliminar</button><button class="btn sec" id="c">Cerrar</button></div>`, d => { $('#c', d).onclick = closeDlg; $('#d', d).onclick = () => { S.reports = S.reports.filter(z => z !== r); save(); closeDlg(); draw(); }; })).addTo(g));
+      const g = P.groups[k]; if (!S.layers[k]) return;
+      if (k === 'cams') P.cams.filter(near).forEach(x => g.add([x.lat, x.lon], icon('📷', 'cam'), SZ, () => info(`📷 Radar${x.max ? ' · ' + x.max + ' km/h' : ''}`, 'Radar fijo (datos de OpenStreetMap). Puede no estar actualizado.', x)));
+      if (k === 'chargers') P.chargers.filter(near).forEach(x => g.add([x.lat, x.lon], icon('⚡', x.tesla ? 'tesla' : 'chg'), SZ, () => info('⚡ ' + x.name, [x.op, x.cap ? x.cap + ' puntos' : ''].filter(Boolean).join(' · '), x, true)));
+      if (k === 'fuel') P.fuel.filter(near).forEach(x => g.add([x.lat, x.lon], icon('⛽', 'fuel'), SZ, () => info('⛽ ' + x.name, x.op, x, true)));
+      if (k === 'reports') liveReports().forEach(r => g.add([r.lat, r.lon], icon(REP[r.type][0], 'rep'), SZ, () => dlg(`<h3>${REP[r.type][0]} ${REP[r.type][1]}</h3><div class="note">Reportado hace ${Math.round((Date.now() - r.t) / 60000)} min (solo en este dispositivo).</div><div class="acts"><button class="btn bad" id="d">Eliminar</button><button class="btn sec" id="c">Cerrar</button></div>`, d => { $('#c', d).onclick = closeDlg; $('#d', d).onclick = () => { S.reports = S.reports.filter(z => z !== r); save(); closeDlg(); draw(); }; })));
     });
   }
   function info(title, sub, x, go) {
@@ -136,7 +136,7 @@ const Poi = (() => {
     dlg(`<h3>Reportar en tu posición</h3><div class="f">${Object.entries(REP).map(([k, v]) => `<button class="btn sec" data-r="${k}" style="font-size:18px;text-align:left">${v[0]} ${v[1]}</button>`).join('')}</div><div class="note">Los reportes se guardan 3 horas en este dispositivo; no se comparten con otros conductores.</div><div class="acts"><button class="btn sec" id="c">Cancelar</button></div>`, d => {
       $('#c', d).onclick = closeDlg;
       $$('[data-r]', d).forEach(b => b.onclick = () => {
-        const p = GPS.pos ? [GPS.pos.latitude, GPS.pos.longitude] : S.lastPos || (P.map && [P.map.getCenter().lat, P.map.getCenter().lng]); if (!p) return toast('Sin posición');
+        const p = GPS.pos ? [GPS.pos.latitude, GPS.pos.longitude] : S.lastPos || (P.map && P.map.center()); if (!p) return toast('Sin posición');
         (S.reports ||= []).push({ id: Date.now(), t: Date.now(), lat: p[0], lon: p[1], type: b.dataset.r }); save(); closeDlg(); draw(); toast('Reporte guardado ' + REP[b.dataset.r][0]);
       });
     });
