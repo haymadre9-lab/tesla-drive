@@ -530,7 +530,7 @@ addEventListener('keydown', e => {
 const fab = $('#fab');
 function placeFab() {
   fab.classList.toggle('on', S.fab.on);
-  const portrait = innerWidth < 761 || innerHeight > innerWidth, x = S.fab.x ?? innerWidth - 80, y = S.fab.y ?? innerHeight - (portrait ? 170 : 90);
+  const portrait = innerWidth < 761 || innerHeight > innerWidth, x = S.fab.x ?? innerWidth - 80, y = S.fab.y ?? (portrait ? innerHeight - 170 : innerHeight < 560 ? innerHeight / 2 - 29 : innerHeight - 90);
   fab.style.left = clamp(x, 0, innerWidth - 58) + 'px'; fab.style.top = clamp(y, 0, innerHeight - 58) + 'px';
 }
 (() => {

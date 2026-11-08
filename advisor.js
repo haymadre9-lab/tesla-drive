@@ -5,10 +5,11 @@
 
 const Adv = (() => {
   S.trips ||= [];
-  const A = { q: '', cat: null, res: null, loading: false, err: '', pick: null, open: null, here: null, dest: null, destKey: '', hereAt: 0, expand: null };
+  const A = { errLog: [], note: '', loc: S.advLoc || null, q: '', cat: null, res: null, loading: false, err: '', pick: null, open: null, here: null, dest: null, destKey: '', hereAt: 0, expand: null };
   const rad = x => x * Math.PI / 180;
   const dist = (a, b) => { const R = 6371000, dLa = rad(b[0] - a[0]), dLo = rad(b[1] - a[1]), x = Math.sin(dLa / 2) ** 2 + Math.cos(rad(a[0])) * Math.cos(rad(b[0])) * Math.sin(dLo / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); };
   const fd = m => m >= 1000 ? (m / 1000).toFixed(m >= 10000 ? 0 : 1) + ' km' : Math.round(m / 10) * 10 + ' m';
+  const ref = () => A.loc ? { p: [A.loc.lat, A.loc.lon], label: A.loc.name } : (p => p ? { p, label: GPS.pos ? 'Tu posición (GPS)' : S.lastPos ? 'Última posición conocida' : (S.city ? S.city.name : 'Ciudad elegida') } : null)(pos());
   const pos = () => GPS.pos ? [GPS.pos.latitude, GPS.pos.longitude] : S.lastPos || (S.city ? [S.city.lat, S.city.lon] : null);
   const hm = m => { m = Math.round(m) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
   const DAYN = ['domingos', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábados'];
@@ -90,29 +91,73 @@ const Adv = (() => {
   const parse = t => { t = t.toLowerCase(); for (const [re, cat, cui] of KW) if (re.test(t)) return { cat, cui }; return { cat: null }; };
   const eRe = s => s.replace(/[.*+?^${}()|[\]\\"]/g, '\\$&');
 
+  const MIRRORS = ['https://overpass-api.de/api/interpreter', 'https://overpass.private.coffee/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://overpass.openstreetmap.fr/api/interpreter'];
+  async function ovpx(q) { // Overpass responde 200 con «remark» cuando se agota el tiempo: se trata como fallo y se prueba el siguiente servidor
+    const log = [];
+    for (const u of MIRRORS) {
+      const host = u.split('/')[2];
+      try {
+        const c = new AbortController(), t = setTimeout(() => c.abort(), 15000), r = await fetch(u, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, signal: c.signal }); clearTimeout(t);
+        if (!r.ok) { log.push(host + ': HTTP ' + r.status); continue; }
+        const j = await r.json();
+        if (j.remark && /timed out|out of memory|runtime error|too many|rate/i.test(j.remark)) { log.push(host + ': ' + j.remark.slice(0, 70)); continue; }
+        if (!Array.isArray(j.elements)) { log.push(host + ': respuesta inesperada'); continue; }
+        return j;
+      } catch (e) { log.push(host + ': ' + (e.name === 'AbortError' ? 'sin respuesta en 15 s' : 'error de red')); }
+    }
+    const e = new Error('overpass'); e.log = log; throw e;
+  }
+  const NOMQ = { eat: 'restaurante', cafe: 'cafetería', charge: 'cargador eléctrico', park: 'parking', fuel: 'gasolinera', shop: 'supermercado', pharm: 'farmacia', hotel: 'hotel', wc: 'aseos públicos', wash: 'lavadero de coches', sight: 'lugar de interés turístico' };
+  async function nominatim(p, term) { // respaldo: menos detalle, pero suele responder
+    const d = .06, v = `${p[1] - d * 1.4},${p[0] + d},${p[1] + d * 1.4},${p[0] - d}`, r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=30&accept-language=es&extratags=1&bounded=1&viewbox=${v}&q=${encodeURIComponent(term)}`);
+    if (!r.ok) throw new Error('HTTP ' + r.status); const j = await r.json();
+    return j.map(x => ({ id: 'n' + x.place_id, lat: +x.lat, lon: +x.lon, tags: Object.assign({ name: x.name || String(x.display_name).split(',')[0] }, x.extratags || {}) }));
+  }
   async function search(cat, cui, nameQ) {
-    const p = pos(); if (!p) { A.err = 'Sin posición GPS todavía: activa la ubicación.'; A.res = []; return refresh(); }
-    A.loading = true; A.err = ''; A.res = null; A.pick = null; A.expand = null; refresh();
+    const R = ref(); A.errLog = []; A.note = '';
+    if (!R) { A.err = 'No sé dónde estás: activa la ubicación del navegador o elige un lugar.'; A.res = []; return refresh(); }
+    const p = R.p; A.loading = true; A.err = ''; A.res = null; A.pick = null; A.expand = null; refresh();
+    let items = [], log = [];
     try {
       let els = [];
-      for (const r of [1500, 4500, 10000]) {
-        const a = `(around:${r},${p[0]},${p[1]})`;
-        const body = cat ? CATS[cat].sel.map(s => `nwr${s}${cui ? `["cuisine"~"${cui}",i]` : ''}${a};`).join('') : `nwr["name"~"${eRe(nameQ)}",i]${a};`;
-        const j = await Poi.ovp(`[out:json][timeout:25];(${body});out center tags 90;`); els = j.elements || [];
-        if (els.length >= 5) break;
+      for (const r of [800, 2500, 7000, 15000]) {
+        const a = `(around:${r},${p[0]},${p[1]})`, body = cat ? CATS[cat].sel.map(s => `nwr${s}${cui ? `["cuisine"~"${cui}",i]` : ''}${a};`).join('') : `nwr["name"~"${eRe(nameQ)}",i]${a};`;
+        els = (await ovpx(`[out:json][timeout:25];(${body});out center tags 90;`)).elements || []; if (els.length >= 6) break;
       }
-      let items = els.map(e => ({ id: e.type + e.id, lat: e.lat ?? e.center?.lat, lon: e.lon ?? e.center?.lon, tags: e.tags || {} })).filter(x => x.lat != null);
-      const seen = new Set(); items = items.filter(x => { const k = (x.tags.name || '') + x.lat.toFixed(4) + x.lon.toFixed(4); if (seen.has(k)) return false; seen.add(k); return true; });
-      items.forEach(x => { x.d = dist(p, [x.lat, x.lon]); }); items.sort((a, b) => a.d - b.d); items = items.slice(0, 10);
+      items = els.map(e => ({ id: e.type + e.id, lat: e.lat ?? e.center?.lat, lon: e.lon ?? e.center?.lon, tags: e.tags || {} })).filter(x => x.lat != null);
+    } catch (e) { log = e.log || [String(e.message || e)]; }
+    if (!items.length) { // respaldo
+      try { items = await nominatim(p, cat ? NOMQ[cat] + (cui ? ' ' + cui.split('|')[0] : '') : nameQ); if (items.length) A.note = 'Datos de respaldo: hay menos detalle de horarios y características.'; } catch (e) { log.push('nominatim.openstreetmap.org: ' + (e.message || 'error')); }
+    }
+    const seen = new Set(); items = items.filter(x => { const k = (x.tags.name || '') + x.lat.toFixed(4) + x.lon.toFixed(4); if (seen.has(k)) return false; seen.add(k); return true; });
+    items.forEach(x => { x.d = dist(p, [x.lat, x.lon]); }); items.sort((a, b) => a.d - b.d); items = items.slice(0, 10);
+    if (items.length) {
       try { // tiempos reales de conducción
         const co = [p, ...items.map(x => [x.lat, x.lon])].map(c => `${c[1]},${c[0]}`).join(';'), r = await fetch(`https://router.project-osrm.org/table/v1/driving/${co}?sources=0&annotations=duration`), t = await r.json();
-        items.forEach((x, i) => { const s = t.durations && t.durations[0] && t.durations[0][i + 1]; x.min = s != null ? Math.max(1, Math.round(s / 60)) : null; });
+        items.forEach((x, i) => { const sec = t.durations && t.durations[0] && t.durations[0][i + 1]; x.min = sec != null ? Math.max(1, Math.round(sec / 60)) : null; });
       } catch { }
       items.forEach(x => { if (x.min == null) { x.min = Math.max(1, Math.round(x.d * 1.4 / 500)); x.est = 1; } describe(x, cat, cui); });
-      items.sort((a, b) => b.score - a.score); A.res = items; A.cat = cat; A.pick = items[0] || null;
-      if (!items.length) A.err = 'No encontré nada cerca. Prueba con otra búsqueda.';
-    } catch { A.err = 'No se pudo consultar los datos (necesita conexión). Reintenta en un momento.'; A.res = []; }
-    A.loading = false; refresh();
+      items.sort((a, b) => b.score - a.score);
+    }
+    A.res = items; A.cat = cat; A.pick = items[0] || null; A.errLog = log;
+    if (!items.length) A.err = log.length ? 'No pude obtener datos ahora mismo (los servidores de mapas no respondieron).' : 'No encontré nada cerca. Prueba con otra búsqueda o cambia el lugar.';
+    A.loading = false; A.last = [cat, cui, nameQ]; refresh();
+  }
+  /* Elegir el lugar de referencia (por si no hay GPS, o para planificar otra zona) */
+  function locDlg() {
+    dlg(`<h3>📍 ¿Cerca de dónde busco?</h3><div class="f"><button class="btn ${A.loc ? 'sec' : ''}" id="l1" type="button" style="text-align:left">📡 Mi posición (GPS)</button>${Nav.state.map ? '<button class="btn sec" id="l3" type="button" style="text-align:left">🗺 Centro del mapa que estoy viendo</button>' : ''}<label class="lab">…o escribe una ciudad, barrio o dirección<div class="adv-ask"><input class="in" id="lq" placeholder="Ej. Sevilla centro"><button class="btn" id="l2" type="button">Buscar</button></div></label><div id="lr" class="f"></div></div><div class="acts"><button class="btn sec" id="lx" type="button">Cerrar</button></div>`, d => {
+      const set = l => { A.loc = l; S.advLoc = l; save(); closeDlg(); toast(l ? 'Buscaré cerca de: ' + l.name : 'Usaré tu posición GPS'); A.res = null; A.err = ''; refresh(); };
+      $('#lx', d).onclick = closeDlg; $('#l1', d).onclick = () => set(null);
+      const l3 = $('#l3', d); if (l3) l3.onclick = () => { const c = Nav.state.map.getCenter(); set({ name: 'Centro del mapa', lat: c.lat, lon: c.lng }); };
+      const go1 = async () => {
+        const q = $('#lq', d).value.trim(); if (!q) return; $('#lr', d).innerHTML = '<div class="note">Buscando…</div>';
+        try { const r = await (await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&accept-language=es&q=${encodeURIComponent(q)}`)).json();
+          $('#lr', d).innerHTML = r.length ? r.map((x, i) => `<button class="btn sec" data-i="${i}" type="button" style="text-align:left">${esc(x.display_name.split(',').slice(0, 3).join(','))}</button>`).join('') : '<div class="note">No encontré ese lugar.</div>';
+          $$('#lr [data-i]', d).forEach(b => b.onclick = () => { const x = r[+b.dataset.i]; set({ name: x.display_name.split(',').slice(0, 2).join(','), lat: +x.lat, lon: +x.lon }); });
+        } catch { $('#lr', d).innerHTML = '<div class="note">Sin conexión con el buscador de lugares.</div>'; }
+      };
+      $('#l2', d).onclick = go1; $('#lq', d).onkeydown = e => e.key === 'Enter' && go1();
+    });
   }
   function describe(x, cat, cui) {
     const t = x.tags, info = [], kind = cat || (t.amenity === 'charging_station' ? 'charge' : t.amenity === 'parking' ? 'park' : t.amenity === 'fuel' ? 'fuel' : t.amenity === 'restaurant' ? 'eat' : t.amenity === 'cafe' ? 'cafe' : null);
@@ -173,11 +218,11 @@ const Adv = (() => {
     mode = mode || 'page'; const compact = mode === 'widget', cats = Object.entries(CATS);
     const sel = S.mapPage !== 'builtin' && Maps.get(S.mapPage) ? Maps.get(S.mapPage).n : 'Mapa integrado';
     const chips = `<div class="adv-chips">${cats.map(([k, c]) => `<button data-cat="${k}" class="${A.cat === k ? 'on' : ''}">${c.i}<span>${c.n}</span></button>`).join('')}</div>`;
-    const res = A.loading ? '<div class="note adv-load">Buscando cerca de ti…</div>' : A.err ? `<div class="note">${esc(A.err)}</div>` : A.res && A.res.length ? `<div class="adv-reco">💬 ${esc(advice(A.res[0]))}</div><div class="adv-list">${A.res.slice(0, compact ? 3 : 8).map((x, i) => item(x, i, false)).join('')}</div><div class="adv-foot">Datos de OpenStreetMap: sin valoraciones de clientes ni precios. Comprueba el horario antes de ir.</div>` : '<div class="note">Pregúntame algo como «dónde comer pizza», «cargador cerca» o «parking», o toca una categoría.</div>';
+    const res = A.loading ? '<div class="note adv-load">Buscando cerca de ti…</div>' : A.err ? `<div class="note">${esc(A.err)}</div><div class="adv-errb"><button class="btn sec" id="aretry" type="button">↻ Reintentar</button><button class="btn sec" id="aloc2" type="button">📍 Cambiar lugar</button></div>${A.errLog && A.errLog.length ? `<details class="adv-det"><summary>Detalles técnicos</summary>${A.errLog.map(esc).join('<br>')}</details>` : ''}` : A.res && A.res.length ? `<div class="adv-reco">💬 ${esc(advice(A.res[0]))}</div>${A.note ? `<div class="note">${esc(A.note)}</div>` : ''}<div class="adv-list">${A.res.slice(0, compact ? 3 : 8).map((x, i) => item(x, i, false)).join('')}</div><div class="adv-foot">Datos de OpenStreetMap: sin valoraciones de clientes ni precios. Comprueba el horario antes de ir.</div>` : '<div class="note">Pregúntame algo como «dónde comer pizza», «cargador cerca» o «parking», o toca una categoría.</div>';
     el.innerHTML = compact
       ? `<div class="adv w"><div class="adv-card">${nowCard(true)}</div>${chips}<div class="adv-res">${res}</div></div>`
       : `<div class="adv p"><div class="adv-l"><div class="adv-card">${nowCard(false)}</div><div class="adv-card">${sugCard(4)}</div></div>
-        <div class="adv-r"><div class="adv-card"><h4>Pídeme consejo</h4><div class="adv-ask"><input class="in" id="aq" type="search" placeholder="Ej. dónde comer pizza cerca, parking, cargar…" value="${esc(A.q)}"><button class="btn" id="ago">Preguntar</button>${'webkitSpeechRecognition' in window || 'SpeechRecognition' in window ? '<button class="btn sec" id="amic" title="Hablar">🎤</button>' : ''}</div>${chips}</div>
+        <div class="adv-r"><div class="adv-card"><h4>Pídeme consejo</h4><div class="adv-ask"><input class="in" id="aq" type="search" placeholder="Ej. dónde comer pizza cerca, parking, cargar…" value="${esc(A.q)}"><button class="btn" id="ago">Preguntar</button>${'webkitSpeechRecognition' in window || 'SpeechRecognition' in window ? '<button class="btn sec" id="amic" title="Hablar">🎤</button>' : ''}</div><div class="adv-loc">📍 Buscando cerca de: <b>${esc((ref() || { label: 'sin ubicación' }).label)}</b> <button class="btn sec" id="aloc" type="button">Cambiar</button></div>${chips}</div>
         <div class="adv-res card">${res}<div class="adv-map">Al pulsar 🧭 Ir se abre en: <b>🗺 ${esc(sel)}</b> <button class="btn sec" id="amap">Cambiar</button></div></div></div></div>`;
     $$('[data-cat]', el).forEach(b => b.onclick = () => { if (compact) { A.q = ''; go('advisor'); } search(b.dataset.cat); });
     $$('[data-s]', el).forEach(b => b.onclick = () => { const o = suggest()[+b.dataset.s]; if (o) Maps.openPlace({ n: o.n, lat: o.lat, lon: o.lon }); });
@@ -185,6 +230,7 @@ const Adv = (() => {
     $$('.adv-it', el).forEach(r => r.onclick = () => { A.pick = A.res[+r.dataset.i]; A.expand = A.pick; $$('.adv-it', el).forEach(z => z.classList.toggle('sel', z === r)); const full = $('.tags', r); if (full) full.innerHTML = A.pick.info.map(t => `<i>${esc(t)}</i>`).join('') + (A.pick.web ? `<i><a href="${esc(A.pick.web)}" target="_blank" rel="noopener">🌐 web</a></i>` : ''); });
     const q = $('#aq', el); if (q) { q.oninput = () => { A.q = q.value; }; q.onkeydown = e => e.key === 'Enter' && ask(q.value); $('#ago', el).onclick = () => ask(q.value); }
     const mic = $('#amic', el); if (mic) mic.onclick = () => { const R = window.SpeechRecognition || window.webkitSpeechRecognition, r = new R(); r.lang = 'es-ES'; r.onresult = ev => { const t = ev.results[0][0].transcript; A.q = t; ask(t); }; r.onerror = () => toast('No se pudo usar el micrófono'); try { r.start(); toast('Escuchando…'); } catch { } };
+    ['#aloc', '#aloc2'].forEach(id => { const b = $(id, el); if (b) b.onclick = locDlg; }); const rt = $('#aretry', el); if (rt) rt.onclick = () => A.last ? search(...A.last) : ask(A.q);
     const mp = $('#amap', el); if (mp) mp.onclick = () => Maps.pick(id => { S.mapPage = id; save(); refresh(); }, S.mapPage);
   }
   function ask(text) {
