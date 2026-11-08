@@ -13,7 +13,7 @@ const PRESETS = [
   { id: 'hud', n: 'HUD parabrisas', i: '🔆', d: 'Velocidad en espejo para reflejar en el cristal (móvil sobre el salpicadero)', skin: 'hud', accent: '#39ffb0', rows: 1, mirror: true, w: [['hud', 1, '1x1']] },
 ];
 const SPANS = ['1x1', '2x1', '1x2', '2x2'];
-const SKINS = [['glass', 'Cristal'], ['carbon', 'Carbono'], ['neon', 'Neón'], ['sky', 'Cielo'], ['minimal', 'Minimal'], ['hud', 'HUD']];
+const SKINS = [['glass', 'Cristal'], ['carbon', 'Carbono'], ['neon', 'Neón'], ['sky', 'Cielo'], ['minimal', 'Minimal'], ['hud', 'HUD'], ['tesla', 'Tesla'], ['aurora', 'Aurora'], ['sport', 'Deportivo']];
 const clone = o => JSON.parse(JSON.stringify(o));
 
 const Dash = (() => {
@@ -33,10 +33,10 @@ const Dash = (() => {
 
   function picker() {
     dlg(`<h3>🎛 Dashboards</h3><div class="dgrid">${S.dashboards.map(d => `<div class="dcard ${d.id === S.dash ? 'sel' : ''}" data-id="${esc(d.id)}"><div class="di">${esc(d.i)}</div><b>${esc(d.n)}</b><small>${esc(d.d || 'Personalizado')}</small></div>`).join('')}</div>
-      <div class="acts"><button class="btn sec" id="dnew">＋ Duplicar actual</button><button class="btn sec" id="dset">⚙ Editar</button><button class="btn" id="dc">Cerrar</button></div>`, d => {
+      <div class="acts"><button class="btn" id="dwiz">✨ Crear nuevo</button><button class="btn sec" id="dnew">＋ Duplicar actual</button><button class="btn sec" id="dset">⚙ Editar</button><button class="btn" id="dc">Cerrar</button></div>`, d => {
       $$('.dcard', d).forEach(c => c.onclick = () => { closeDlg(); use(c.dataset.id); });
       $('#dc', d).onclick = closeDlg; $('#dset', d).onclick = () => { closeDlg(); cat = 'inicio'; go('settings'); };
-      $('#dnew', d).onclick = () => { closeDlg(); dup(); };
+      $('#dnew', d).onclick = () => { closeDlg(); dup(); }; $('#dwiz', d).onclick = () => { closeDlg(); Tpl.wizard(); };
     });
   }
   async function dup() {

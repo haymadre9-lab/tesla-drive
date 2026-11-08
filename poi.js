@@ -4,7 +4,7 @@
    Los datos se cachean en el dispositivo. No hay avisos de controles móviles de policía. */
 
 const Poi = (() => {
-  const P = { cams: [], chargers: [], fuel: [], limit: null, limitPos: null, limitT: 0, limitBusy: false, fetched: {}, fbusy: {}, map: null, groups: {}, said: {}, prev: null, heading: null, lastDraw: 0 };
+  const P = { cams: [], chargers: [], fuel: [], limit: null, limitPos: null, limitT: 0, limitBusy: false, fetched: {}, fbusy: {}, need: {}, map: null, groups: {}, said: {}, prev: null, heading: null, lastDraw: 0 };
   const OVP = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
   const KEY = 'leco.poi', CAP = { cams: 2500, chargers: 900, fuel: 900 };
   const rad = x => x * Math.PI / 180;
@@ -40,7 +40,7 @@ const Poi = (() => {
     chargers: e => { const t = e.tags || {}, n = t.name || t.brand || t.operator || 'Cargador'; return { id: e.id, lat: e.lat, lon: e.lon, name: n, op: t.operator || t.brand || '', tesla: /tesla/i.test((t.operator || '') + (t.brand || '') + (t.name || '')), cap: t.capacity || '' }; },
     fuel: e => ({ id: e.id, lat: e.lat, lon: e.lon, name: e.tags?.name || e.tags?.brand || 'Gasolinera', op: e.tags?.brand || '' }),
   };
-  const wanted = k => k === 'cams' ? (S.radarAlerts || S.layers.cams) : S.layers[k];
+  const wanted = k => k === 'cams' ? (S.radarAlerts || S.layers.cams) : (S.layers[k] || P.need[k]);
 
   async function refresh(force) {
     const p = GPS.pos ? [GPS.pos.latitude, GPS.pos.longitude] : S.lastPos; if (!p) return;
@@ -49,7 +49,7 @@ const Poi = (() => {
       const f = P.fetched[k]; if (!force && f && dist(f, p) < 3000) continue;
       P.fbusy[k] = true;
       const b = `${p[0] - .06},${p[1] - .09},${p[0] + .06},${p[1] + .09}`;
-      try { const j = await ovp(QUERY[k](b)); merge(k, (j.elements || []).filter(e => e.lat != null).map(MAP[k])); P.fetched[k] = p; persist(); draw(); }
+      try { const j = await ovp(QUERY[k](b)); merge(k, (j.elements || []).filter(e => e.lat != null).map(MAP[k])); P.fetched[k] = p; persist(); draw(); bus.emit('poi'); }
       catch { if (force) toast('Sin conexión con el servidor de mapas: se usan datos guardados'); }
       P.fbusy[k] = false;
     }
@@ -138,5 +138,5 @@ const Poi = (() => {
     });
   }
   function init() { try { const j = JSON.parse(localStorage.getItem(KEY) || '{}'); ['cams', 'chargers', 'fuel'].forEach(k => P[k] = j[k] || []); } catch { } }
-  return { init, onPos, attach, draw, refresh, reportDlg, renderLimit, state: P, clearReports: () => { S.reports = []; save(); draw(); } };
+  return { init, onPos, attach, draw, refresh, reportDlg, renderLimit, need: k => { P.need[k] = true; refresh(); }, state: P, clearReports: () => { S.reports = []; save(); draw(); } };
 })();
