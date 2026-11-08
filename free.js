@@ -5,13 +5,13 @@
 
 const Win = (() => {
   const uid = () => 'w' + Math.random().toString(36).slice(2, 7);
-  const prof = () => (innerHeight > innerWidth || innerWidth < 761 ? 'port' : 'land');
+  const prof = () => (typeof Canvas !== 'undefined' ? Canvas.key() : (innerHeight > innerWidth || innerWidth < 761 ? 'port' : 'land'));
   const cl = o => JSON.parse(JSON.stringify(o));
   let editing = false, root = null;
 
   /* Reparto automático inicial (equivale a la cuadrícula) */
   function tile(wins, pr) {
-    const D = Dash.cur(), land = pr === 'land', fixed = land ? Math.max(1, D.rows || S.rows || 2) : 2;
+    const D = Dash.cur(), land = (typeof Canvas !== 'undefined' ? Canvas.orientOf(pr) : pr) === 'land', fixed = land ? Math.max(1, D.rows || S.rows || 2) : 2;
     const occ = new Set(), pl = []; let flow = 0;
     const fits = (c, r, cw, ch) => { for (let i = 0; i < cw; i++) for (let j = 0; j < ch; j++) if (occ.has((c + i) + ',' + (r + j))) return false; return true; };
     wins.forEach(w => {
@@ -32,7 +32,10 @@ const Win = (() => {
     if (!D.win) D.win = D.w.filter(([id, on]) => on && WIDGETS[id]).map(([id, , span]) => ({ id: uid(), type: 'widget', wid: id, span: span || '1x1', r: {} }));
     D.win.forEach(w => { w.r ||= {}; });
     const pr = prof(), miss = D.win.filter(w => !w.r[pr]);
-    if (miss.length === D.win.length) tile(D.win, pr); else miss.forEach((w, i) => { w.r[pr] = [18 + i * 4, 18 + i * 4, 46, 46]; });
+    if (miss.length === D.win.length) {
+      const ori = typeof Canvas !== 'undefined' ? Canvas.orientOf(pr) : pr, src = Object.keys(D.win[0] ? D.win[0].r : {}).find(k => k !== pr && (typeof Canvas !== 'undefined' ? Canvas.orientOf(k) : k) === ori);
+      if (src && D.win.every(w => w.r[src])) D.win.forEach(w => { w.r[pr] = w.r[src].slice(); }); else tile(D.win, pr); // mismo tipo de pantalla: copia; si no, reparto automático
+    } else miss.forEach((w, i) => { w.r[pr] = [18 + i * 4, 18 + i * 4, 46, 46]; });
     return D;
   }
 
@@ -40,7 +43,7 @@ const Win = (() => {
   const rgba = (hex, a) => { const n = parseInt((hex || '#000000').slice(1), 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${(a ?? 100) / 100})`; };
   function renderFree(D) {
     ensureFree(D); const pr = prof(), host = $('#p-home');
-    host.innerHTML = '<div class="free"></div>'; root = $('.free', host);
+    host.innerHTML = '<div class="free"></div>'; root = $('.free', host); if (typeof Canvas !== 'undefined') Canvas.fit(root);
     D.win.forEach(w => mk(w, pr));
     document.body.classList.toggle('layedit', editing); bar();
     tickClock(); renderWeather(); renderSpeedUI(); Poi.renderLimit(); Dash.tag && Dash.tag();
@@ -55,7 +58,7 @@ const Win = (() => {
       c.innerHTML = `${w.bar === false ? '' : `<div class="wbar"><b>${esc(w.title || Ed.hostOf(w.url) || 'PWA')}</b></div>`}<div class="wfr">${w.url ? `<iframe src="${esc(w.url)}" allow="geolocation; autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write" referrerpolicy="no-referrer-when-downgrade" style="width:${100 / s}%;height:${100 / s}%;transform:scale(${s})"></iframe>` : '<div class="wempty">Sin dirección.<br>Mantén pulsado (o toca ⋮) para elegir la PWA</div>'}</div>`;
     } else {
       const W = WIDGETS[w.wid];
-      if (W) { c.className += ' ' + (W.cls || '').replace(/w-\d+x\d+/g, '').trim(); c.dataset.w = w.wid; W.render(c); } else c.textContent = 'Widget no disponible';
+      if (W) { c.className += ' ' + (W.cls || '').replace(/w-\d+x\d+/g, '').trim(); c.dataset.w = w.wid; c.wopt = w.opt || {}; W.render(c); } else c.textContent = 'Widget no disponible';
     }
     decorate(f, w);
     return f;
@@ -115,7 +118,7 @@ const Win = (() => {
   function bar() {
     let b = $('#layedbar'); if (b) b.remove(); if (!editing) return;
     b = document.createElement('div'); b.id = 'layedbar';
-    b.innerHTML = `<span>✎ ${prof() === 'port' ? 'Vertical' : 'Horizontal'}</span><button class="btn" data-a="add">＋ Ventana</button>${lastDel ? '<button class="btn sec" data-a="undo">↶ Deshacer</button>' : ''}<button class="btn sec" data-a="auto">⟲ Reordenar</button><button class="btn" data-a="done">✔ Listo</button>`;
+    b.innerHTML = `<span>✎ ${typeof Canvas !== 'undefined' ? Canvas.label() : prof()}</span><button class="btn" data-a="add">＋ Ventana</button>${lastDel ? '<button class="btn sec" data-a="undo">↶ Deshacer</button>' : ''}<button class="btn sec" data-a="auto">⟲ Reordenar</button><button class="btn" data-a="done">✔ Listo</button>`;
     document.body.append(b);
     b.onclick = e => {
       const a = e.target.closest('button')?.dataset.a, D = Dash.cur();
@@ -152,6 +155,7 @@ const Win = (() => {
     const wopts = Object.entries(WIDGETS).map(([k, v]) => `<option value="w:${k}">${esc(v.n)}</option>`).join('');
     dlg(`<h3>${isNew ? 'Nueva ventana' : 'Configurar ventana'}</h3><div class="f ed">
       <label>¿Qué muestra esta ventana?<select class="in" id="wt"><optgroup label="Funciones de la app">${wopts}</optgroup><optgroup label="Otras"><option value="web">🌐 PWA / página web (dirección)</option></optgroup></select></label>
+      <div id="wopts" class="f"></div>
       ${W.prev && WIDGETS[W.prev] ? `<button class="btn sec" id="wback" type="button">↩ Volver a «${esc(WIDGETS[W.prev].n)}»</button>` : ''}
       <div class="note" style="padding:0">Para poner otra PWA en esta ventana elige «PWA / página web». Podrás volver a la función original cuando quieras.</div>
       <div id="wweb" class="f">
@@ -168,7 +172,20 @@ const Win = (() => {
       const QS = [[0.5, 0.5, 49, 99], [50.5, 0.5, 49, 99], [0.5, 0.5, 99, 49], [0.5, 50.5, 99, 49], [15, 12, 70, 76], [0, 0, 100, 100]];
       $('#wt', d).value = W.type === 'web' ? 'web' : 'w:' + W.wid;
       const showWeb = () => { $('#wweb', d).style.display = $('#wt', d).value === 'web' ? '' : 'none'; }; $('#wt', d).onchange = showWeb; showWeb();
-      const wb = $('#wback', d); if (wb) wb.onclick = () => { $('#wt', d).value = 'w:' + W.prev; showWeb(); };
+      const wb = $('#wback', d); if (wb) wb.onclick = () => { $('#wt', d).value = 'w:' + W.prev; showWeb(); buildOpts(); };
+      /* Opciones propias de cada función (p. ej. modelo de velocímetro) */
+      function buildOpts() {
+        const key = $('#wt', d).value, Wd = key.startsWith('w:') ? WIDGETS[key.slice(2)] : null, box = $('#wopts', d); box.innerHTML = ''; if (!Wd || !Wd.opts) return;
+        const cur = W.wid === key.slice(2) ? (W.opt || {}) : {};
+        Wd.opts.forEach(o => {
+          const v = cur[o.k] ?? o.d;
+          box.insertAdjacentHTML('beforeend', o.type === 'select' ? `<label>${esc(o.l)}<select class="in" data-o="${o.k}">${o.o.map(([a, b]) => `<option value="${esc(a)}" ${String(v) === String(a) ? 'selected' : ''}>${esc(b)}</option>`).join('')}</select></label>`
+            : o.type === 'bool' ? `<label class="chk"><input type="checkbox" data-o="${o.k}" ${v ? 'checked' : ''}> ${esc(o.l)}</label>`
+              : `<label class="chk"><input type="checkbox" data-oc="${o.k}" ${v ? 'checked' : ''}> ${esc(o.l)} <input type="color" data-o="${o.k}" value="${esc(v || '#3e9bff')}"></label>`);
+        });
+      }
+      const readOpts = () => { const o = {}; $$('#wopts [data-o]', d).forEach(i => { const k = i.dataset.o, c = $(`#wopts [data-oc="${k}"]`, d); o[k] = i.type === 'checkbox' ? i.checked : c ? (c.checked ? i.value : '') : i.value; }); return o; };
+      $('#wt', d).addEventListener('change', buildOpts); buildOpts();
       $('#wsc', d).oninput = e => { $('#wscv', d).textContent = e.target.value + '%'; };
       $('#wp', d).onclick = async () => { const t = await Ed.paste(), u = Ed.urlFrom(t) || t; if (u) { $('#wu', d).value = u; if (!$('#wti', d).value) $('#wti', d).value = Ed.hostOf(u).replace(/^www\./, ''); } };
       $('#wa', d).onchange = e => { const a = appById(e.target.value); if (a) { $('#wu', d).value = a.u; $('#wti', d).value = a.n; } };
@@ -177,7 +194,7 @@ const Win = (() => {
       const finish = () => {
         const t = $('#wt', d).value; W.bg = $('#wbgc', d).checked ? $('#wbg', d).value : ''; W.alpha = +$('#wal', d).value; W.rad = +$('#wr', d).value;
         if (t === 'web') { const u = Ed.normUrl($('#wu', d).value); W.type = 'web'; W.url = u; W.title = $('#wti', d).value.trim(); W.bar = $('#wbar', d).checked; W.scale = +$('#wsc', d).value; if (W.wid) W.prev = W.wid; delete W.wid; }
-        else { W.type = 'widget'; W.wid = t.slice(2); delete W.url; delete W.prev; if (W.wid === 'navmap') { W.mapSlot = true; delete W.mapId; } else { delete W.mapSlot; delete W.mapId; } }
+        else { W.type = 'widget'; W.wid = t.slice(2); W.opt = readOpts(); delete W.url; delete W.prev; if (W.wid === 'navmap') { W.mapSlot = true; delete W.mapId; } else { delete W.mapSlot; delete W.mapId; } }
         Object.assign(w, W); if (!w.bg) delete w.bg; save();
       };
       $('#wc', d).onclick = () => { if (isNew) D.win = D.win.filter(x => x !== w); closeDlg(); renderFree(D); };
