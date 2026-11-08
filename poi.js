@@ -138,5 +138,5 @@ const Poi = (() => {
     });
   }
   function init() { try { const j = JSON.parse(localStorage.getItem(KEY) || '{}'); ['cams', 'chargers', 'fuel'].forEach(k => P[k] = j[k] || []); } catch { } }
-  return { init, onPos, attach, draw, refresh, reportDlg, renderLimit, need: k => { P.need[k] = true; refresh(); }, state: P, clearReports: () => { S.reports = []; save(); draw(); } };
+  return { init, onPos, attach, draw, refresh, reportDlg, renderLimit, ovp, need: k => { P.need[k] = true; refresh(); }, state: P, clearReports: () => { S.reports = []; save(); draw(); } };
 })();

@@ -16,6 +16,8 @@ const Tpl = (() => {
       win: [{ type: 'web', url: '', title: 'Mi PWA', r: [0, 0, 100, 100], span: '2x2' }, W('navmap', [20, 12, 60, 76], '2x2', { rad: 26 }), W('speedo', [1, 70, 17, 28], '1x1', { pick: 1, opt: { style: 'ring' }, bg: '#000000', alpha: 55 })] },
     { id: 'media', n: 'Música + mapa', i: '🎵', d: 'Reproductor online y radio grande, mapa y velocidad', skin: 'aurora', accent: '#b388ff', style: 'ring',
       win: [W('stream', [1, 1, 46, 98], '2x2'), W('navmap', [48, 1, 51, 60], '2x1'), W('speedo', [48, 62, 51, 37], '2x1', { pick: 1 })] },
+    { id: 'advisor', n: 'Asesor + mapa', i: '🧠', d: 'Tiempo, destinos habituales y consejos (comer, cargar, aparcar) junto al mapa y la velocidad', skin: 'tesla', accent: '#3e9bff', style: 'ring',
+      win: [W('advisor', [1, 1, 40, 98], '2x2'), W('navmap', [42, 1, 57, 70], '2x2'), W('speedo', [42, 72, 57, 27], '2x1', { pick: 1 })] },
     { id: 'blank', n: 'En blanco', i: '⬜', d: 'Empieza vacío y añade las ventanas que quieras con ＋', skin: 'tesla', accent: '#3e9bff', style: 'digital', win: [] },
   ];
 

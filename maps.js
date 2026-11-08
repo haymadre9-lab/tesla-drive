@@ -13,13 +13,15 @@ const Maps = (() => {
     dlg(`<h3>${isNew ? 'Añadir mapa' : 'Editar mapa'}</h3><div class="f ed">
       <label>Dirección del mapa (PWA o página)<div class="inline"><input class="in" id="mu" placeholder="https://…" value="${esc(M.u)}"><button class="btn sec" id="mp" type="button">📋 Pegar</button></div></label>
       <label>Nombre<input class="in" id="mn" value="${esc(M.n)}" placeholder="Ej. Mi mapa de radares"></label>
+      <label>Plantilla con destino (opcional)<input class="in" id="mt" value="${esc(M.tpl || '')}" placeholder="https://mimapa/?lat={lat}&lon={lon}&q={name}"></label>
+      <div class="note" style="padding:0">Si tu mapa acepta un destino por la dirección, escribe aquí cómo (con {lat}, {lon} y {name}) y el Asesor lo abrirá ya en ese sitio. Si lo dejas vacío, se abre el mapa sin destino.</div>
       <label>Icono (emoji)<input class="in" id="me" maxlength="4" value="${esc(M.e || '')}"></label></div>
       <div class="acts">${isNew ? '' : '<button class="btn bad" id="md" type="button">Eliminar</button>'}<button class="btn sec" id="mc" type="button">Cancelar</button><button class="btn" id="mk" type="button">Guardar</button></div>`, d => {
       $('#mp', d).onclick = async () => { const t = await Ed.paste(), u = Ed.urlFrom(t) || t; if (u) { $('#mu', d).value = u; if (!$('#mn', d).value) $('#mn', d).value = Ed.hostOf(u).replace(/^www\./, ''); } };
       $('#mc', d).onclick = closeDlg;
       $('#mk', d).onclick = () => {
         const u = Ed.normUrl($('#mu', d).value), n = $('#mn', d).value.trim(); if (!u || !n) return toast('Nombre y dirección son obligatorios');
-        Object.assign(M, { u, n, e: $('#me', d).value.trim() || '🗺' });
+        Object.assign(M, { u, n, e: $('#me', d).value.trim() || '🗺', tpl: $('#mt', d).value.trim() });
         if (m) Object.assign(m, M); else S.maps.push(M);
         save(); closeDlg(); toast('Mapa guardado'); if (done) done(M); else if (page === 'settings') renderers.settings();
       };
@@ -51,7 +53,8 @@ const Maps = (() => {
   renderers.map = () => {
     const m = S.mapPage !== 'builtin' ? get(S.mapPage) : null;
     if (!m) { S.mapPage = 'builtin'; _rm(); return; }
-    $('#p-map').innerHTML = `<div class="webmap"><iframe src="${esc(m.u)}" allow="geolocation; autoplay; fullscreen; clipboard-write" referrerpolicy="no-referrer-when-downgrade" title="${esc(m.n)}"></iframe><div class="wmtools"><button class="btn sec" id="wmsw" type="button">🗺 ${esc(m.n)} ▾</button></div></div>`;
+    const src = S.mapDest && S.mapDestFor === m.id ? S.mapDest : m.u;
+    $('#p-map').innerHTML = `<div class="webmap"><iframe src="${esc(src)}" allow="geolocation; autoplay; fullscreen; clipboard-write" referrerpolicy="no-referrer-when-downgrade" title="${esc(m.n)}"></iframe><div class="wmtools"><button class="btn sec" id="wmsw" type="button">🗺 ${esc(m.n)} ▾</button></div></div>`;
     $('#wmsw').onclick = () => pick(setPage, S.mapPage);
   };
 
@@ -69,5 +72,19 @@ const Maps = (() => {
   settingRow = function (it) { return it.t === 'mapspanel' ? panel() : _sr2(it); }; // eslint-disable-line no-func-assign
   CATS.maps = ['🗺 Mis mapas', [{ t: 'mapspanel' }]]; { const a = CATS.acerca; delete CATS.acerca; CATS.acerca = a; }
 
-  return { get, edit, pick, switchFrom, setPage, panel };
+  /* Abre un lugar (p. ej. elegido en el Asesor) en el mapa seleccionado */
+  const fill = (t, p) => t.replace(/\{lat\}/g, p.lat).replace(/\{lon\}/g, p.lon).replace(/\{name\}/g, encodeURIComponent(p.n || ''));
+  function openPlace(p) {
+    const m = S.mapPage !== 'builtin' ? get(S.mapPage) : null;
+    if (!m) { // mapa integrado: ruta directa (en el propio dashboard si hay un mapa visible)
+      const emb = page === 'home' && $('.navhost #navmap'); if (!emb) go('map');
+      setTimeout(() => Nav.routeTo({ name: p.n, lat: p.lat, lon: p.lon }), emb ? 0 : 500); return;
+    }
+    const url = m.tpl ? fill(m.tpl, p) : ''; S.mapDest = url; S.mapDestFor = m.id;
+    const D = Dash.cur(), wins = (D.win || []).filter(w => w.mapId === m.id);
+    if (url) wins.forEach(w => { w.url = url; }); save();
+    if (page === 'home' && wins.length) renderers.home(); else go('map');
+    toast(url ? 'Abriendo en «' + m.n + '»' : '«' + m.n + '» no admite destino: se abre el mapa sin ruta. Puedes añadir una plantilla en Ajustes → Mis mapas.', url ? 2500 : 5000);
+  }
+  return { get, edit, pick, switchFrom, setPage, panel, openPlace };
 })();
