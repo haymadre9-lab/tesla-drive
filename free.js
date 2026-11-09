@@ -41,8 +41,9 @@ const Win = (() => {
 
   /* ── Pintado ── */
   const rgba = (hex, a) => { const n = parseInt((hex || '#000000').slice(1), 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${(a ?? 100) / 100})`; };
+  let rk = null; // formato/orientación con el que se dibujó el lienzo
   function renderFree(D) {
-    ensureFree(D); const pr = prof(), host = $('#p-home');
+    ensureFree(D); const pr = prof(), host = $('#p-home'); rk = pr;
     host.innerHTML = '<div class="free"></div>'; root = $('.free', host); if (typeof Canvas !== 'undefined') Canvas.fit(root);
     D.win.forEach(w => mk(w, pr));
     document.body.classList.toggle('layedit', editing); bar();
@@ -228,7 +229,11 @@ const Win = (() => {
   /* ── Integración con el inicio y los ajustes ── */
   const _home = renderers.home;
   renderers.home = () => { const D = Dash.cur(); if (D.win) renderFree(D); else { document.body.classList.remove('layedit'); _home(); } };
+  /* Si la orientación/formato cambia (p. ej. la app arranca un instante en vertical y luego gira), se vuelve a colocar todo */
+  const recheck = () => { const D = Dash.cur(); if (D.win && page === 'home' && !editing && rk && prof() !== rk && !$('#modal').offsetParent) renderFree(D); };
+  addEventListener('orientationchange', () => setTimeout(recheck, 350)); if (window.visualViewport) visualViewport.addEventListener('resize', recheck);
   addEventListener('resize', () => { if (Dash.cur().win && page === 'home' && !$('#modal').offsetParent) { const D = Dash.cur(); if (!D.win.every(w => w.r[prof()])) { renderFree(D); } } });
+  addEventListener('resize', recheck);
   addEventListener('pagehide', save);
   const _go2 = go; go = function (p) { if (editing && p !== 'home') leave(); _go2(p); }; // eslint-disable-line no-func-assign
 
@@ -245,5 +250,5 @@ const Win = (() => {
     }
     return w;
   };
-  return { edit, enter, leave, menu, fromCard, useUrl, add, ensureFree, remove, lift, setMap };
+  return { recheck, edit, enter, leave, menu, fromCard, useUrl, add, ensureFree, remove, lift, setMap };
 })();

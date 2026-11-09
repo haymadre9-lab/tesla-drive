@@ -20,7 +20,7 @@ const Tpl = (() => {
       win: [W('navmap', [0, 0, 100, 100], '2x2', { flat: true, rad: 0, opt: { search: false, layers: false, focus: 'right' } }),
         W('scrim', [0, 0, 66, 100], '2x2', { flat: true, opt: { side: 'left', strength: 92 } }), W('scrim', [0, 0, 100, 17], '2x1', { flat: true, opt: { side: 'top', strength: 80 } }), W('scrim', [0, 82, 100, 18], '2x1', { flat: true, opt: { side: 'bottom', strength: 85 } }),
         W('speedo', [1, 16, 41, 66], '2x2', { pick: 1, flat: true }), W('roadgauge', [37.5, 53, 25, 40], '2x2', { flat: true }),
-        W('topbar', [6, 1.5, 92.5, 8], '2x1', { flat: true }), W('navcard', [74, 17, 24.5, 13], '1x1', { bg: '#0b0f17', alpha: 70, rad: 22 }), W('nowplaying', [74, 70, 24.5, 14], '1x1', { bg: '#0b0f17', alpha: 70, rad: 22 }), W('roadbar', [1.5, 92.5, 60, 6], '2x1', { flat: true })] },
+        W('topbar', [6, 1.5, 92.5, 8], '2x1', { flat: true }), W('nowplaying', [74, 70, 24.5, 14], '1x1', { bg: '#0b0f17', alpha: 70, rad: 22 }), W('roadbar', [1.5, 92.5, 60, 6], '2x1', { flat: true })] },
     { id: 'tesla2', n: 'Escena: música + reloj sobre el mapa', i: '🚘', d: 'Mapa de fondo, reloj redondo grande y música, todo integrado como en la pantalla del coche', skin: 'teslaos', accent: '#2e7bff', style: 'round', immersive: true,
       win: [W('navmap', [0, 0, 100, 100], '2x2', { flat: true, rad: 0, opt: { search: false, layers: false, focus: 'right' } }),
         W('scrim', [0, 0, 100, 100], '2x2', { flat: true, opt: { side: 'all', strength: 90 } }), W('scrim', [0, 0, 60, 100], '2x2', { flat: true, opt: { side: 'left', strength: 80 } }),
