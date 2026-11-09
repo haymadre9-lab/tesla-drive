@@ -23,6 +23,21 @@ const Search = (() => {
       return { name, sub, lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0], ico: ICO[t.osm_value] || (t.osm_key === 'place' ? '🏙' : t.osm_key === 'highway' ? '🛣' : '📍'), src: 'Photon' };
     });
   }
+  /* TomTom (opcional): solo si has puesto tu clave en Ajustes → Mapa. La clave vive solo en este dispositivo (localStorage «leco.tt») */
+  const ttKey = () => { try { return localStorage.getItem('leco.tt') || ''; } catch { return ''; } };
+  async function tomtom(q) {
+    const k = ttKey(); if (!k) return null; const p = here(), loc = p ? `&lat=${p[0].toFixed(4)}&lon=${p[1].toFixed(4)}` : '';
+    const r = await j(`https://api.tomtom.com/search/2/search/${encodeURIComponent(q)}.json?key=${encodeURIComponent(k)}&limit=8&language=es-ES&typeahead=true${loc}`);
+    return (r.results || []).filter(x => x.position).map(x => ({ name: (x.poi && x.poi.name) || (x.address && (x.address.streetName ? x.address.streetName + (x.address.streetNumber ? ' ' + x.address.streetNumber : '') : x.address.municipality)) || q, sub: (x.address && x.address.freeformAddress) || '', lat: x.position.lat, lon: x.position.lon, ico: x.poi ? '📍' : '🏠', src: 'TomTom' }));
+  }
+  function ttDlg() {
+    dlg(`<h3>Clave de TomTom</h3><div class="note">Opcional. Con tu clave, el buscador usa también TomTom (mejor con comercios y direcciones). Se guarda solo en este dispositivo: no se sincroniza ni se publica en GitHub.</div><label class="lab">API key<input class="in" id="ttk" type="password" autocomplete="off" placeholder="Pega tu clave" value="${esc(ttKey())}"></label><div id="ttr" class="note"></div><div class="acts"><button class="btn bad" id="ttd" type="button">Borrar</button><button class="btn sec" id="ttt" type="button">Probar</button><button class="btn" id="tts" type="button">Guardar</button><button class="btn sec" id="ttx" type="button">Cerrar</button></div>`, d => {
+      const val = () => $('#ttk', d).value.trim(), out = t => { $('#ttr', d).textContent = t; };
+      $('#ttx', d).onclick = closeDlg; $('#ttd', d).onclick = () => { try { localStorage.removeItem('leco.tt'); } catch { } closeDlg(); toast('Clave de TomTom borrada'); };
+      $('#tts', d).onclick = () => { try { localStorage.setItem('leco.tt', val()); } catch { return toast('No se pudo guardar en este dispositivo'); } closeDlg(); toast(val() ? 'Clave de TomTom guardada' : 'Sin clave'); };
+      $('#ttt', d).onclick = async () => { out('Probando…'); try { const r = await j(`https://api.tomtom.com/search/2/search/madrid.json?key=${encodeURIComponent(val())}&limit=1`); out('✔ La clave funciona (' + ((r.results || []).length) + ' resultado de prueba)'); } catch (e) { out('✘ No funciona: ' + e.message + (/403|401/.test(e.message) ? ' (clave rechazada o sin permiso para Search)' : '')); } };
+    });
+  }
   async function nominatim(q, bounded) {
     const p = here(), d = bounded ? .12 : .6, vb = p ? `&viewbox=${p[1] - d},${p[0] + d},${p[1] + d},${p[0] - d}${bounded ? '&bounded=1' : ''}` : '';
     const r = await j(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=${bounded ? 12 : 8}&accept-language=es&q=${encodeURIComponent(q)}${vb}`);
@@ -72,7 +87,8 @@ const Search = (() => {
     if (m && Math.abs(+m[1]) <= 90 && Math.abs(+m[2]) <= 180) return show([{ name: 'Coordenadas ' + q, sub: 'Ir a este punto', lat: +m[1], lon: +m[2], ico: '🎯' }]);
     list.innerHTML = '<div class="note" style="padding:14px 16px">Buscando…</div>';
     const errs = [], tryP = async (n, f) => { try { return await f(); } catch (e) { errs.push(n + ': ' + (e.name === 'AbortError' ? 'tarda demasiado' : e.message)); return null; } };
-    let rs;
+    let rs; const tt = await tryP('TomTom', () => tomtom(q));
+    if (tt && tt.length && !near) { if (my !== seq) return; return show(tt); }
     if (near) { rs = await tryP('Nominatim', () => nominatim(q, true)); if (!rs || !rs.length) { const r2 = await tryP('Photon', () => photon(q)); rs = r2 || rs; } }
     else if (full) { const [a, b] = await Promise.all([tryP('Photon', () => photon(q)), tryP('Nominatim', () => nominatim(q))]); rs = a || b ? merge(a || [], b || []) : null; }
     else { rs = await tryP('Photon', () => photon(q)); if (!rs || !rs.length) { const r2 = await tryP('Nominatim', () => nominatim(q)); rs = r2 || rs; } }
@@ -87,10 +103,11 @@ const Search = (() => {
     if (Nav.state.mx && document.querySelector('.navwrap')) go2(); else { go('map'); setTimeout(go2, 700); }
   }
   ACTIONS.search = ['Buscar destino', () => open()]; const bs = document.getElementById('btnSearch'); if (bs) bs.onclick = () => open();
-  return { open, close, run: q => { if (!el) build(); inp.value = q; return run(q, true); } };
+  return { ttKey, ttDlg, open, close, run: q => { if (!el) build(); inp.value = q; return run(q, true); } };
 })();
 
 /* Ajuste: motor del mapa (aquí porque CATS/OPT ya existen) */
 OPT.mapEngine = [['', 'Automático (3D si el dispositivo lo admite)'], ['leaflet', 'Solo 2D clásico (más ligero)']];
 CATS.mapa[1].unshift({ k: 'mapEngine', l: 'Motor del mapa', d: 'Si el mapa 3D va lento en la pantalla del coche, elige 2D clásico. Requiere recargar la página', type: 'select' });
 ACTIONS.map3d = ['Mapa: vista 3D / 2D', () => Nav.toggle3d()];
+CATS.mapa[1].push({ t: 'btn', get l() { return 'Clave de TomTom (opcional): ' + (Search.ttKey() ? 'configurada' : 'sin clave'); }, f: () => Search.ttDlg() });
