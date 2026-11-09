@@ -536,3 +536,5 @@ html[data-theme=light] .navmenu{background:#fff;color:#111826;border-color:rgba(
 
 .fwin.flat .navwrap .navhdr{top:66px !important;} .fwin.flat .navwrap .navmenu{top:120px !important;}
 .sxdel{margin-left:6px;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:rgba(128,138,155,.2);color:inherit;opacity:.7;border:0;flex:none;} .sxdel:active{opacity:1;background:rgba(224,20,27,.5);}
+
+.poi{transform:scale(var(--ps,.6));transform-origin:50% 50%;} #imm svg{display:block;pointer-events:none;}
