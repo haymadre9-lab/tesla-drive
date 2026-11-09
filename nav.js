@@ -58,7 +58,7 @@ const Nav = (() => {
     return line + head;
   }
   const mir = pts => pts.map(p => [64 - p[0], p[1]]);
-  const PATHS = { straight: [[32, 62], [32, 8]], right: [[20, 62], [20, 32], [58, 32]], 'slight right': [[22, 62], [22, 44], [50, 14]], 'sharp right': [[14, 62], [14, 14], [52, 52]], uturn: [[46, 62], [46, 22], [20, 22], [20, 52]] };
+  const PATHS = { straight: [[32, 58], [32, 10]], right: [[21, 58], [21, 35], [57, 35]], 'slight right': [[23, 58], [23, 43], [50, 15]], 'sharp right': [[15, 58], [15, 15], [52, 52]], uturn: [[46, 58], [46, 23], [21, 23], [21, 51]] };
   function manSvg(type, mod, exit, style) {
     const s = MST[style] || MST.a; let inner;
     if (type === 'arrive') inner = '<rect x="17" y="8" width="5" height="50" rx="2" fill="#000"/><path d="M22 10h32v26H22z" fill="#000"/><g fill="#fff"><rect x="26" y="14" width="7" height="7"/><rect x="40" y="14" width="7" height="7"/><rect x="33" y="21" width="7" height="7"/><rect x="47" y="21" width="7" height="7"/><rect x="26" y="28" width="7" height="7"/><rect x="40" y="28" width="7" height="7"/></g>';
@@ -139,15 +139,15 @@ const Nav = (() => {
     const dt = Math.min(.1, Math.max(0, (t - (F.last || t)) / 1000)); F.last = t;
     const age = Math.min(2.5, (Date.now() - F.fixT) / 1000), k = Math.exp(-dt / .6); F.off = [F.off[0] * k, F.off[1] * k];
     F.disp = [F.fix[0] + F.v[0] * age + F.off[0], F.fix[1] + F.v[1] * age + F.off[1]]; N.me.set(F.disp);
-    if (N.hd != null) F.cb = F.cb == null ? N.hd : angLerp(F.cb, N.hd, 1 - Math.exp(-dt / .45));
+    if (N.hd != null) F.cb = F.cb == null ? N.hd : angLerp(F.cb, N.hd, 1 - Math.exp(-dt / .8));
     const m = N.mx;
     if (m.kind === 'gl' && followCam() && N.el.isConnected) {
       const d3 = is3d(), kk = 1 - Math.exp(-dt / .5); m.focus(N.fx, d3 ? .26 : 0);
       const tb = d3 && F.cb != null ? F.cb : 0, tz = N.tz == null ? m.zoom() : N.tz, tp = d3 ? 58 : 0;
-      if (N.snap) { F.bb = tb; F.cp = tp; F.cz = tz; N.snap = false; } else { F.bb = angLerp(F.bb, tb, kk); F.cp += (tp - F.cp) * kk; F.cz = F.cz == null ? tz : F.cz + (tz - F.cz) * (1 - Math.exp(-dt / 1.1)); }
+      if (N.snap) { F.bb = tb; F.cp = tp; F.cz = tz; N.snap = false; } else { if (Math.abs(((tb - F.bb + 540) % 360) - 180) > 1.2) F.bb = angLerp(F.bb, tb, 1 - Math.exp(-dt / (d3 ? .9 : .3))); F.cp += (tp - F.cp) * kk; F.cz = F.cz == null ? tz : F.cz + (tz - F.cz) * (1 - Math.exp(-dt / 1.1)); }
       m.view(F.disp, N.tz == null ? tz : F.cz, { bearing: F.bb, pitch: F.cp });
     }
-    const e = meEl(); if (e) { if (F.cb != null) e.style.setProperty('--h', (F.cb - m.bearing()) + 'deg'); e.style.setProperty('--tilt', (m.pitch() * .7).toFixed(1) + 'deg'); }
+    const e = meEl(); if (e) { if (F.cb != null) { const hv = Math.round((F.cb - m.bearing()) * 2) / 2; if (hv !== F.hv) { F.hv = hv; e.style.setProperty('--h', hv + 'deg'); } } e.style.setProperty('--tilt', (m.pitch() * .7).toFixed(1) + 'deg'); }
   }
   requestAnimationFrame(frame);
   function drawRoute() { if (!N.mx) return; N.mx.line(N.active || N.coords.length ? N.coords : null, S.accent || '#3e9bff'); }
@@ -259,9 +259,10 @@ const Nav = (() => {
   }
   function onPos(c) {
     if (!N.mx) return; const p = [c.latitude, c.longitude], prev = N.pos; N.pos = p; const sp = c.speed || 0, kmh = sp * 3.6;
-    const h = c.heading != null && !isNaN(c.heading) && kmh > 3 ? c.heading : (prev && dist(prev, p) > 6 ? (Math.atan2(rad(p[1] - prev[1]) * Math.cos(rad(prev[0])), rad(p[0] - prev[0])) * 180 / Math.PI + 360) % 360 : null);
-    if (h != null) N.hd = h;
+    const h = c.heading != null && !isNaN(c.heading) && kmh > 6 ? c.heading : (prev && dist(prev, p) > 12 ? (Math.atan2(rad(p[1] - prev[1]) * Math.cos(rad(prev[0])), rad(p[0] - prev[0])) * 180 / Math.PI + 360) % 360 : null);
+    if (h != null && (N.hd == null || Math.abs(((h - N.hd + 540) % 360) - 180) > 3.5)) N.hd = h; // banda muerta: ignora el temblor del rumbo del GPS
     const hh = rad(N.hd == null ? 0 : N.hd), kl = 111320;
+    if (F.fix && c.speed != null && sp < .8 && dist(F.fix, p) < Math.max(8, (c.accuracy || 0))) { N.pos = F.fix; return; } // parado: el GPS «baila» unos metros; no se mueve ni se gira nada
     if (!F.disp || dist(F.disp, p) > 250) { F.disp = p; F.off = [0, 0]; N.snap = true; if (N.hd != null) F.cb = N.hd; } else F.off = [F.disp[0] - p[0], F.disp[1] - p[1]];
     F.fix = p; F.fixT = Date.now(); F.v = sp > 1 && N.hd != null ? [sp * Math.cos(hh) / kl, sp * Math.sin(hh) / (kl * Math.max(.2, Math.cos(rad(p[0]))))] : [0, 0];
     const gl = N.mx.kind === 'gl'; if (!gl) { N.me.set(p); const a = meEl(); if (a && N.hd != null) a.style.setProperty('--h', N.hd + 'deg'); }
