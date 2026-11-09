@@ -33,7 +33,7 @@ const DEF = {
   speedUnit: 'kmh', pressUnit: 'bar', tempUnit: 'c', tpWarn: 2.0, tpDanger: 1.6, spare: false,
   tires: { fl: 2.4, fr: 2.4, rl: 2.5, rr: 2.5 },
   fab: { on: true, click: 'home', long: 'daynight', x: null, y: null }, keys: [],
-  city: null, lastPos: null, last: {}, recent: [], teslaMode: IS_TESLA, voice: true, tripT: 0, dash: 'classic', dashboards: null, dock: null, syncMode: 'ask', syncUrl: '', winDots: true, cfgRev: 0, radarAlerts: true, limitEst: true, navIcon: 'arrow', navIconColor: '#ff2d2d', navIconSize: 100, layers: { cams: true, chargers: false, fuel: false, reports: true }, reports: [], navRecent: [], favs: { home: null, work: null }, maxSpeed: 0, trip: 0,
+  city: null, lastPos: null, last: {}, recent: [], teslaMode: IS_TESLA, voice: true, tripT: 0, dash: 'classic', dashboards: null, dock: null, syncMode: 'ask', syncUrl: '', winDots: true, cfgRev: 0, radarAlerts: true, autoFS: true, limitEst: true, navIcon: 'arrow', navIconColor: '#ff2d2d', navIconSize: 100, layers: { cams: true, chargers: false, fuel: false, reports: true }, reports: [], navRecent: [], favs: { home: null, work: null }, maxSpeed: 0, trip: 0,
 };
 let S;
 try { S = Object.assign(structuredClone(DEF), JSON.parse(localStorage.getItem('leco.v1') || '{}')); } catch { S = structuredClone(DEF); }
@@ -532,7 +532,7 @@ addEventListener('keydown', e => {
 const fab = $('#fab');
 function placeFab() {
   fab.classList.toggle('on', S.fab.on);
-  const portrait = innerWidth < 761 || innerHeight > innerWidth, x = S.fab.x ?? innerWidth - 80, y = S.fab.y ?? (portrait ? innerHeight - 170 : innerHeight < 560 ? innerHeight / 2 - 29 : innerHeight - 90);
+  const portrait = innerHeight > innerWidth, x = S.fab.x ?? innerWidth - 80, y = S.fab.y ?? (portrait ? innerHeight - 170 : innerHeight < 560 ? innerHeight / 2 - 29 : innerHeight - 90);
   fab.style.left = clamp(x, 0, innerWidth - 58) + 'px'; fab.style.top = clamp(y, 0, innerHeight - 58) + 'px';
 }
 (() => {
@@ -597,7 +597,7 @@ const CATS = {
     { k: 'teslaMode', l: 'Modo Tesla', d: 'Botones grandes y navegación propia dentro de la app (el navegador de Tesla no abre las apps de Maps/Waze). Se activa solo en el navegador del coche', type: 'toggle' },
     { k: 'voice', l: 'Voz de navegación', d: 'Avisos hablados de giros (si el navegador lo permite)', type: 'toggle' },
     { k: 'fab.on', l: 'Botón flotante', d: 'Punto arrastrable. Toque = acción corta, pulsación larga = acción larga', type: 'toggle' },
-    { k: 'fab.click', l: 'Acción al tocar', type: 'action' }, { k: 'fab.long', l: 'Acción al mantener', type: 'action' },
+    { k: 'autoFS', l: 'Pantalla completa al tocar (PWA instalada)', d: 'Pasa a pantalla completa y horizontal al primer toque', type: 'toggle' }, { k: 'fab.click', l: 'Acción al tocar', type: 'action' }, { k: 'fab.long', l: 'Acción al mantener', type: 'action' },
     { t: 'keys' },
   ]],
   datos: ['💾 Datos', [
@@ -690,4 +690,9 @@ async function init() {
   if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => { });
   try { navigator.wakeLock?.request('screen').catch(() => { }); document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && navigator.wakeLock?.request('screen').catch(() => { })); } catch { }
 }
+/* PWA instalada: al primer toque pasa a pantalla completa y bloquea la orientación horizontal (así no hace falta forzarlo a mano) */
+document.addEventListener('pointerup', () => {
+  if (S.autoFS === false || document.fullscreenElement || !matchMedia('(display-mode: standalone), (display-mode: minimal-ui)').matches) return;
+  document.documentElement.requestFullscreen?.().then(() => screen.orientation?.lock?.('landscape').catch(() => { })).catch(() => { });
+}, { once: true });
 addEventListener('DOMContentLoaded', init); // tras cargar también dash.js
