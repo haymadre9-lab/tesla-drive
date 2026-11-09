@@ -39,6 +39,34 @@ const Nav = (() => {
     }
   }
   const icon = st => st.maneuver.type === 'arrive' ? '🏁' : /roundabout|rotary/.test(st.maneuver.type) ? '⟳' : ARROW[st.maneuver.modifier] || '⬆';
+  /* ── Iconos de maniobra: recuadro blanco con el dibujo en negro. 3 estilos (Ajustes → Mapa): a = flecha gruesa, b = punta abierta, c = bloque ── */
+  const MST = { a: { w: 9, hl: 20, hw: 32, join: 'round', cap: 'butt', rw: 7 }, b: { w: 6.5, hl: 17, hw: 30, join: 'round', cap: 'round', open: true, rw: 5 }, c: { w: 15, hl: 24, hw: 38, join: 'miter', cap: 'butt', rw: 10 } };
+  const f1 = v => Math.round(v * 10) / 10;
+  function manArrow(pts, s, k = 1) {
+    const q = pts.length, [x1, y1] = pts[q - 2], [x2, y2] = pts[q - 1], L = Math.hypot(x2 - x1, y2 - y1) || 1, ux = (x2 - x1) / L, uy = (y2 - y1) / L, hl = s.hl * k, hw = s.hw * k, bx = x2 - ux * hl, by = y2 - uy * hl, nx = -uy, ny = ux;
+    const body = s.open ? pts : pts.slice(0, q - 1).concat([[bx + ux * 2, by + uy * 2]]);
+    const line = `<polyline points="${body.map(p => f1(p[0]) + ',' + f1(p[1])).join(' ')}" fill="none" stroke="#000" stroke-width="${s.w * (k < 1 ? .8 : 1)}" stroke-linejoin="${s.join}" stroke-linecap="${s.cap}"/>`;
+    const head = s.open ? `<path d="M${f1(bx + nx * hw / 2)} ${f1(by + ny * hw / 2)} L${f1(x2)} ${f1(y2)} L${f1(bx - nx * hw / 2)} ${f1(by - ny * hw / 2)}" fill="none" stroke="#000" stroke-width="${s.w * (k < 1 ? .8 : 1)}" stroke-linecap="round" stroke-linejoin="round"/>`
+      : `<polygon points="${f1(x2)},${f1(y2)} ${f1(bx + nx * hw / 2)},${f1(by + ny * hw / 2)} ${f1(bx - nx * hw / 2)},${f1(by - ny * hw / 2)}" fill="#000" stroke="#000" stroke-width="${s.join === 'round' ? 3 : 0}" stroke-linejoin="${s.join}"/>`;
+    return line + head;
+  }
+  const mir = pts => pts.map(p => [64 - p[0], p[1]]);
+  const PATHS = { straight: [[32, 58], [32, 12]], right: [[22, 58], [22, 38], [54, 38]], 'slight right': [[24, 58], [24, 40], [46, 18]], 'sharp right': [[14, 60], [14, 14], [52, 52]], uturn: [[46, 60], [46, 20], [20, 20], [20, 48]] };
+  function manSvg(type, mod, exit, style) {
+    const s = MST[style] || MST.a; let inner;
+    if (type === 'arrive') inner = '<rect x="17" y="8" width="5" height="50" rx="2" fill="#000"/><path d="M22 10h32v26H22z" fill="#000"/><g fill="#fff"><rect x="26" y="14" width="7" height="7"/><rect x="40" y="14" width="7" height="7"/><rect x="33" y="21" width="7" height="7"/><rect x="47" y="21" width="7" height="7"/><rect x="26" y="28" width="7" height="7"/><rect x="40" y="28" width="7" height="7"/></g>';
+    else if (/roundabout|rotary/.test(type)) {
+      const ang = { right: 90, 'slight right': 55, 'sharp right': 135, straight: 0, left: -90, 'slight left': -55, 'sharp left': -135, uturn: 180 }[mod], th = (ang != null ? ang : [90, 0, -90, 180][((exit || 1) - 1) % 4]) * Math.PI / 180, cx = 32, cy = 38, r = 13, sn = Math.sin(th), cs = Math.cos(th);
+      inner = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#000" stroke-width="${s.rw}"/><path d="M32 62V${cy + r + 1}" stroke="#000" stroke-width="${s.rw}" stroke-linecap="${s.cap === 'butt' ? 'butt' : 'round'}"/>` +
+        manArrow([[cx + (r + 1) * sn, cy - (r + 1) * cs], [cx + (r + 19) * sn, cy - (r + 19) * cs]], s, .62) + (exit ? `<text x="32" y="${cy + 5}" text-anchor="middle" font-size="14" font-weight="800" font-family="Inter,Arial,sans-serif" fill="#000">${exit}</text>` : '');
+    } else {
+      const left = /left/.test(mod || ''), base = (mod || 'straight').replace('left', 'right'); let pts = PATHS[type === 'uturn' || mod === 'uturn' ? 'uturn' : (/^(straight|right|slight right|sharp right)$/.test(base) ? base : 'straight')];
+      if (left) pts = mir(pts); inner = manArrow(pts, s, /uturn/.test(type + mod) ? .85 : /sharp/.test(mod || '') ? .85 : 1);
+    }
+    return `<svg viewBox="0 0 64 64" aria-hidden="true">${inner}</svg>`;
+  }
+  const manTile = (st, style) => `<span class="mt">${manSvg(st.maneuver.type, st.maneuver.modifier, st.maneuver.exit, style || S.manStyle || 'a')}</span>`;
+
 
   function say(txt) {
     if (N.muted || !S.voice || !('speechSynthesis' in window)) return;
@@ -54,8 +82,8 @@ const Nav = (() => {
       <div class="navmenu" id="nmenu" hidden><div class="nm-t">Funciones del mapa</div><div id="nmbox"></div><button class="btn sec" id="nmset" type="button">Más ajustes del mapa…</button></div>
       <div class="navtools" id="ntools"><button id="nzi" title="Acercar">＋</button><button id="nzo" title="Alejar">－</button><button id="n3d" title="Cambiar entre vista 3D inclinada y mapa 2D">3D</button><button id="ncmp" title="Norte arriba"><i>▲</i></button></div>
       <div class="navguide" id="nguide" hidden><div class="ni" id="nicon">⬆</div><div class="nt"><b id="ndist">—</b><span id="ntext"></span></div></div>
-      <div class="navbar" id="nbar" hidden><div><b id="nrem">—</b><small>restante</small></div><div><b id="neta">—</b><small>llegada</small></div><div><b id="nspd">0</b><small id="nspu">km/h</small></div>
-        <button class="btn sec" id="nmute">🔊</button><button class="btn sec" id="nctr">🎯</button><button class="btn sec" id="nfav">⭐</button><button class="btn bad" id="nstop">✕ Terminar</button></div>
+      <div class="navbar" id="nbar" hidden><span class="nb-s"></span><div class="nb-i"><div><b id="nrem">—</b><small>restante</small></div><div><b id="neta">—</b><small>llegada</small></div><div><b id="nspd">0</b><small id="nspu">km/h</small></div></div>
+        <div class="nb-b"><button class="btn sec" id="nmute" aria-label="Voz"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor"/><path d="M16 9a4 4 0 010 6M18.5 6.5a8 8 0 010 11" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></button><button class="btn sec" id="nctr" aria-label="Centrar"><svg viewBox="0 0 24 24" width="22" height="22"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="12" r="2.6" fill="currentColor"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button><button class="btn sec" id="nfav" aria-label="Guardar destino"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 3l2.7 5.8 6.3.8-4.6 4.4 1.2 6.3L12 17.2 6.4 20.3l1.2-6.3L3 9.6l6.3-.8z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg></button><button class="btn bad" id="nstop"><svg viewBox="0 0 24 24" width="20" height="20"><path d="M5 5L19 19M19 5L5 19" stroke="#fff" stroke-width="3.6" stroke-linecap="round"/></svg> Terminar</button></div></div>
       <button class="btn sec navsim" id="nsim" hidden>🧪 Simular ruta</button>
       <div class="navlayers" id="nlay"><button data-l="cams" title="Radares fijos">📷</button><button data-l="chargers" title="Cargadores">⚡</button><button data-l="fuel" title="Gasolineras">⛽</button><button data-l="reports" title="Reportes">⚠️</button><button id="nsty" title="Cambiar el estilo del mapa (satélite, oscuro…)">🛰</button><button id="nrep" title="Reportar">➕</button></div>
       <div class="spdbub"><b class="js-spd">0</b><small>${spdUnit()}</small></div><div class="limsign" hidden></div>`;
@@ -132,7 +160,7 @@ const Nav = (() => {
       $('#nctr', N.el).onclick = () => { N.follow = true; N.tzUser = false; if (N.pos) centerOn(N.pos, N.mx.zoom(), true); };
       $('#nzi', N.el).onclick = () => zoomBtn(1); $('#nzo', N.el).onclick = () => zoomBtn(-1); $('#n3d', N.el).onclick = () => { if (!N.mx.can3d) return toast('Este navegador no admite el mapa 3D (sin WebGL): se usa el mapa 2D', 3500); setMode(!is3d()); toast(is3d() ? 'Vista 3D' : 'Vista 2D'); };
       $('#ncmp', N.el).onclick = () => { N.hdg = null; N.mx.resetNorth(); N.follow = false; };
-      $('#nmute', N.el).onclick = () => { N.muted = !N.muted; $('#nmute', N.el).textContent = N.muted ? '🔇' : '🔊'; if (N.muted) try { speechSynthesis.cancel(); } catch { } };
+      $('#nmute', N.el).onclick = () => { N.muted = !N.muted; $('#nmute', N.el).innerHTML = N.muted ? '<svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor"/><path d="M16 9l6 6M22 9l-6 6" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg>' : '<svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor"/><path d="M16 9a4 4 0 010 6M18.5 6.5a8 8 0 010 11" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>'; if (N.muted) try { speechSynthesis.cancel(); } catch { } };
       $('#nfav', N.el).onclick = saveFav;
       $('#nrep', N.el).onclick = () => Poi.reportDlg();
       $('#nsty', N.el).onclick = () => { const cur = (N.opt && N.opt.mapstyle) || S.mapStyle || 'auto', nx = STYLE_CYCLE[(STYLE_CYCLE.indexOf(cur) + 1) % STYLE_CYCLE.length]; S.mapStyle = nx; if (N.opt) delete N.opt.mapstyle; save(); applyStyle(); toast('Mapa: ' + STYLE_NAME[nx]); };
@@ -206,7 +234,7 @@ const Nav = (() => {
     while (N.idx < last && dist(p, loc(st[N.idx + 1])) < 35) N.idx++;
     if (N.idx >= last) { arrive(); return; }
     const nx = st[N.idx + 1], dN = dist(p, loc(nx));
-    $('#nicon', N.el).textContent = icon(nx); $('#ndist', N.el).textContent = fmtD(dN); $('#ntext', N.el).textContent = instr(nx); N.sum = { icon: icon(nx), dist: fmtD(dN), text: instr(nx) };
+    $('#nicon', N.el).innerHTML = manTile(nx); $('#ndist', N.el).textContent = fmtD(dN); $('#ntext', N.el).textContent = instr(nx); N.sum = { icon: icon(nx), dist: fmtD(dN), text: instr(nx) };
     if (dN < 650 && !nx.v1 && st[N.idx].distance > 250) { nx.v1 = true; say(`En ${Math.round(dN / 50) * 50} metros, ${instr(nx).toLowerCase()}`); }
     if (dN < 140 && !nx.v2) { nx.v2 = true; say(instr(nx)); }
     let rem = dN, dur = 0; for (let j = N.idx + 1; j <= last; j++) { rem += st[j].distance; dur += st[j].duration; }
@@ -219,7 +247,7 @@ const Nav = (() => {
     }
   }
   function arrive() {
-    $('#nicon', N.el).textContent = '🏁'; $('#ndist', N.el).textContent = '¡Llegaste!'; $('#ntext', N.el).textContent = N.dest ? N.dest.name : ''; say('Has llegado a tu destino'); if (typeof Adv !== 'undefined') Adv.arrived(N.dest); N.sum = { icon: '🏁', dist: '¡Llegaste!', text: N.dest ? N.dest.name : '', rem: '0 m', eta: '--:--' }; bus.emit('nav');
+    $('#nicon', N.el).innerHTML = manTile({ maneuver: { type: 'arrive' } }); $('#ndist', N.el).textContent = '¡Llegaste!'; $('#ntext', N.el).textContent = N.dest ? N.dest.name : ''; say('Has llegado a tu destino'); if (typeof Adv !== 'undefined') Adv.arrived(N.dest); N.sum = { icon: '🏁', dist: '¡Llegaste!', text: N.dest ? N.dest.name : '', rem: '0 m', eta: '--:--' }; bus.emit('nav');
     N.active = false; clearInterval(N.simT); setTimeout(() => { if (!N.active) stop(); }, 8000);
   }
   function onPos(c) {
@@ -249,5 +277,5 @@ const Nav = (() => {
     }, 1000);
   }
   function prefill(q) { go('map'); setTimeout(() => openSearch(q), 150); }
-  return { applyStyle: () => applyStyle(), openPhone: () => navDlg(appById('maps') || { n: 'GPS', e: '🧭', k: 'gmaps' }), switchMap: () => Maps.switchFrom(N.el), setMode, toggle3d: () => { if (!N.mx) return; if (!N.mx.can3d) return toast('Este navegador no admite el mapa 3D'); setMode(!is3d()); toast(is3d() ? 'Vista 3D' : 'Vista 2D'); }, render, mount: el => render(el, true), onPos, prefill, routeTo, search, state: N, instr, distToLine: distToRoute, summary: () => N.sum };
+  return { refreshMan: () => { if (N.active && N.pos) update(N.pos); }, manSvg, applyStyle: () => applyStyle(), openPhone: () => navDlg(appById('maps') || { n: 'GPS', e: '🧭', k: 'gmaps' }), switchMap: () => Maps.switchFrom(N.el), setMode, toggle3d: () => { if (!N.mx) return; if (!N.mx.can3d) return toast('Este navegador no admite el mapa 3D'); setMode(!is3d()); toast(is3d() ? 'Vista 3D' : 'Vista 2D'); }, render, mount: el => render(el, true), onPos, prefill, routeTo, search, state: N, instr, distToLine: distToRoute, summary: () => N.sum };
 })();

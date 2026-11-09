@@ -165,7 +165,7 @@ const Adv = (() => {
           $$('#lr [data-i]', d).forEach(b => b.onclick = () => { const x = r[+b.dataset.i]; set({ name: x.display_name.split(',').slice(0, 2).join(','), lat: +x.lat, lon: +x.lon }); });
         } catch { $('#lr', d).innerHTML = '<div class="note">Sin conexión con el buscador de lugares.</div>'; }
       };
-      $('#l2', d).onclick = go1; $('#lq', d).onkeydown = e => e.key === 'Enter' && go1();
+      $('#l2', d).onclick = go1; $('#lq', d).onkeydown = e => { if (e.key === 'Enter') go1(); };
     });
   }
   async function loadImages(items) { // fotos desde Wikidata/Commons para los sitios que las tengan
@@ -256,7 +256,7 @@ const Adv = (() => {
       $('.adv-row', r).onclick = e => { if (e.target.closest('[data-go],a[href^="tel"]')) return; tog(); };
       if (A.expand === x) Info.bind(x, more);
     });
-    const q = $('#aq', el); if (q) { q.oninput = () => { A.q = q.value; }; q.onkeydown = e => e.key === 'Enter' && ask(q.value); $('#ago', el).onclick = () => ask(q.value); }
+    const q = $('#aq', el); if (q) { q.oninput = () => { A.q = q.value; }; q.onkeydown = e => { if (e.key === 'Enter') ask(q.value); }; $('#ago', el).onclick = () => ask(q.value); }
     const mic = $('#amic', el); if (mic) mic.onclick = () => { const R = window.SpeechRecognition || window.webkitSpeechRecognition, r = new R(); r.lang = 'es-ES'; r.onresult = ev => { const t = ev.results[0][0].transcript; A.q = t; ask(t); }; r.onerror = () => toast('No se pudo usar el micrófono'); try { r.start(); toast('Escuchando…'); } catch { } };
     ['#aloc', '#aloc2'].forEach(id => { const b = $(id, el); if (b) b.onclick = locDlg; }); const rt = $('#aretry', el); if (rt) rt.onclick = () => A.last ? search(...A.last) : ask(A.q);
     const mp = $('#amap', el); if (mp) mp.onclick = () => Maps.pick(id => { S.mapPage = id; save(); refresh(); }, S.mapPage);

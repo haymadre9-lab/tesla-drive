@@ -5,10 +5,8 @@
 const PRESETS = [
   { id: 'classic', n: 'Clásico', i: '🏠', d: 'Reloj, clima, música, mapa y neumáticos', skin: 'glass', w: [['clock', 1, '1x1'], ['weather', 1, '1x1'], ['music', 1, '2x1'], ['map', 1, '2x2'], ['speed', 1, '1x1'], ['tpms', 1, '1x1'], ['apps', 1, '2x1']] },
   { id: 'cockpit', n: 'Cockpit + GPS', i: '🏎️', d: 'Velocímetro grande con datos a la izquierda y navegador GPS a la derecha', skin: 'carbon', accent: '#2ea8ff', rows: 1, colw: 200, w: [['cockpit', 1, '2x1'], ['navmap', 1, '2x1']] },
-  { id: 'drive', n: 'Conducción', i: '🚗', d: 'Velocímetro analógico, guía de ruta y mapa', skin: 'carbon', accent: '#ff6a1a', rows: 2, w: [['gauge', 1, '2x2'], ['navinfo', 1, '2x1'], ['map', 1, '2x1'], ['trip', 1, '1x1'], ['tpms', 1, '1x1']] },
   { id: 'speed', n: 'Velocímetro', i: '⚡', d: 'Velocidad grande, límite y brújula', skin: 'neon', accent: '#00e5ff', rows: 2, w: [['speedbig', 1, '2x2'], ['navinfo', 1, '2x1'], ['compass', 1, '1x1'], ['clock', 1, '1x1']] },
   { id: 'media', n: 'Música', i: '🎵', d: 'Reproductor y letras a pantalla grande', skin: 'sky', accent: '#b388ff', rows: 2, w: [['music', 1, '2x2'], ['lyrics', 1, '2x2'], ['clock', 1, '1x1'], ['weather', 1, '1x1']] },
-  { id: 'ev', n: 'Coche', i: '🔋', d: 'Neumáticos, viaje, brújula y clima', skin: 'glass', accent: '#39d98a', rows: 2, w: [['tpms', 1, '2x2'], ['trip', 1, '1x1'], ['compass', 1, '1x1'], ['weather', 1, '2x1'], ['clock', 1, '1x1']] },
   { id: 'minimal', n: 'Minimal', i: '▫️', d: 'Solo hora y velocidad, sin tarjetas', skin: 'minimal', accent: '#ffffff', rows: 1, w: [['clock', 1, '2x1'], ['speedbig', 1, '2x1']] },
   { id: 'hud', n: 'HUD parabrisas', i: '🔆', d: 'Velocidad en espejo para reflejar en el cristal (móvil sobre el salpicadero)', skin: 'hud', accent: '#39ffb0', rows: 1, mirror: true, w: [['hud', 1, '1x1']] },
 ];
@@ -18,6 +16,7 @@ const clone = o => JSON.parse(JSON.stringify(o));
 
 const Dash = (() => {
   if (!Array.isArray(S.dashboards) || !S.dashboards.length) S.dashboards = clone(PRESETS);
+  S.dashboards = S.dashboards.filter(x => x.id !== 'drive' && x.id !== 'ev'); // quitados por petición: había demasiados
   PRESETS.forEach(p => { if (!S.dashboards.find(d => d.id === p.id)) S.dashboards.push(clone(p)); });
   if (!S.dashboards.find(d => d.id === S.dash)) S.dash = 'classic';
 
