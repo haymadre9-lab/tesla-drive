@@ -69,17 +69,25 @@ const Nav = (() => {
     $$('[data-r]', box).forEach(c => c.onclick = () => routeTo(S.navRecent[+c.dataset.r]));
   }
   /* Estilo del mapa y del icono del vehículo (de la ventana o, si no, del ajuste general) */
-  const ICONS = {
-    dot: ['<div class="nme"><i></i></div>', [34, 34]],
-    chev: ['<div class="nme chev"><svg viewBox="-20 -20 40 40"><path d="M0 -17 L13 15 L0 8 L-13 15Z" fill="#ff3b3b" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/></svg></div>', [44, 44]],
-    car: ['<div class="nme car"><svg viewBox="-20 -34 40 68"><rect x="-14" y="-31" width="28" height="62" rx="12" fill="#eef2f8" stroke="#0b0f17" stroke-width="2"/><rect x="-10" y="-17" width="20" height="13" rx="4" fill="#243247"/><rect x="-10" y="9" width="20" height="9" rx="3" fill="#243247"/><rect x="-17" y="-22" width="4" height="10" rx="2" fill="#0b0f17"/><rect x="13" y="-22" width="4" height="10" rx="2" fill="#0b0f17"/><rect x="-17" y="12" width="4" height="10" rx="2" fill="#0b0f17"/><rect x="13" y="12" width="4" height="10" rx="2" fill="#0b0f17"/></svg></div>', [40, 68]],
+  const shade = (hex, f) => { const v = parseInt((/^#[0-9a-f]{6}$/i.test(hex) ? hex : '#ff2d2d').slice(1), 16), m = c => Math.max(0, Math.min(255, Math.round(f >= 0 ? c + (255 - c) * f : c * (1 + f)))); return `rgb(${m(v >> 16)},${m(v >> 8 & 255)},${m(v & 255)})`; };
+  let UID = 0;
+  const ICONS = { // cada icono recibe el color elegido y devuelve [html, [ancho, alto]] a tamaño 100 %
+    arrow: c => { const u = 'ar' + (++UID); return [`<div class="nme arrow"><svg viewBox="-26 -32 52 70" overflow="visible"><defs><linearGradient id="${u}l" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${shade(c, .45)}"/><stop offset="1" stop-color="${c}"/></linearGradient><linearGradient id="${u}r" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${shade(c, -.1)}"/><stop offset="1" stop-color="${shade(c, -.5)}"/></linearGradient></defs>
+      <ellipse cx="0" cy="26" rx="21" ry="9" fill="rgba(0,0,0,.45)" filter="blur(3px)"/>
+      <path d="M0 -20 L-18 28 L0 16 L18 28Z" transform="translate(0 7)" fill="${shade(c, -.72)}" stroke="${shade(c, -.72)}" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M0 -29 L-18 21 L0 9Z" fill="url(#${u}l)"/><path d="M0 -29 L18 21 L0 9Z" fill="url(#${u}r)"/>
+      <path d="M0 -29 L-18 21 L0 9 L18 21Z" fill="none" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/><path d="M0 -26 L0 8" stroke="rgba(255,255,255,.55)" stroke-width="1.6" stroke-linecap="round"/></svg></div>`, [48, 64]]; },
+    dot: c => [`<div class="nme" style="--acc:${c}"><i></i></div>`, [34, 34]],
+    chev: c => [`<div class="nme chev"><svg viewBox="-20 -20 40 40"><path d="M0 -17 L13 15 L0 8 L-13 15Z" fill="${c}" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/></svg></div>`, [44, 44]],
+    car: () => ['<div class="nme car"><svg viewBox="-20 -34 40 68"><rect x="-14" y="-31" width="28" height="62" rx="12" fill="#eef2f8" stroke="#0b0f17" stroke-width="2"/><rect x="-10" y="-17" width="20" height="13" rx="4" fill="#243247"/><rect x="-10" y="9" width="20" height="9" rx="3" fill="#243247"/><rect x="-17" y="-22" width="4" height="10" rx="2" fill="#0b0f17"/><rect x="13" y="-22" width="4" height="10" rx="2" fill="#0b0f17"/><rect x="-17" y="12" width="4" height="10" rx="2" fill="#0b0f17"/><rect x="13" y="12" width="4" height="10" rx="2" fill="#0b0f17"/></svg></div>', [40, 68]],
   };
-  const mkMe = (k, p) => { const [h, s] = ICONS[k] || ICONS.dot; return N.mx.marker(p, h, s, { z: 1000 }); };
+  const iconCfg = () => { const o = N.opt || {}; return { k: o.icon || S.navIcon || 'arrow', c: S.navIconColor || '#ff2d2d', z: Math.max(.5, Math.min(2.5, (+S.navIconSize || 100) / 100)) }; };
+  const mkMe = (cfg, p) => { const [h, s] = (ICONS[cfg.k] || ICONS.arrow)(cfg.c), w = Math.round(s[0] * cfg.z), hh = Math.round(s[1] * cfg.z), m = N.mx.marker(p, h, [w, hh], { z: 1000 }); const e = m.el && m.el.querySelector('.nme'); if (e) { e.style.width = w + 'px'; e.style.height = hh + 'px'; } return m; };
   function applyStyle(opt) {
     if (!N.mx) return; if (opt) N.opt = opt;
-    const o = N.opt || {}, st = o.mapstyle || S.mapStyle || 'auto', ic = o.icon || S.navIcon || 'dot';
+    const o = N.opt || {}, st = o.mapstyle || S.mapStyle || 'auto', cfg = iconCfg(), ic = cfg.k + cfg.c + cfg.z;
     N.mx.style(st); N.el.dataset.ms = st; N.el.dataset.eng = N.mx.kind;
-    if (ic !== N.iconKey) { const p = N.pos || myPos(); if (N.me) N.me.remove(); N.me = mkMe(ic, p); N.iconKey = ic; }
+    if (ic !== N.iconKey) { const p = N.pos || myPos(); if (N.me) N.me.remove(); N.me = mkMe(cfg, p); N.iconKey = ic; }
     drawRoute();
   }
   const STYLE_CYCLE = ['auto', 'sat', 'hybrid', 'dark', 'light'], STYLE_NAME = { auto: 'Automático', sat: 'Satélite', hybrid: 'Satélite con calles', dark: 'Oscuro', light: 'Claro' };

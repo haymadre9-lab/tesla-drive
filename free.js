@@ -69,7 +69,7 @@ const Win = (() => {
     $$('.wcover,.wtool,.wres,.wdots,.wgrip', f).forEach(n => n.remove()); f.classList.toggle('editing', editing); if (!editing) f.classList.remove('sel');
     const card = $('.wc', f); f.style.zIndex = editing ? 'auto' : (w.z || 1); card.style.zIndex = editing ? (w.z || 1) * 2 : '';
     if (editing) {
-      f.insertAdjacentHTML('beforeend', `<div class="wcover"><span class="wname">${esc(w.type === 'web' ? (w.title || Ed.hostOf(w.url) || 'PWA') : (WIDGETS[w.wid]?.n || '?'))}</span></div><div class="wtool"><button data-t="cfg" title="Cambiar función o PWA">⚙</button>${w.mapSlot || w.wid === 'navmap' ? '<button data-t="map" title="Cambiar de mapa">🗺</button>' : ''}<button data-t="del" title="Quitar ventana">✕</button></div><div class="wres" title="Redimensionar"></div>`);
+      f.insertAdjacentHTML('beforeend', `<div class="wcover"><span class="wname">${esc(w.type === 'web' ? (w.title || Ed.hostOf(w.url) || 'PWA') : (WIDGETS[w.wid]?.n || '?'))}</span></div><div class="wtool"><button data-t="cfg" title="Cambiar función o PWA"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 7h10M18 7h2M4 17h2M10 17h10M4 12h16" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="16" cy="7" r="2.6" fill="currentColor"/><circle cx="8" cy="17" r="2.6" fill="currentColor"/></svg></button>${w.mapSlot || w.wid === 'navmap' ? '<button data-t="map" title="Cambiar de mapa"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2zM9 4v14M15 6v14" stroke="currentColor" stroke-width="2" fill="none" stroke-linejoin="round"/></svg></button>' : ''}<button data-t="del" title="Quitar ventana"><svg viewBox="0 0 24 24" width="28" height="28"><path d="M5 5L19 19M19 5L5 19" stroke="#fff" stroke-width="4.6" stroke-linecap="round"/></svg></button></div><div class="wres" title="Redimensionar"><svg viewBox="0 0 24 24" width="26" height="26"><path d="M6 18L18 6M11 6h7v7M6 11v7h7" stroke="#fff" stroke-width="2.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>`);
       $('.wcover', f).style.zIndex = (w.z || 1) * 2 + 1; bindEdit(f, w);
     } else {
       if (S.winDots !== false) { f.insertAdjacentHTML('beforeend', '<button class="wdots" title="Configurar ventana">⋮</button>'); $('.wdots', f).onclick = e => { e.stopPropagation(); edit(w.id); }; }
@@ -136,7 +136,7 @@ const Win = (() => {
   }
   function enter() {
     const D = ensureFree(Dash.cur()); if (page !== 'home') go('home'); if (!$('.free')) renderFree(D); root = $('.free');
-    setEditing(true); toast('Mantén pulsada una ventana y arrástrala · esquina azul para el tamaño · ✕ para quitarla', 4500);
+    setEditing(true); toast('Mantén pulsada una ventana y arrástrala · esquina azul para el tamaño · botón rojo para quitarla', 4500);
   }
   function leave() { setEditing(false); save(); toast('Diseño guardado'); }
   function remove(id) {
