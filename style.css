@@ -515,3 +515,8 @@ body.searching .navtop,body.searching .navtools{pointer-events:none;}
 .rg .rg-ic svg,.rg .rg-x svg{position:static;inset:auto;} .rg .rg-ic svg{width:17cqmin;height:17cqmin;} .rg .rg-x svg{width:6.5cqmin;height:6.5cqmin;} .rg .rg-ic{margin-top:8cqmin;line-height:0;}
 .rg .rg-ic{margin-top:13cqmin;} .rg .rg-ic svg{width:15cqmin;height:15cqmin;}
 .rg .rg-ic{margin-top:9cqmin;} .nme.arrow,.nme.chev,.nme.car{transition:none !important;}
+
+/* ══ Barra de búsqueda oculta: lupa que abre el buscador; flecha tumbada sobre el mapa ══ */
+.navtop{display:none !important;} .navtools #nsq svg{display:block;}
+.nsbtn{display:none !important;} .fwin.flat .navwrap:not(.tools-on) .nsbtn{display:grid !important;place-items:center;position:absolute;left:55%;top:13%;z-index:500;width:46px;height:46px;border-radius:50%;padding:0;background:rgba(6,10,18,.55);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.25);color:#fff;} .nsbtn svg{display:block;}
+.nme.arrow{transform:perspective(220px) rotateX(var(--tilt,0deg)) rotate(var(--h,0deg));transform-origin:50% 55%;}
