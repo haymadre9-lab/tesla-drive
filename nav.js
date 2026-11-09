@@ -50,9 +50,9 @@ const Nav = (() => {
   function build() {
     const el = document.createElement('div'); el.className = 'navwrap';
     el.innerHTML = `<div id="navmap"></div>
-      <button class="btn sec nsbtn" id="nsb" type="button" title="Buscar destino"><svg viewBox="0 0 24 24" width="22" height="22"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M15.5 15.5L21 21" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/></svg></button><div class="navtop"><div class="navsearch"><button class="nqfake" id="nq" type="button"><span>🔍</span> ¿A dónde vamos?</button><button class="btn sec" id="nph" title="Abrir en app de GPS del móvil">📲</button><button class="btn sec" id="nmaps" title="Cambiar de mapa">🗺</button></div>
-        <div class="navchips" id="nchips"></div></div>
-      <div class="navtools" id="ntools"><button id="nsq" title="Buscar destino"><svg viewBox="0 0 24 24" width="22" height="22"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M15.5 15.5L21 21" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/></svg></button><button id="nzi" title="Acercar">＋</button><button id="nzo" title="Alejar">－</button><button id="n3d" title="Cambiar entre vista 3D inclinada y mapa 2D">3D</button><button id="ncmp" title="Norte arriba"><i>▲</i></button></div>
+      <div class="navhdr"><button class="nmore" id="nmore" type="button" title="Ajustes del mapa y funciones"><svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="5" r="2.3" fill="currentColor"/><circle cx="12" cy="12" r="2.3" fill="currentColor"/><circle cx="12" cy="19" r="2.3" fill="currentColor"/></svg></button><button class="nsrch" id="nsq" type="button" title="Buscar destino"><svg viewBox="0 0 24 24" width="22" height="22"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M15.5 15.5L21 21" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/></svg></button></div>
+      <div class="navmenu" id="nmenu" hidden><div class="nm-t">Funciones del mapa</div><div id="nmbox"></div><button class="btn sec" id="nmset" type="button">Más ajustes del mapa…</button></div>
+      <div class="navtools" id="ntools"><button id="nzi" title="Acercar">＋</button><button id="nzo" title="Alejar">－</button><button id="n3d" title="Cambiar entre vista 3D inclinada y mapa 2D">3D</button><button id="ncmp" title="Norte arriba"><i>▲</i></button></div>
       <div class="navguide" id="nguide" hidden><div class="ni" id="nicon">⬆</div><div class="nt"><b id="ndist">—</b><span id="ntext"></span></div></div>
       <div class="navbar" id="nbar" hidden><div><b id="nrem">—</b><small>restante</small></div><div><b id="neta">—</b><small>llegada</small></div><div><b id="nspd">0</b><small id="nspu">km/h</small></div>
         <button class="btn sec" id="nmute">🔊</button><button class="btn sec" id="nctr">🎯</button><button class="btn sec" id="nfav">⭐</button><button class="btn bad" id="nstop">✕ Terminar</button></div>
@@ -61,13 +61,7 @@ const Nav = (() => {
       <div class="spdbub"><b class="js-spd">0</b><small>${spdUnit()}</small></div><div class="limsign" hidden></div>`;
     return el;
   }
-  function chips() {
-    const f = S.favs || {}, box = $('#nchips', N.el);
-    const mk = (k, ico, lab) => `<span class="chip" data-fav="${k}">${ico} ${lab}${f[k] ? '' : ' <i style="opacity:.6">(sin definir)</i>'}</span>`;
-    box.innerHTML = mk('home', '🏠', 'Casa') + mk('work', '💼', 'Trabajo') + (S.navRecent || []).map((r, i) => `<span class="chip" data-r="${i}">🕘 ${esc(r.name)}</span>`).join('');
-    $$('[data-fav]', box).forEach(c => c.onclick = () => { const d = S.favs[c.dataset.fav]; d ? routeTo(d) : toast('Termina una ruta y pulsa ⭐ para guardarla aquí', 3500); });
-    $$('[data-r]', box).forEach(c => c.onclick = () => routeTo(S.navRecent[+c.dataset.r]));
-  }
+  function chips() { }
   /* Estilo del mapa y del icono del vehículo (de la ventana o, si no, del ajuste general) */
   const shade = (hex, f) => { const v = parseInt((/^#[0-9a-f]{6}$/i.test(hex) ? hex : '#ff2d2d').slice(1), 16), m = c => Math.max(0, Math.min(255, Math.round(f >= 0 ? c + (255 - c) * f : c * (1 + f)))); return `rgb(${m(v >> 16)},${m(v >> 8 & 255)},${m(v & 255)})`; };
   let UID = 0;
@@ -130,10 +124,10 @@ const Nav = (() => {
     if (!N.el) {
       N.el = build();
       N.el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; });
-      $('#nq', N.el).onclick = () => openSearch();
-      $('#nph', N.el).onclick = () => navDlg(appById('maps') || { n: 'GPS', e: '🧭', k: 'gmaps' });
-      $('#nmaps', N.el).onclick = () => Maps.switchFrom(N.el);
-      $('#nsb', N.el).onclick = () => openSearch(); $('#nsq', N.el).onclick = () => openSearch();
+      $('#nsq', N.el).onclick = () => { $('#nmenu', N.el).hidden = true; openSearch(); };
+      $('#nmore', N.el).onclick = () => { const m = $('#nmenu', N.el); m.hidden = !m.hidden; if (!m.hidden) { $('#nmbox', N.el).append($('#nlay', N.el)); } };
+      $('#nmset', N.el).onclick = () => { $('#nmenu', N.el).hidden = true; go('settings'); setTimeout(() => { const b = $('.cats [data-c=mapa]'); if (b) b.click(); }, 120); };
+      N.el.addEventListener('pointerdown', e => { const m = $('#nmenu', N.el); if (!m.hidden && !e.target.closest('#nmenu,#nmore')) m.hidden = true; });
       $('#nstop', N.el).onclick = stop; $('#nsim', N.el).onclick = simulate;
       $('#nctr', N.el).onclick = () => { N.follow = true; N.tzUser = false; if (N.pos) centerOn(N.pos, N.mx.zoom(), true); };
       $('#nzi', N.el).onclick = () => zoomBtn(1); $('#nzo', N.el).onclick = () => zoomBtn(-1); $('#n3d', N.el).onclick = () => { if (!N.mx.can3d) return toast('Este navegador no admite el mapa 3D (sin WebGL): se usa el mapa 2D', 3500); setMode(!is3d()); toast(is3d() ? 'Vista 3D' : 'Vista 2D'); };
@@ -147,13 +141,13 @@ const Nav = (() => {
       sync();
     }
     root.innerHTML = ''; root.append(N.el); N.opt = emb ? (opt || {}) : {}; N.el.classList.toggle('emb', !!emb); N.fx = ({ right: .72, left: .28 })[emb && opt && opt.focus] || .5; N.el.classList.toggle('nosearch', !!emb && !!opt && opt.search === false); N.el.classList.toggle('nolayers', !!emb && !!opt && opt.layers === false); N.el.classList.toggle('tools-on', !!emb && !!opt && String(opt.tools) === 'true'); N.el.classList.toggle('tools-off', !!emb && !!opt && String(opt.tools) === 'false'); initMap(); applyStyle(N.opt); chips(); N.mx.resize(); setTimeout(() => N.mx && N.mx.resize(), 150); const b3 = $('#n3d', N.el); b3.textContent = is3d() ? '3D' : '2D'; b3.classList.toggle('on', is3d()); b3.style.display = N.mx.can3d ? '' : 'none'; $('#ncmp', N.el).style.display = N.mx.can3d ? '' : 'none';
-    $('#nph', N.el).style.display = S.teslaMode ? 'none' : '';
   }
   function initMap() {
     if (N.mx) return;
     const p = myPos(), box = $('#navmap', N.el);
     if (typeof MapX === 'undefined' || (typeof L === 'undefined' && typeof maplibregl === 'undefined')) return;
     N.mx = MapX.create(box, { c: p, z: 15, style: (N.opt && N.opt.mapstyle) || S.mapStyle || 'auto' }); N.map = N.mx; N.iconKey = null;
+    $('#nmbox', N.el).append($('#nlay', N.el));
     N.mx.onUser(() => { N.follow = false; });
     N.mx.onMove(() => { if (Date.now() - (Poi.state.lastDraw || 0) > 4000) { Poi.state.lastDraw = Date.now(); Poi.draw(); } });
     N.mx.onRotate(() => { const c = $('#ncmp i', N.el); if (c) c.style.transform = `rotate(${-N.mx.bearing()}deg)`; });
@@ -191,13 +185,13 @@ const Nav = (() => {
     N.steps.forEach(s => { s.v1 = s.v2 = false; });
     drawRoute(); if (N.dm) N.dm.remove(); N.dm = N.mx.marker([d.lat, d.lon], '<div class="poi" style="border-color:var(--acc);font-size:21px">🏁</div>', [36, 36]);
     if (!quiet) { N.mx.focus(N.fx, 0); N.mx.fit(N.coords); setTimeout(() => { N.follow = true; }, 4000); S.navRecent = [d, ...(S.navRecent || []).filter(x => x.name !== d.name)].slice(0, 5); save(); chips(); if (typeof Adv !== 'undefined') Adv.logTrip(d); say('Ruta calculada. ' + fmtD(rt.distance) + ' hasta ' + d.name); }
-    $('.navtop', N.el).style.display = 'none'; $('#nguide', N.el).hidden = false; $('#nbar', N.el).hidden = false; N.el.classList.add('guiding'); $('#nsim', N.el).hidden = false; update(o);
+    $('#nguide', N.el).hidden = false; $('#nbar', N.el).hidden = false; N.el.classList.add('guiding'); $('#nsim', N.el).hidden = false; update(o);
     return true;
   }
   function stop() {
     N.active = false; clearInterval(N.simT); N.sim = false; N.sum = null; bus.emit('nav'); try { speechSynthesis.cancel(); } catch { }
     N.coords = []; drawRoute(); if (N.dm) { N.dm.remove(); N.dm = null; }
-    N.el.classList.remove('guiding'); ['nguide', 'nbar', 'nsim'].forEach(i => $('#' + i, N.el).hidden = true); $('.navtop', N.el).style.display = ''; $('#nchips', N.el).style.display = ''; $('#nsim', N.el).textContent = '🧪 Simular ruta';
+    N.el.classList.remove('guiding'); ['nguide', 'nbar', 'nsim'].forEach(i => $('#' + i, N.el).hidden = true); $('#nsim', N.el).textContent = '🧪 Simular ruta';
   }
   function saveFav() {
     if (!N.dest) return;

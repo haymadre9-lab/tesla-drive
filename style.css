@@ -520,3 +520,16 @@ body.searching .navtop,body.searching .navtools{pointer-events:none;}
 .navtop{display:none !important;} .navtools #nsq svg{display:block;}
 .nsbtn{display:none !important;} .fwin.flat .navwrap:not(.tools-on) .nsbtn{display:grid !important;place-items:center;position:absolute;left:55%;top:13%;z-index:500;width:46px;height:46px;border-radius:50%;padding:0;background:rgba(6,10,18,.55);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.25);color:#fff;} .nsbtn svg{display:block;}
 .nme.arrow{transform:perspective(220px) rotateX(var(--tilt,0deg)) rotate(var(--h,0deg));transform-origin:50% 55%;}
+
+/* ══ Cabecera del mapa: lupa arriba a la derecha y, al lado, un icono pequeño de 3 puntos con las funciones ══ */
+.navhdr{position:absolute;z-index:520;right:12px;top:12px;display:flex;gap:8px;align-items:center;}
+.navhdr button{display:grid;place-items:center;padding:0;background:var(--bg);color:var(--txt);border:2px solid var(--bd);box-shadow:0 4px 14px rgba(0,0,0,.4);} .navhdr svg{display:block;pointer-events:none;}
+.navhdr .nsrch{width:46px;height:46px;border-radius:50%;} .navhdr .nmore{width:32px;height:32px;border-radius:50%;opacity:.85;}
+.fwin.flat .navhdr button{background:rgba(6,10,18,.55);backdrop-filter:blur(10px);color:#fff;border-color:rgba(255,255,255,.25);} .fwin.flat .navwrap .navhdr{top:82px;right:14px;}
+.navtools{top:68px !important;} .fwin.flat .navwrap.tools-on .navtools{top:134px !important;}
+.navmenu{position:absolute;z-index:530;right:12px;top:66px;width:min(300px,calc(100% - 24px));max-height:calc(100% - 80px);overflow:auto;background:#0e131b;color:#f2f5fa;border:1px solid rgba(255,255,255,.16);border-radius:18px;padding:12px;box-shadow:0 14px 40px rgba(0,0,0,.6);display:flex;flex-direction:column;gap:8px;} .navmenu[hidden]{display:none;}
+html[data-theme=light] .navmenu{background:#fff;color:#111826;border-color:rgba(0,0,0,.14);} .fwin.flat .navwrap .navmenu{top:136px;}
+.navmenu .nm-t{font-size:12px;opacity:.65;text-transform:uppercase;letter-spacing:.06em;}
+.navmenu #nmbox .navlayers{position:static !important;display:flex !important;flex-direction:column !important;gap:6px !important;} .navmenu #nmbox .navlayers button{width:auto !important;height:46px !important;border-radius:12px !important;padding:0 14px;display:flex;align-items:center;gap:12px;font-size:20px !important;text-align:left;opacity:.75;box-shadow:none;background:rgba(128,138,155,.18);border:2px solid transparent;color:inherit;} .navmenu #nmbox .navlayers button.on{opacity:1;border-color:var(--acc);} .navmenu #nmbox .navlayers button::after{content:attr(title);font-size:15px;font-weight:600;}
+.navwrap.nolayers #nmbox{display:none;}
+@media (max-height:560px) and (min-aspect-ratio:1/1){ .navhdr{top:6px;right:6px;} .navhdr .nsrch{width:40px;height:40px;} .navtools{top:54px !important;} .navmenu{top:52px;right:6px;} }
