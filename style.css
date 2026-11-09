@@ -514,3 +514,4 @@ body.searching .navtop,body.searching .navtools{pointer-events:none;}
 .limchip.est,.limsign.est,#stLimit.est{border-style:dashed;opacity:.88;}
 .rg .rg-ic svg,.rg .rg-x svg{position:static;inset:auto;} .rg .rg-ic svg{width:17cqmin;height:17cqmin;} .rg .rg-x svg{width:6.5cqmin;height:6.5cqmin;} .rg .rg-ic{margin-top:8cqmin;line-height:0;}
 .rg .rg-ic{margin-top:13cqmin;} .rg .rg-ic svg{width:15cqmin;height:15cqmin;}
+.rg .rg-ic{margin-top:9cqmin;} .nme.arrow,.nme.chev,.nme.car{transition:none !important;}
