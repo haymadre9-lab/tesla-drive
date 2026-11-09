@@ -16,7 +16,7 @@ const Canvas = (() => {
   S.screen ||= { p: 'auto', r: 1.6 };
   const prof = () => PROFILES.find(p => p[0] === S.screen.p) || PROFILES[0];
   const ratio = () => { const p = prof(); return p[0] === 'auto' ? null : p[0] === 'custom' ? (+S.screen.r || 1.6) : p[2]; };
-  const key = () => ratio() === null ? (innerHeight > innerWidth || innerWidth < 761 ? 'port' : 'land') : S.screen.p;
+  const key = () => ratio() === null ? (innerHeight > innerWidth ? 'port' : 'land') : S.screen.p;
   const orientOf = k => k === 'land' || k === 'port' ? k : ((k === 'custom' ? (+S.screen.r || 1.6) : (PROFILES.find(p => p[0] === k) || [0, 0, 1.6])[2]) >= 1 ? 'land' : 'port');
   const orient = () => orientOf(key());
   const label = () => { const r = ratio(); return r === null ? (orient() === 'port' ? 'Vertical' : 'Horizontal') : `${prof()[1].split(' · ')[0]} · ${r.toFixed(2)}:1`; };

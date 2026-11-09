@@ -5,7 +5,7 @@
 
 const Win = (() => {
   const uid = () => 'w' + Math.random().toString(36).slice(2, 7);
-  const prof = () => (typeof Canvas !== 'undefined' ? Canvas.key() : (innerHeight > innerWidth || innerWidth < 761 ? 'port' : 'land'));
+  const prof = () => (typeof Canvas !== 'undefined' ? Canvas.key() : (innerHeight > innerWidth ? 'port' : 'land'));
   const cl = o => JSON.parse(JSON.stringify(o));
   let editing = false, root = null;
 
