@@ -33,7 +33,7 @@ const Scene = (() => {
     if (main) { main.opt.side = L.scrim.side; main.opt.strength = L.scrim.strength; put(main, L.scrim.rect); }
     const top = D.win.find(w => w.wid === 'scrim' && w.opt && w.opt.side === 'top'); if (top) top.opt.strength = L.top;
     const left = size === 'big' && pos === 'right'; // con el reloj grande a la derecha, las tarjetas pasan a la izquierda
-    put(D.win.find(w => w.wid === 'navcard'), [left ? 1.5 : 74, 11, 24.5, 13]); put(D.win.find(w => w.wid === 'nowplaying'), [left ? 1.5 : 74, 70, 24.5, 14]);
+    put(D.win.find(w => w.wid === 'navcard'), [left ? 1.5 : 74, 17, 24.5, 13]); put(D.win.find(w => w.wid === 'nowplaying'), [left ? 1.5 : 74, 70, 24.5, 14]);
     D.win.filter(w => w.wid === 'navmap').forEach(w => { w.opt = Object.assign({}, w.opt, { focus: L.focus }); });
     D.speedLayout = { pos, size }; save(); renderers.home(); toast(`Reloj: ${POS.find(p => p[0] === pos)[1].toLowerCase()} · ${SIZE.find(s => s[0] === size)[1].toLowerCase()}`);
   }
