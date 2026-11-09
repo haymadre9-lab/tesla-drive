@@ -85,7 +85,7 @@ const Nav = (() => {
   function build() {
     const el = document.createElement('div'); el.className = 'navwrap';
     el.innerHTML = `<div id="navmap"></div>
-      <div class="navhdr"><button class="nsrch" id="nsq" type="button" title="Buscar destino"><svg viewBox="0 0 24 24" width="22" height="22"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M15.5 15.5L21 21" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/></svg></button><button class="nmore" id="nmore" type="button" title="Ajustes del mapa y funciones"><svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="5" r="2.3" fill="currentColor"/><circle cx="12" cy="12" r="2.3" fill="currentColor"/><circle cx="12" cy="19" r="2.3" fill="currentColor"/></svg></button></div>
+      <div class="navhdr"><button class="nsrch" id="nsq" type="button" title="Buscar destino"><svg viewBox="0 0 24 24" width="22" height="22"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M15.5 15.5L21 21" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/></svg></button><button class="nmore" id="nmore" type="button" title="Ajustes de la app (mantén pulsado: funciones del mapa)"><svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="5" r="2.3" fill="currentColor"/><circle cx="12" cy="12" r="2.3" fill="currentColor"/><circle cx="12" cy="19" r="2.3" fill="currentColor"/></svg></button></div>
       <div class="navmenu" id="nmenu" hidden><div class="nm-t">Funciones del mapa</div><div id="nmbox"></div><button class="btn sec" id="nmset" type="button">Más ajustes del mapa…</button></div>
       <div class="navtools" id="ntools"><button id="nzi" title="Acercar">＋</button><button id="nzo" title="Alejar">－</button><button id="n3d" title="Cambiar entre vista 3D inclinada y mapa 2D">3D</button><button id="ncmp" title="Norte arriba"><i>▲</i></button></div>
       <div class="navguide" id="nguide" hidden><div class="ni" id="nicon">⬆</div><div class="nt"><b id="ndist">—</b><span id="ntext"></span></div></div>
@@ -122,7 +122,7 @@ const Nav = (() => {
   const is3d = () => N.mx && N.mx.can3d && S.map3d !== false; // 3D = inclinado y girando según el rumbo (como Dashla)
   const angLerp = (a, b, t) => { let d = ((b - a + 540) % 360) - 180; return (a + d * t + 360) % 360; };
   function centerOn(p, z, anim) { // coloca mi posición en el punto de enfoque (centro, derecha o izquierda; en 3D, abajo)
-    const m = N.mx, d3 = is3d(); m.focus(N.fx, d3 ? .26 : 0);
+    const m = N.mx, d3 = is3d(); m.focus(N.fx, d3 ? .4 : 0);
     if (m.kind === 'gl' && F.fix && N.follow) { if (z != null) N.tz = z; return; } // en GL lo mueve el bucle de animación
     if (d3) m.view(p, z == null ? m.zoom() : Math.min(z, 17.4), { anim: !!anim, dur: 900, linear: true, bearing: N.hd == null ? m.bearing() : N.hd, pitch: 58 });
     else m.view(p, z, { anim: !!anim, dur: 700, bearing: 0, pitch: 0 });
@@ -142,7 +142,7 @@ const Nav = (() => {
     if (N.hd != null) F.cb = F.cb == null ? N.hd : angLerp(F.cb, N.hd, 1 - Math.exp(-dt / .8));
     const m = N.mx;
     if (m.kind === 'gl' && followCam() && N.el.isConnected) {
-      const d3 = is3d(), kk = 1 - Math.exp(-dt / .5); m.focus(N.fx, d3 ? .26 : 0);
+      const d3 = is3d(), kk = 1 - Math.exp(-dt / .5); m.focus(N.fx, d3 ? .4 : 0);
       const tb = d3 && F.cb != null ? F.cb : 0, tz = N.tz == null ? m.zoom() : N.tz, tp = d3 ? 58 : 0;
       if (N.snap) { F.bb = tb; F.cp = tp; F.cz = tz; N.snap = false; } else { if (Math.abs(((tb - F.bb + 540) % 360) - 180) > 1.2) F.bb = angLerp(F.bb, tb, 1 - Math.exp(-dt / (d3 ? .9 : .3))); F.cp += (tp - F.cp) * kk; F.cz = F.cz == null ? tz : F.cz + (tz - F.cz) * (1 - Math.exp(-dt / 1.1)); }
       m.view(F.disp, N.tz == null ? tz : F.cz, { bearing: F.bb, pitch: F.cp });
@@ -160,7 +160,10 @@ const Nav = (() => {
       N.el = build();
       N.el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; });
       $('#nsq', N.el).onclick = () => { $('#nmenu', N.el).hidden = true; openSearch(); };
-      $('#nmore', N.el).onclick = () => { const m = $('#nmenu', N.el); m.hidden = !m.hidden; if (!m.hidden) { $('#nmbox', N.el).append($('#nlay', N.el)); } };
+      { const mb = $('#nmore', N.el); let lt = 0, long = false; // toque = ajustes de la app · mantener pulsado = funciones rápidas del mapa (capas, estilo, reportar)
+        mb.onpointerdown = () => { long = false; clearTimeout(lt); lt = setTimeout(() => { long = true; const m = $('#nmenu', N.el); m.hidden = !m.hidden; if (!m.hidden) $('#nmbox', N.el).append($('#nlay', N.el)); navigator.vibrate?.(20); }, 550); };
+        mb.onpointerup = mb.onpointerleave = mb.onpointercancel = () => clearTimeout(lt);
+        mb.onclick = () => { if (long) { long = false; return; } go('settings'); setTimeout(() => { const b = $('.cats [data-c=mapa]'); if (b) b.click(); }, 120); }; }
       $('#nmset', N.el).onclick = () => { $('#nmenu', N.el).hidden = true; go('settings'); setTimeout(() => { const b = $('.cats [data-c=mapa]'); if (b) b.click(); }, 120); };
       N.el.addEventListener('pointerdown', e => { const m = $('#nmenu', N.el); if (!m.hidden && !e.target.closest('#nmenu,#nmore')) m.hidden = true; });
       $('#nstop', N.el).onclick = stop; $('#nsim', N.el).onclick = simulate;
@@ -259,7 +262,10 @@ const Nav = (() => {
   }
   function onPos(c) {
     if (!N.mx) return; const p = [c.latitude, c.longitude], prev = N.pos; N.pos = p; const sp = c.speed || 0, kmh = sp * 3.6;
-    const h = c.heading != null && !isNaN(c.heading) && kmh > 6 ? c.heading : (prev && dist(prev, p) > 12 ? (Math.atan2(rad(p[1] - prev[1]) * Math.cos(rad(prev[0])), rad(p[0] - prev[0])) * 180 / Math.PI + 360) % 360 : null);
+    let h = c.heading != null && !isNaN(c.heading) && kmh > 6 ? c.heading : null;
+    if (h == null) { // sin rumbo del GPS: se calcula desde un punto de referencia a ≥ 10 m (se mueve con el coche)
+      if (!N.anchor) N.anchor = p; else { const da = dist(N.anchor, p); if (da >= 10 && (c.speed == null || sp > .8)) { h = (Math.atan2(rad(p[1] - N.anchor[1]) * Math.cos(rad(N.anchor[0])), rad(p[0] - N.anchor[0])) * 180 / Math.PI + 360) % 360; N.anchor = p; } else if (da > 60) N.anchor = p; }
+    } else N.anchor = p;
     if (h != null && (N.hd == null || Math.abs(((h - N.hd + 540) % 360) - 180) > 3.5)) N.hd = h; // banda muerta: ignora el temblor del rumbo del GPS
     const hh = rad(N.hd == null ? 0 : N.hd), kl = 111320;
     if (F.fix && c.speed != null && sp < .8 && dist(F.fix, p) < Math.max(8, (c.accuracy || 0))) { N.pos = F.fix; return; } // parado: el GPS «baila» unos metros; no se mueve ni se gira nada

@@ -105,12 +105,12 @@ const Road = (() => {
   bus.on('music', npUpd); setInterval(npUpd, 2000);
 
   WIDGETS.topbar = {
-    n: 'Barra superior (hora, temperatura, conexión)', cls: 'w-2x1', render: el => {
-      el.classList.add('tbw'); el.innerHTML = `<div class="tb"><span class="tb-t"><b class="js-clock">--:--</b><i class="js-tbtemp">--</i></span><span class="tb-c"><i class="tb-dot"></i><span class="js-tbc">Conectado</span></span><button class="tb-g" type="button" title="Ajustes">⚙</button></div>`;
-      $('.tb-g', el).onclick = () => go('settings'); tbUpd(); tickClock();
+    n: 'Barra superior (hora, temperatura, GPS)', cls: 'w-2x1', render: el => {
+      el.classList.add('tbw'); el.innerHTML = `<div class="tb"><span class="tb-t"><b class="js-clock">--:--</b><i class="js-tbtemp">--</i><span class="tb-gps js-tbc" title="GPS"></span></span></div>`;
+      tbUpd(); tickClock();
     },
   };
-  function tbUpd() { const w = weather(); $$('.js-tbtemp').forEach(e => { e.textContent = w && w.t != null ? tmp(w.t) : ''; }); $$('.js-tbc').forEach(e => { const on = navigator.onLine, g = GPS.status === 'on'; e.textContent = on ? (g ? 'Conectado · GPS' : 'Conectado · sin GPS') : 'Sin conexión'; e.parentNode.dataset.ok = on && g ? '1' : on ? '2' : '0'; }); }
+  function tbUpd() { const w = weather(); $$('.js-tbtemp').forEach(e => { e.textContent = w && w.t != null ? tmp(w.t) : ''; }); $$('.js-tbc').forEach(e => { const g = GPS.status === 'on'; e.dataset.ok = g ? '1' : '0'; e.title = g ? 'GPS activo' : 'Sin GPS'; }); }
   setInterval(tbUpd, 3000); bus.on('pos', tbUpd);
 
   WIDGETS.roadbar = {
