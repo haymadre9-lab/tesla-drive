@@ -32,7 +32,7 @@ const Canvas = (() => {
   /* El área de ventanas puede cambiar de tamaño SIN que cambie la ventana (modo inmersivo, barra lateral…): sin esto, el dashboard
      arrancaba descuadrado hasta volver a seleccionarlo. Se reajusta cada vez que cambia el tamaño del contenedor. */
   if (window.ResizeObserver) {
-    const ro = new ResizeObserver(() => { const f = $('.free'); if (f && f.parentElement) fit(f); });
+    const ro = new ResizeObserver(() => { const f = $('.free'); if (f && f.parentElement) fit(f); if (typeof Win !== 'undefined' && Win.recheck) Win.recheck(); });
     const hook = () => { const h = document.getElementById('pages'); if (h) ro.observe(h); const p = document.getElementById('p-home'); if (p) ro.observe(p); };
     if (document.readyState === 'loading') addEventListener('DOMContentLoaded', hook); else hook();
   }
