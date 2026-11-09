@@ -33,7 +33,7 @@ const DEF = {
   speedUnit: 'kmh', pressUnit: 'bar', tempUnit: 'c', tpWarn: 2.0, tpDanger: 1.6, spare: false,
   tires: { fl: 2.4, fr: 2.4, rl: 2.5, rr: 2.5 },
   fab: { on: true, click: 'home', long: 'daynight', x: null, y: null }, keys: [],
-  city: null, lastPos: null, last: {}, recent: [], teslaMode: IS_TESLA, voice: true, tripT: 0, dash: 'classic', dashboards: null, dock: null, syncMode: 'ask', syncUrl: '', winDots: true, cfgRev: 0, radarAlerts: true, autoFS: true, limitEst: true, navIcon: 'arrow', navIconColor: '#ff2d2d', navIconSize: 100, layers: { cams: true, chargers: false, fuel: false, reports: true }, reports: [], navRecent: [], favs: { home: null, work: null }, maxSpeed: 0, trip: 0,
+  city: null, lastPos: null, last: {}, recent: [], teslaMode: IS_TESLA, voice: true, tripT: 0, dash: 'classic', dashboards: null, dock: null, syncMode: 'ask', syncUrl: '', winDots: true, cfgRev: 0, radarAlerts: true, poiSize: 60, autoFS: true, limitEst: true, navIcon: 'arrow', navIconColor: '#ff2d2d', navIconSize: 100, layers: { cams: true, chargers: false, fuel: false, reports: true }, reports: [], navRecent: [], favs: { home: null, work: null }, maxSpeed: 0, trip: 0,
 };
 let S;
 try { S = Object.assign(structuredClone(DEF), JSON.parse(localStorage.getItem('leco.v1') || '{}')); } catch { S = structuredClone(DEF); }
@@ -108,12 +108,13 @@ const Wall = {
 let page = 'home';
 const renderers = {};
 function go(p) {
-  if (!renderers[p]) return;
+  if (!renderers[p]) { toast('No se pudo abrir «' + p + '»: esa pantalla no se cargó. Recarga la app (si sigue igual, borra la caché).', 4500); return; }
   page = p;
   $$('.page').forEach(e => e.classList.toggle('act', e.id === 'p-' + p));
   $$('#dock button').forEach(b => b.classList.toggle('act', b.dataset.go === p));
-  renderers[p]();
+  try { renderers[p](); } catch (e) { console.error(e); toast('Error al abrir «' + p + '»: ' + (e && e.message || e), 5000); } // la pantalla se muestra igualmente
 }
+function applyPoiSize() { document.documentElement.style.setProperty('--ps', String(Math.max(.3, Math.min(1.6, (+S.poiSize || 60) / 100)))); }
 $$('#dock button').forEach(b => b.onclick = () => go(b.dataset.go));
 
 /* ───────────── Reloj ───────────── */
@@ -624,7 +625,7 @@ function settingRow(it) {
   if (it.t === 'walls') return wallsEditor();
   if (it.t === 'keys') return keysEditor();
   const val = getK(it.k), r = el(`<div class="row"><div class="tx"><b>${esc(it.l)}</b>${it.d ? `<small>${esc(it.d)}</small>` : ''}</div><div class="ctrl"></div></div>`), c = $('.ctrl', r);
-  const commit = v => { setK(it.k, v); save(); applyTheme(); placeFab(); if (['wallMode', 'wallEffect', 'wallInterval'].includes(it.k)) Wall.apply(); if (['speedUnit', 'tempUnit', 'pressUnit', 'rows', 'colw', 'visualizer', 'hideLyrics'].includes(it.k)) refreshHome(); if (it.k === 'radarAlerts' || it.k.startsWith('layers.')) { Poi.draw(); Poi.refresh(); } if (['mapStyle', 'navIcon', 'navIconColor', 'navIconSize'].includes(it.k)) Nav.applyStyle(); };
+  const commit = v => { setK(it.k, v); save(); applyTheme(); placeFab(); if (['wallMode', 'wallEffect', 'wallInterval'].includes(it.k)) Wall.apply(); if (['speedUnit', 'tempUnit', 'pressUnit', 'rows', 'colw', 'visualizer', 'hideLyrics'].includes(it.k)) refreshHome(); if (it.k === 'radarAlerts' || it.k.startsWith('layers.')) { Poi.draw(); Poi.refresh(); } if (['mapStyle', 'navIcon', 'navIconColor', 'navIconSize'].includes(it.k)) Nav.applyStyle(); if (it.k === 'poiSize') applyPoiSize(); };
   if (it.type === 'toggle') { const s = el(`<div class="sw ${val ? 'on' : ''}"></div>`); s.onclick = () => { s.classList.toggle('on'); commit(s.classList.contains('on')); }; c.append(s); }
   else if (it.type === 'select' || it.type === 'action') {
     const opts = it.type === 'action' ? Object.entries(ACTIONS).map(([k, v]) => [k, v[0]]) : OPT[it.k];
@@ -683,6 +684,7 @@ $('#fileCfg').onchange = async e => {
 
 /* ───────────── Arranque ───────────── */
 async function init() {
+  applyPoiSize();
   S.apps.forEach(a => { const d = DEF_APPS.find(x => x.id === a.id); if (d && !a.k) a.k = d.k; });
   await Wall.load(); applyTheme(); Wall.apply(); placeFab();
   go('home'); tickClock(); setInterval(tickClock, 1000);
