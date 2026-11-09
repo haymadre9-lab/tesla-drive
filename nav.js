@@ -40,18 +40,25 @@ const Nav = (() => {
   }
   const icon = st => st.maneuver.type === 'arrive' ? '🏁' : /roundabout|rotary/.test(st.maneuver.type) ? '⟳' : ARROW[st.maneuver.modifier] || '⬆';
   /* ── Iconos de maniobra: recuadro blanco con el dibujo en negro. 3 estilos (Ajustes → Mapa): a = flecha gruesa, b = punta abierta, c = bloque ── */
-  const MST = { a: { w: 9, hl: 20, hw: 32, join: 'round', cap: 'butt', rw: 7 }, b: { w: 6.5, hl: 17, hw: 30, join: 'round', cap: 'round', open: true, rw: 5 }, c: { w: 15, hl: 24, hw: 38, join: 'miter', cap: 'butt', rw: 10 } };
+  const MST = { a: { w: 9, hl: 21, hw: 33, join: 'round', cap: 'butt', rw: 7, rad: 20 }, b: { w: 6.5, hl: 17, hw: 30, join: 'round', cap: 'round', open: true, rw: 5, rad: 14 }, c: { w: 15, hl: 24, hw: 38, join: 'miter', cap: 'butt', rw: 10, rad: 0 } };
+  /* esquinas redondeadas: cada vértice se sustituye por una curva (el radio se limita para no pasarse de los tramos) */
+  function roundPath(pts, r) {
+    const P = p => f1(p[0]) + ' ' + f1(p[1]); if (!r || pts.length < 3) return 'M' + pts.map(P).join(' L');
+    let d = 'M' + P(pts[0]);
+    for (let i = 1; i < pts.length - 1; i++) { const a = pts[i - 1], v = pts[i], b = pts[i + 1], l1 = Math.hypot(v[0] - a[0], v[1] - a[1]), l2 = Math.hypot(b[0] - v[0], b[1] - v[1]), rr = Math.min(r, l1 * .6, l2 * .6), p1 = [v[0] - (v[0] - a[0]) / l1 * rr, v[1] - (v[1] - a[1]) / l1 * rr], p2 = [v[0] + (b[0] - v[0]) / l2 * rr, v[1] + (b[1] - v[1]) / l2 * rr]; d += ' L' + P(p1) + ' Q' + P(v) + ' ' + P(p2); }
+    return d + ' L' + P(pts[pts.length - 1]);
+  }
   const f1 = v => Math.round(v * 10) / 10;
   function manArrow(pts, s, k = 1) {
     const q = pts.length, [x1, y1] = pts[q - 2], [x2, y2] = pts[q - 1], L = Math.hypot(x2 - x1, y2 - y1) || 1, ux = (x2 - x1) / L, uy = (y2 - y1) / L, hl = s.hl * k, hw = s.hw * k, bx = x2 - ux * hl, by = y2 - uy * hl, nx = -uy, ny = ux;
     const body = s.open ? pts : pts.slice(0, q - 1).concat([[bx + ux * 2, by + uy * 2]]);
-    const line = `<polyline points="${body.map(p => f1(p[0]) + ',' + f1(p[1])).join(' ')}" fill="none" stroke="#000" stroke-width="${s.w * (k < 1 ? .8 : 1)}" stroke-linejoin="${s.join}" stroke-linecap="${s.cap}"/>`;
+    const line = `<path d="${roundPath(body, (s.rad || 0) * k)}" fill="none" stroke="#000" stroke-width="${s.w * (k < 1 ? .8 : 1)}" stroke-linejoin="${s.join}" stroke-linecap="${s.cap}"/>`;
     const head = s.open ? `<path d="M${f1(bx + nx * hw / 2)} ${f1(by + ny * hw / 2)} L${f1(x2)} ${f1(y2)} L${f1(bx - nx * hw / 2)} ${f1(by - ny * hw / 2)}" fill="none" stroke="#000" stroke-width="${s.w * (k < 1 ? .8 : 1)}" stroke-linecap="round" stroke-linejoin="round"/>`
       : `<polygon points="${f1(x2)},${f1(y2)} ${f1(bx + nx * hw / 2)},${f1(by + ny * hw / 2)} ${f1(bx - nx * hw / 2)},${f1(by - ny * hw / 2)}" fill="#000" stroke="#000" stroke-width="${s.join === 'round' ? 3 : 0}" stroke-linejoin="${s.join}"/>`;
     return line + head;
   }
   const mir = pts => pts.map(p => [64 - p[0], p[1]]);
-  const PATHS = { straight: [[32, 58], [32, 12]], right: [[22, 58], [22, 38], [54, 38]], 'slight right': [[24, 58], [24, 40], [46, 18]], 'sharp right': [[14, 60], [14, 14], [52, 52]], uturn: [[46, 60], [46, 20], [20, 20], [20, 48]] };
+  const PATHS = { straight: [[32, 62], [32, 8]], right: [[20, 62], [20, 32], [58, 32]], 'slight right': [[22, 62], [22, 44], [50, 14]], 'sharp right': [[14, 62], [14, 14], [52, 52]], uturn: [[46, 62], [46, 22], [20, 22], [20, 52]] };
   function manSvg(type, mod, exit, style) {
     const s = MST[style] || MST.a; let inner;
     if (type === 'arrive') inner = '<rect x="17" y="8" width="5" height="50" rx="2" fill="#000"/><path d="M22 10h32v26H22z" fill="#000"/><g fill="#fff"><rect x="26" y="14" width="7" height="7"/><rect x="40" y="14" width="7" height="7"/><rect x="33" y="21" width="7" height="7"/><rect x="47" y="21" width="7" height="7"/><rect x="26" y="28" width="7" height="7"/><rect x="40" y="28" width="7" height="7"/></g>';
