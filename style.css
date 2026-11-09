@@ -533,3 +533,6 @@ html[data-theme=light] .navmenu{background:#fff;color:#111826;border-color:rgba(
 .navmenu #nmbox .navlayers{position:static !important;display:flex !important;flex-direction:column !important;gap:6px !important;} .navmenu #nmbox .navlayers button{width:auto !important;height:46px !important;border-radius:12px !important;padding:0 14px;display:flex;align-items:center;gap:12px;font-size:20px !important;text-align:left;opacity:.75;box-shadow:none;background:rgba(128,138,155,.18);border:2px solid transparent;color:inherit;} .navmenu #nmbox .navlayers button.on{opacity:1;border-color:var(--acc);} .navmenu #nmbox .navlayers button::after{content:attr(title);font-size:15px;font-weight:600;}
 .navwrap.nolayers #nmbox{display:none;}
 @media (max-height:560px) and (min-aspect-ratio:1/1){ .navhdr{top:6px;right:6px;} .navhdr .nsrch{width:40px;height:40px;} .navtools{top:54px !important;} .navmenu{top:52px;right:6px;} }
+
+.fwin.flat .navwrap .navhdr{top:66px !important;} .fwin.flat .navwrap .navmenu{top:120px !important;}
+.sxdel{margin-left:6px;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:rgba(128,138,155,.2);color:inherit;opacity:.7;border:0;flex:none;} .sxdel:active{opacity:1;background:rgba(224,20,27,.5);}
