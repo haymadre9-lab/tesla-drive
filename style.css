@@ -548,3 +548,9 @@ html[data-theme=light] .navmenu{background:#fff;color:#111826;border-color:rgba(
 .navbar .nb-b{display:flex;gap:6px;justify-self:end;align-items:center;} .navbar .nb-b .btn{padding:10px 12px;display:inline-flex;align-items:center;gap:6px;} .navbar .nb-b .btn.sec{background:rgba(255,255,255,.14);color:#fff;} .navbar .nb-b svg{display:block;}
 @media (max-height:560px) and (min-aspect-ratio:1/1){ .mt{width:46px;height:46px;border-radius:10px;} .mt svg{width:38px;height:38px;} .navguide .nt b{font-size:20px !important;} .navguide .nt span{font-size:12px !important;max-width:170px;} .navbar .nb-i{gap:12px;} .navbar .nb-i b{font-size:16px !important;} .navbar .nb-b .btn{padding:7px 9px;font-size:13px;} .navbar .nb-i > div{min-width:46px;} }
 .navbar .nb-i,.navbar .nb-b{flex-direction:row !important;} .navbar .nb-i > div{flex-direction:column !important;} .navsim{right:auto !important;left:106px !important;top:auto !important;bottom:100px !important;}
+
+/* ══ GPS como punto verde/rojo; cabecera del mapa más arriba; la barra de ruta respeta [hidden] ══ */
+.navbar[hidden],.navguide[hidden]{display:none !important;}
+.tb-gps{width:15px;height:15px;border-radius:50%;background:#ff4d4d;box-shadow:0 0 9px rgba(255,77,77,.8);align-self:center;flex:none;} .tb-gps[data-ok="1"]{background:#39d98a;box-shadow:0 0 9px rgba(57,217,138,.85);}
+.navhdr{top:8px !important;} .fwin.flat .navwrap .navhdr{top:12px !important;right:14px !important;} .navtools{top:60px !important;} .fwin.flat .navwrap.tools-on .navtools{top:66px !important;}
+@media (max-height:560px) and (min-aspect-ratio:1/1){ .navhdr{top:4px !important;} .navtools{top:50px !important;} }
