@@ -16,7 +16,7 @@ const Search = (() => {
   /* ── Proveedores ── */
   async function photon(q) {
     const p = here(), loc = p ? `&lat=${p[0].toFixed(4)}&lon=${p[1].toFixed(4)}` : '';
-    const r = await j(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=8${loc}`);
+    const r = await j(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=10${loc}`);
     return (r.features || []).filter(f => f.geometry && f.geometry.coordinates).map(f => {
       const t = f.properties || {}, st = [t.street, t.housenumber].filter(Boolean).join(' '), name = t.name || st || t.city || q;
       const sub = [t.name && st ? st : '', t.district || t.locality, t.city && t.city !== name ? t.city : '', t.state, t.country].filter(Boolean).join(', ');
@@ -63,45 +63,51 @@ const Search = (() => {
     setTimeout(() => { inp.focus(); inp.select(); }, 60);
   }
   function close() { if (!el) return; el.hidden = true; document.body.classList.remove('searching'); seq++; inp.blur(); }
+  const ago = t => { const m = Math.round((Date.now() - t) / 60000); return !t ? '' : m < 2 ? 'ahora' : m < 60 ? `hace ${m} min` : m < 1440 ? `hace ${Math.round(m / 60)} h` : m < 2880 ? 'ayer' : `hace ${Math.round(m / 1440)} días`; };
+  const norm = x => String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   function home() {
-    const f = S.favs || {}, rec = S.navRecent || [];
-    const item = (ico, t, s, attr) => `<div class="sxi" ${attr}><span class="sxe">${ico}</span><div><b>${esc(t)}</b>${s ? `<small>${esc(s)}</small>` : ''}</div></div>`;
-    list.innerHTML = `<div class="sxc">${CATS.map((c, i) => `<button type="button" class="chip" data-c="${i}">${c[0]} ${c[1]}</button>`).join('')}</div>` +
+    const f = S.favs || {}, rec = S.navRecent || [], p = here();
+    const item = (ico, t, s, attr, extra) => `<div class="sxi" ${attr}><span class="sxe">${ico}</span><div><b>${esc(t)}</b>${s ? `<small>${esc(s)}</small>` : ''}</div>${extra || ''}</div>`;
+    list.innerHTML = (rec.length ? '<div class="sxh">Últimas rutas</div>' + rec.map((r, i) => item('🕘', r.name, [r.sub, ago(r.t)].filter(Boolean).join(' · '), `data-r="${i}"`, (p ? `<em>${fmt(dist(p, [r.lat, r.lon]))}</em>` : '') + `<button type="button" class="sxdel" data-del="${i}" aria-label="Quitar de la lista"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M5 5L19 19M19 5L5 19" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></button>`)).join('') : '') +
+      '<div class="sxh">Sitios guardados</div>' +
       item('🏠', 'Casa', f.home ? f.home.name : 'Sin definir: termina una ruta y pulsa ⭐', f.home ? 'data-fav="home"' : 'data-none="1"') + item('💼', 'Trabajo', f.work ? f.work.name : 'Sin definir', f.work ? 'data-fav="work"' : 'data-none="1"') +
-      item('🗺', 'Cambiar de mapa', 'Usar otro mapa o PWA en esta ventana', 'data-act="map"') + (S.teslaMode ? '' : item('📲', 'Abrir en la app de GPS del móvil', 'Google Maps, Waze…', 'data-act="phone"')) +
-      (rec.length ? '<div class="sxh">Recientes</div>' + rec.map((r, i) => item('🕘', r.name, '', `data-r="${i}"`)).join('') : '') +
-      '<div class="note" style="padding:12px 16px">Escribe una dirección, un lugar o “lat,lon”. Los resultados aparecen mientras escribes.</div>';
+      `<div class="sxh">Buscar cerca</div><div class="sxc">${CATS.map((c, i) => `<button type="button" class="chip" data-c="${i}">${c[0]} ${c[1]}</button>`).join('')}</div>` +
+      '<div class="sxh">Más</div>' + item('🗺', 'Cambiar de mapa', 'Usar otro mapa o PWA en esta ventana', 'data-act="map"') + (S.teslaMode ? '' : item('📲', 'Abrir en la app de GPS del móvil', 'Google Maps, Waze…', 'data-act="phone"')) +
+      '<div class="note" style="padding:12px 16px">Escribe una dirección, un lugar o “lat,lon”: los resultados aparecen mientras escribes, los más cercanos primero.</div>';
     $$('[data-act]', list).forEach(d => d.onclick = () => { close(); d.dataset.act === 'map' ? Nav.switchMap() : Nav.openPhone(); });
+    $$('[data-del]', list).forEach(b => b.onclick = e => { e.stopPropagation(); S.navRecent.splice(+b.dataset.del, 1); save(); home(); });
     $$('[data-fav]', list).forEach(d => d.onclick = () => pick(f[d.dataset.fav])); $$('[data-r]', list).forEach(d => d.onclick = () => pick(rec[+d.dataset.r]));
     $$('[data-c]', list).forEach(b => b.onclick = () => { const c = CATS[+b.dataset.c]; inp.value = c[2]; run(c[2], true, true); });
   }
   const note = (h, retry) => { list.innerHTML = `<div class="note" style="padding:14px 16px">${h}</div>${retry ? '<div style="padding:0 16px 14px"><button class="btn" id="sxr" type="button">Reintentar</button></div>' : ''}`; const r = $('#sxr', list); if (r) r.onclick = () => run(inp.value, true); };
-  function show(rs, near) {
+  function show(rs, near, q) {
     const p = here();
     if (p) rs.forEach(r => r.d = dist(p, [r.lat, r.lon]));
-    if (near) rs.sort((a, b) => a.d - b.d);
+    if (p && near !== false) rs.sort((a, b) => a.d - b.d); // por cercanía (lo más próximo primero)
+    const nq = norm(q), mine = nq.length > 1 ? (S.navRecent || []).filter(r => norm(r.name + ' ' + (r.sub || '')).includes(nq)).slice(0, 3).map(r => ({ name: r.name, sub: [r.sub, 'ruta anterior'].filter(Boolean).join(' · '), lat: r.lat, lon: r.lon, ico: '🕘', d: p ? dist(p, [r.lat, r.lon]) : null, recent: true })) : [];
+    rs = [...mine, ...rs.filter(x => !mine.some(m => Math.abs(m.lat - x.lat) < .0006 && Math.abs(m.lon - x.lon) < .0006))];
     list.innerHTML = rs.map((r, i) => `<div class="sxi" data-i="${i}"><span class="sxe">${r.ico}</span><div><b>${esc(r.name)}</b><small>${esc(r.sub || '')}</small></div>${r.d != null ? `<em>${fmt(r.d)}</em>` : ''}</div>`).join('');
     $$('.sxi', list).forEach(d => d.onclick = () => pick(rs[+d.dataset.i]));
   }
   async function run(q, full, near) {
     q = (q || '').trim(); if (!q) return home(); const my = ++seq; last = q;
     const m = q.match(/^(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)$/);
-    if (m && Math.abs(+m[1]) <= 90 && Math.abs(+m[2]) <= 180) return show([{ name: 'Coordenadas ' + q, sub: 'Ir a este punto', lat: +m[1], lon: +m[2], ico: '🎯' }]);
+    if (m && Math.abs(+m[1]) <= 90 && Math.abs(+m[2]) <= 180) return show([{ name: 'Coordenadas ' + q, sub: 'Ir a este punto', lat: +m[1], lon: +m[2], ico: '🎯' }], false);
     list.innerHTML = '<div class="note" style="padding:14px 16px">Buscando…</div>';
     const errs = [], tryP = async (n, f) => { try { return await f(); } catch (e) { errs.push(n + ': ' + (e.name === 'AbortError' ? 'tarda demasiado' : e.message)); return null; } };
     let rs; const tt = await tryP('TomTom', () => tomtom(q));
-    if (tt && tt.length && !near) { if (my !== seq) return; return show(tt); }
+    if (tt && tt.length && !near) { if (my !== seq) return; return show(tt, true, q); }
     if (near) { rs = await tryP('Nominatim', () => nominatim(q, true)); if (!rs || !rs.length) { const r2 = await tryP('Photon', () => photon(q)); rs = r2 || rs; } }
     else if (full) { const [a, b] = await Promise.all([tryP('Photon', () => photon(q)), tryP('Nominatim', () => nominatim(q))]); rs = a || b ? merge(a || [], b || []) : null; }
     else { rs = await tryP('Photon', () => photon(q)); if (!rs || !rs.length) { const r2 = await tryP('Nominatim', () => nominatim(q)); rs = r2 || rs; } }
     if (my !== seq) return;
     if (!rs) return note('No se pudo buscar (' + esc(errs.join(' · ')) + '). Comprueba la conexión.', true);
-    if (!rs.length) return note('Sin resultados para “' + esc(q) + '”. Prueba con más detalle (calle, número, ciudad).');
-    show(rs, near);
+    if (!rs.length && !(S.navRecent || []).some(r => norm(r.name + ' ' + (r.sub || '')).includes(norm(q)))) return note('Sin resultados para “' + esc(q) + '”. Prueba con más detalle (calle, número, ciudad).');
+    show(rs, true, q);
   }
   function pick(d) {
     if (!d) return; close();
-    const go2 = () => Nav.routeTo({ name: d.name, lat: d.lat, lon: d.lon });
+    const go2 = () => Nav.routeTo({ name: d.name, lat: d.lat, lon: d.lon, sub: d.recent || !d.sub ? (d.sub || '').replace(' · ruta anterior', '').replace('ruta anterior', '') : d.sub });
     if (Nav.state.mx && document.querySelector('.navwrap')) go2(); else { go('map'); setTimeout(go2, 700); }
   }
   ACTIONS.search = ['Buscar destino', () => open()]; const bs = document.getElementById('btnSearch'); if (bs) bs.onclick = () => open();
