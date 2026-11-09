@@ -50,7 +50,7 @@ const Road = (() => {
       else { const ln = route || way; if (ln) { if (Nav.distToLine([n.lat, n.lon], ln) > (route ? 18 : 12)) continue; } else if (h == null || d > 150 || angDiff(bearing(p, [n.lat, n.lon]), h) > 12) continue; } // STOP, cedas… solo si están en mi vía (sin datos de la vía: solo si están justo delante)
       out.push({ type: n.t, d, id: n.id, lat: n.lat, lon: n.lon });
     }
-    if (S.radarAlerts !== false) Poi.camsNear(p, 600).forEach(c => { const d = dist(p, [c.lat, c.lon]); if (d < 8 || (h != null && angDiff(bearing(p, [c.lat, c.lon]), h) > 28)) return; out.push({ type: 'radar', d, id: c.id, max: c.max, lat: c.lat, lon: c.lon, label: Poi.RADL[c.k] }); });
+    if (S.radarAlerts !== false) Poi.camsNear(p, 600).forEach(c => { const d = dist(p, [c.lat, c.lon]); if (d < 8 || !Poi.onMyRoad(p, h, c)) return; out.push({ type: 'radar', d, id: c.id, max: c.max, lat: c.lat, lon: c.lon, label: Poi.RADL[c.k] }); });
     out.sort((a, b) => a.d - b.d);
     return out.filter((x, i) => !out.slice(0, i).some(y => y.type === x.type && dist([x.lat, x.lon], [y.lat, y.lon]) < 25)).slice(0, 6);
   }

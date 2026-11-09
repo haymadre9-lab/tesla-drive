@@ -11,6 +11,12 @@ const Poi = (() => {
   const dist = (a, b) => { const R = 6371000, dLa = rad(b[0] - a[0]), dLo = rad(b[1] - a[1]); const x = Math.sin(dLa / 2) ** 2 + Math.cos(rad(a[0])) * Math.cos(rad(b[0])) * Math.sin(dLo / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); };
   const bearing = (a, b) => (Math.atan2(Math.sin(rad(b[1] - a[1])) * Math.cos(rad(b[0])), Math.cos(rad(a[0])) * Math.sin(rad(b[0])) - Math.sin(rad(a[0])) * Math.cos(rad(b[0])) * Math.cos(rad(b[1] - a[1]))) * 180 / Math.PI + 360) % 360;
   const angDiff = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; };
+  /* ¿Este punto está por delante y en MI carretera/ruta? (los radares del otro sentido o de vías paralelas se descartan) */
+  function onMyRoad(p, h, c) {
+    const d = dist(p, [c.lat, c.lon]), rt = Nav.state.active && Nav.state.coords && Nav.state.coords.length > 1 ? Nav.state.coords : null, way = P.way && P.way.geom && P.way.geom.length > 1 ? P.way.geom : null, ln = rt || way;
+    if (ln) { if (Nav.distToLine([c.lat, c.lon], ln) > (rt ? 22 : 16)) return false; return h == null || angDiff(bearing(p, [c.lat, c.lon]), h) <= 50; }
+    return h != null && d <= 450 && angDiff(bearing(p, [c.lat, c.lon]), h) <= 9; // sin datos de la vía: solo si está justo delante
+  }
   const RADL = { fijo: 'Radar fijo', tramo: 'Radar de tramo', semaforo: 'Radar de semáforo', movil: 'Radar móvil (zona)' };
   /* Radares cercanos: los de OpenStreetMap + tu base de radares (data/radares.json), sin duplicados */
   function camsNear(p, r) {
@@ -66,6 +72,7 @@ const Poi = (() => {
   async function updateLimit(p) {
     const now = Date.now(); if (P.limitBusy || now - P.limitT < 8000) return; if (P.limitPos && dist(p, P.limitPos) < 50) return;
     P.limitBusy = true; P.limitT = now;
+    const tt = ttLimit(p); // en paralelo: TomTom da el límite; Overpass, la geometría de la vía
     try {
       const j = await ovp(`[out:json][timeout:10];way(around:30,${p[0]},${p[1]})[highway];out geom tags 8;`), FOOT = /^(footway|path|cycleway|steps|pedestrian|track|bridleway|corridor)$/;
       let near = null, nd = 1e9, best = null, bd = 1e9;
@@ -74,13 +81,24 @@ const Poi = (() => {
         if (d < nd) { nd = d; near = { name: w.tags?.name || '', ref: w.tags?.ref || '', highway: hw, geom }; }
         const m = parseMax(w.tags?.maxspeed); if (m && d < bd) { bd = d; best = m; }
       }
-      P.way = near; P.limit = best; P.limitPos = p; P.limitEst = best || !near ? null : estLimit(near.highway);
+      P.way = near; P.limit = best; P.limitPos = p; P.limitEst = best || !near ? null : estLimit(near.highway); P.limitSrc = best ? 'osm' : '';
     } catch { }
+    const t2 = await tt; if (t2) { P.limit = t2; P.limitSrc = 'tomtom'; P.limitEst = null; P.limitPos = p; }
     P.limitBusy = false; renderLimit();
   }
   /* Si la vía no trae maxspeed en OpenStreetMap, se estima por tipo de vía (valores genéricos de España; se marca como «estimado») */
   const EST = { motorway: 120, motorway_link: 60, trunk: 100, trunk_link: 60, primary: 90, secondary: 90, tertiary: 90, unclassified: 50, residential: 30, living_street: 20, service: 20 };
   const estLimit = hw => S.limitEst === false ? null : EST[hw] || null;
+  /* TomTom (opcional, con tu clave en Ajustes): límite de velocidad de la vía en mi posición */
+  async function ttLimit(p) {
+    let k = ''; try { k = localStorage.getItem('leco.tt') || ''; } catch { } if (!k) return null;
+    try {
+      const c = new AbortController(), t = setTimeout(() => c.abort(), 7000);
+      const r = await fetch(`https://api.tomtom.com/search/2/reverseGeocode/${p[0].toFixed(5)},${p[1].toFixed(5)}.json?key=${encodeURIComponent(k)}&returnSpeedLimit=true&radius=40`, { signal: c.signal }); clearTimeout(t);
+      if (!r.ok) { P.ttErr = 'HTTP ' + r.status; return null; } const j = await r.json(), s = j.addresses && j.addresses[0] && j.addresses[0].address && j.addresses[0].address.speedLimit;
+      const m = s && String(s).match(/([\d.]+)\s*(KPH|MPH)?/i); if (!m) { P.ttErr = 'sin límite en esta vía'; return null; } P.ttErr = ''; return Math.round(+m[1] * (/MPH/i.test(m[2] || '') ? 1.609 : 1) / 5) * 5;
+    } catch (e) { P.ttErr = e.name === 'AbortError' ? 'tarda demasiado' : e.message; return null; }
+  }
   function renderLimit() {
     const eff = P.limit || P.limitEst || null, est = !P.limit && !!P.limitEst, kmh = Math.round(GPS.speed * 3.6), over = eff && kmh > eff + 3;
     const lim = eff ? (S.speedUnit === 'mph' ? Math.round(eff / 1.609) : eff) : null;
@@ -94,7 +112,7 @@ const Poi = (() => {
   function alerts(p, kmh) {
     const bar = $('#alertbar'); if (!bar) return;
     const h = P.heading; const cands = [];
-    if (S.radarAlerts) camsNear(p, 1500).forEach(c => cands.push({ id: c.id, lat: c.lat, lon: c.lon, ico: '📷', label: RADL[c.k] || 'Radar', max: c.max }));
+    if (S.radarAlerts) camsNear(p, 1500).filter(c => onMyRoad(p, h, c)).forEach(c => cands.push({ id: c.id, lat: c.lat, lon: c.lon, ico: '📷', label: RADL[c.k] || 'Radar', max: c.max }));
     if (S.layers.reports) liveReports().forEach(r => cands.push({ id: 'r' + r.id, lat: r.lat, lon: r.lon, ico: REP[r.type][0], label: REP[r.type][1] }));
     let best = null, bd = 1e9, now = Date.now();
     for (const c of cands) {
@@ -152,5 +170,5 @@ const Poi = (() => {
     });
   }
   function init() { try { const j = JSON.parse(localStorage.getItem(KEY) || '{}'); ['cams', 'chargers', 'fuel'].forEach(k => P[k] = j[k] || []); } catch { } }
-  return { camsNear, RADL, init, onPos, attach, draw, refresh, reportDlg, renderLimit, ovp, need: k => { P.need[k] = true; refresh(); }, state: P, clearReports: () => { S.reports = []; save(); draw(); } };
+  return { onMyRoad, camsNear, RADL, init, onPos, attach, draw, refresh, reportDlg, renderLimit, ovp, need: k => { P.need[k] = true; refresh(); }, state: P, clearReports: () => { S.reports = []; save(); draw(); } };
 })();

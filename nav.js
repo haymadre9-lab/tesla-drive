@@ -50,9 +50,9 @@ const Nav = (() => {
   function build() {
     const el = document.createElement('div'); el.className = 'navwrap';
     el.innerHTML = `<div id="navmap"></div>
-      <button class="btn sec nsbtn" id="nsb" type="button" title="Buscar destino">🔍</button><div class="navtop"><div class="navsearch"><button class="nqfake" id="nq" type="button"><span>🔍</span> ¿A dónde vamos?</button><button class="btn sec" id="nph" title="Abrir en app de GPS del móvil">📲</button><button class="btn sec" id="nmaps" title="Cambiar de mapa">🗺</button></div>
+      <button class="btn sec nsbtn" id="nsb" type="button" title="Buscar destino"><svg viewBox="0 0 24 24" width="22" height="22"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M15.5 15.5L21 21" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/></svg></button><div class="navtop"><div class="navsearch"><button class="nqfake" id="nq" type="button"><span>🔍</span> ¿A dónde vamos?</button><button class="btn sec" id="nph" title="Abrir en app de GPS del móvil">📲</button><button class="btn sec" id="nmaps" title="Cambiar de mapa">🗺</button></div>
         <div class="navchips" id="nchips"></div></div>
-      <div class="navtools" id="ntools"><button id="nzi" title="Acercar">＋</button><button id="nzo" title="Alejar">－</button><button id="n3d" title="Cambiar entre vista 3D inclinada y mapa 2D">3D</button><button id="ncmp" title="Norte arriba"><i>▲</i></button></div>
+      <div class="navtools" id="ntools"><button id="nsq" title="Buscar destino"><svg viewBox="0 0 24 24" width="22" height="22"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M15.5 15.5L21 21" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/></svg></button><button id="nzi" title="Acercar">＋</button><button id="nzo" title="Alejar">－</button><button id="n3d" title="Cambiar entre vista 3D inclinada y mapa 2D">3D</button><button id="ncmp" title="Norte arriba"><i>▲</i></button></div>
       <div class="navguide" id="nguide" hidden><div class="ni" id="nicon">⬆</div><div class="nt"><b id="ndist">—</b><span id="ntext"></span></div></div>
       <div class="navbar" id="nbar" hidden><div><b id="nrem">—</b><small>restante</small></div><div><b id="neta">—</b><small>llegada</small></div><div><b id="nspd">0</b><small id="nspu">km/h</small></div>
         <button class="btn sec" id="nmute">🔊</button><button class="btn sec" id="nctr">🎯</button><button class="btn sec" id="nfav">⭐</button><button class="btn bad" id="nstop">✕ Terminar</button></div>
@@ -72,10 +72,10 @@ const Nav = (() => {
   const shade = (hex, f) => { const v = parseInt((/^#[0-9a-f]{6}$/i.test(hex) ? hex : '#ff2d2d').slice(1), 16), m = c => Math.max(0, Math.min(255, Math.round(f >= 0 ? c + (255 - c) * f : c * (1 + f)))); return `rgb(${m(v >> 16)},${m(v >> 8 & 255)},${m(v & 255)})`; };
   let UID = 0;
   const ICONS = { // cada icono recibe el color elegido y devuelve [html, [ancho, alto]] a tamaño 100 %
-    arrow: c => { const u = 'ar' + (++UID); return [`<div class="nme arrow"><svg viewBox="-22 -22 44 48" overflow="visible"><defs><linearGradient id="${u}l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${shade(c, .35)}"/><stop offset="1" stop-color="${c}"/></linearGradient><linearGradient id="${u}r" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${shade(c, -.12)}"/><stop offset="1" stop-color="${shade(c, -.3)}"/></linearGradient></defs>
-      <ellipse cx="0" cy="19" rx="14" ry="4.5" fill="rgba(0,0,0,.38)"/>
-      <path d="M0 -19 L-17 17 L0 8Z" fill="url(#${u}l)"/><path d="M0 -19 L17 17 L0 8Z" fill="url(#${u}r)"/>
-      <path d="M0 -19 L-17 17 L0 8 L17 17Z" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"/></svg></div>`, [38, 42]]; },
+    arrow: c => { const u = 'ar' + (++UID); return [`<div class="nme arrow"><svg viewBox="-22 -22 44 48" overflow="visible"><defs><linearGradient id="${u}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${shade(c, .3)}"/><stop offset=".5" stop-color="${shade(c, .3)}"/><stop offset=".5" stop-color="${shade(c, -.22)}"/><stop offset="1" stop-color="${shade(c, -.22)}"/></linearGradient></defs>
+      <ellipse cx="0" cy="17" rx="14" ry="4.5" fill="rgba(0,0,0,.38)"/>
+      <polygon points="0,-15 -13,13 0,6 13,13" fill="#fff" stroke="#fff" stroke-width="9" stroke-linejoin="round"/>
+      <polygon points="0,-15 -13,13 0,6 13,13" fill="url(#${u})" stroke="url(#${u})" stroke-width="5" stroke-linejoin="round"/></svg></div>`, [44, 50]]; },
     dot: c => [`<div class="nme" style="--acc:${c}"><i></i></div>`, [34, 34]],
     chev: c => [`<div class="nme chev"><svg viewBox="-20 -20 40 40"><path d="M0 -17 L13 15 L0 8 L-13 15Z" fill="${c}" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/></svg></div>`, [44, 44]],
     car: () => ['<div class="nme car"><svg viewBox="-20 -34 40 68"><rect x="-14" y="-31" width="28" height="62" rx="12" fill="#eef2f8" stroke="#0b0f17" stroke-width="2"/><rect x="-10" y="-17" width="20" height="13" rx="4" fill="#243247"/><rect x="-10" y="9" width="20" height="9" rx="3" fill="#243247"/><rect x="-17" y="-22" width="4" height="10" rx="2" fill="#0b0f17"/><rect x="13" y="-22" width="4" height="10" rx="2" fill="#0b0f17"/><rect x="-17" y="12" width="4" height="10" rx="2" fill="#0b0f17"/><rect x="13" y="12" width="4" height="10" rx="2" fill="#0b0f17"/></svg></div>', [40, 68]],
@@ -118,7 +118,7 @@ const Nav = (() => {
       if (N.snap) { F.bb = tb; F.cp = tp; F.cz = tz; N.snap = false; } else { F.bb = angLerp(F.bb, tb, kk); F.cp += (tp - F.cp) * kk; F.cz = F.cz == null ? tz : F.cz + (tz - F.cz) * (1 - Math.exp(-dt / 1.1)); }
       m.view(F.disp, N.tz == null ? tz : F.cz, { bearing: F.bb, pitch: F.cp });
     }
-    const e = meEl(); if (e && F.cb != null) e.style.setProperty('--h', (F.cb - m.bearing()) + 'deg');
+    const e = meEl(); if (e) { if (F.cb != null) e.style.setProperty('--h', (F.cb - m.bearing()) + 'deg'); e.style.setProperty('--tilt', (m.pitch() * .7).toFixed(1) + 'deg'); }
   }
   requestAnimationFrame(frame);
   function drawRoute() { if (!N.mx) return; N.mx.line(N.active || N.coords.length ? N.coords : null, S.accent || '#3e9bff'); }
@@ -133,7 +133,7 @@ const Nav = (() => {
       $('#nq', N.el).onclick = () => openSearch();
       $('#nph', N.el).onclick = () => navDlg(appById('maps') || { n: 'GPS', e: '🧭', k: 'gmaps' });
       $('#nmaps', N.el).onclick = () => Maps.switchFrom(N.el);
-      $('#nsb', N.el).onclick = () => openSearch();
+      $('#nsb', N.el).onclick = () => openSearch(); $('#nsq', N.el).onclick = () => openSearch();
       $('#nstop', N.el).onclick = stop; $('#nsim', N.el).onclick = simulate;
       $('#nctr', N.el).onclick = () => { N.follow = true; N.tzUser = false; if (N.pos) centerOn(N.pos, N.mx.zoom(), true); };
       $('#nzi', N.el).onclick = () => zoomBtn(1); $('#nzo', N.el).onclick = () => zoomBtn(-1); $('#n3d', N.el).onclick = () => { if (!N.mx.can3d) return toast('Este navegador no admite el mapa 3D (sin WebGL): se usa el mapa 2D', 3500); setMode(!is3d()); toast(is3d() ? 'Vista 3D' : 'Vista 2D'); };
@@ -255,5 +255,5 @@ const Nav = (() => {
     }, 1000);
   }
   function prefill(q) { go('map'); setTimeout(() => openSearch(q), 150); }
-  return { applyStyle: () => applyStyle(), setMode, toggle3d: () => { if (!N.mx) return; if (!N.mx.can3d) return toast('Este navegador no admite el mapa 3D'); setMode(!is3d()); toast(is3d() ? 'Vista 3D' : 'Vista 2D'); }, render, mount: el => render(el, true), onPos, prefill, routeTo, search, state: N, instr, distToLine: distToRoute, summary: () => N.sum };
+  return { applyStyle: () => applyStyle(), openPhone: () => navDlg(appById('maps') || { n: 'GPS', e: '🧭', k: 'gmaps' }), switchMap: () => Maps.switchFrom(N.el), setMode, toggle3d: () => { if (!N.mx) return; if (!N.mx.can3d) return toast('Este navegador no admite el mapa 3D'); setMode(!is3d()); toast(is3d() ? 'Vista 3D' : 'Vista 2D'); }, render, mount: el => render(el, true), onPos, prefill, routeTo, search, state: N, instr, distToLine: distToRoute, summary: () => N.sum };
 })();

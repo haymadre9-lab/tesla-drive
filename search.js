@@ -68,8 +68,10 @@ const Search = (() => {
     const item = (ico, t, s, attr) => `<div class="sxi" ${attr}><span class="sxe">${ico}</span><div><b>${esc(t)}</b>${s ? `<small>${esc(s)}</small>` : ''}</div></div>`;
     list.innerHTML = `<div class="sxc">${CATS.map((c, i) => `<button type="button" class="chip" data-c="${i}">${c[0]} ${c[1]}</button>`).join('')}</div>` +
       item('🏠', 'Casa', f.home ? f.home.name : 'Sin definir: termina una ruta y pulsa ⭐', f.home ? 'data-fav="home"' : 'data-none="1"') + item('💼', 'Trabajo', f.work ? f.work.name : 'Sin definir', f.work ? 'data-fav="work"' : 'data-none="1"') +
+      item('🗺', 'Cambiar de mapa', 'Usar otro mapa o PWA en esta ventana', 'data-act="map"') + (S.teslaMode ? '' : item('📲', 'Abrir en la app de GPS del móvil', 'Google Maps, Waze…', 'data-act="phone"')) +
       (rec.length ? '<div class="sxh">Recientes</div>' + rec.map((r, i) => item('🕘', r.name, '', `data-r="${i}"`)).join('') : '') +
       '<div class="note" style="padding:12px 16px">Escribe una dirección, un lugar o “lat,lon”. Los resultados aparecen mientras escribes.</div>';
+    $$('[data-act]', list).forEach(d => d.onclick = () => { close(); d.dataset.act === 'map' ? Nav.switchMap() : Nav.openPhone(); });
     $$('[data-fav]', list).forEach(d => d.onclick = () => pick(f[d.dataset.fav])); $$('[data-r]', list).forEach(d => d.onclick = () => pick(rec[+d.dataset.r]));
     $$('[data-c]', list).forEach(b => b.onclick = () => { const c = CATS[+b.dataset.c]; inp.value = c[2]; run(c[2], true, true); });
   }
