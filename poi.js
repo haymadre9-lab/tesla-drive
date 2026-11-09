@@ -5,7 +5,7 @@
 
 const Poi = (() => {
   const P = { cams: [], chargers: [], fuel: [], limit: null, way: null, limitPos: null, limitT: 0, limitBusy: false, fetched: {}, fbusy: {}, need: {}, map: null, groups: {}, said: {}, prev: null, heading: null, lastDraw: 0 };
-  const OVP = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+  const OVP = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://overpass.private.coffee/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
   const KEY = 'leco.poi', CAP = { cams: 2500, chargers: 900, fuel: 900 };
   const rad = x => x * Math.PI / 180;
   const dist = (a, b) => { const R = 6371000, dLa = rad(b[0] - a[0]), dLo = rad(b[1] - a[1]); const x = Math.sin(dLa / 2) ** 2 + Math.cos(rad(a[0])) * Math.cos(rad(b[0])) * Math.sin(dLo / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); };
@@ -17,7 +17,7 @@ const Poi = (() => {
   function speak(t) { if (!S.voice || !('speechSynthesis' in window)) return; try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t); u.lang = 'es-ES'; speechSynthesis.speak(u); } catch { } }
   async function ovp(q) {
     for (const u of OVP) {
-      try { const c = new AbortController(), t = setTimeout(() => c.abort(), 22000); const r = await fetch(u, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, signal: c.signal }); clearTimeout(t); if (r.ok) return await r.json(); } catch { }
+      try { const c = new AbortController(), t = setTimeout(() => c.abort(), 22000); const r = await fetch(u, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, signal: c.signal }); clearTimeout(t); if (r.ok) { const j = await r.json(); if (j.remark && !(j.elements || []).length) continue; return j; } } catch { }
     }
     throw new Error('overpass');
   }
@@ -67,15 +67,18 @@ const Poi = (() => {
         if (d < nd) { nd = d; near = { name: w.tags?.name || '', ref: w.tags?.ref || '', highway: hw, geom }; }
         const m = parseMax(w.tags?.maxspeed); if (m && d < bd) { bd = d; best = m; }
       }
-      P.way = near; P.limit = best; P.limitPos = p;
+      P.way = near; P.limit = best; P.limitPos = p; P.limitEst = best || !near ? null : estLimit(near.highway);
     } catch { }
     P.limitBusy = false; renderLimit();
   }
+  /* Si la vía no trae maxspeed en OpenStreetMap, se estima por tipo de vía (valores genéricos de España; se marca como «estimado») */
+  const EST = { motorway: 120, motorway_link: 60, trunk: 100, trunk_link: 60, primary: 90, secondary: 90, tertiary: 90, unclassified: 50, residential: 30, living_street: 20, service: 20 };
+  const estLimit = hw => S.limitEst === false ? null : EST[hw] || null;
   function renderLimit() {
-    const kmh = Math.round(GPS.speed * 3.6), over = P.limit && kmh > P.limit + 3;
-    const lim = P.limit ? (S.speedUnit === 'mph' ? Math.round(P.limit / 1.609) : P.limit) : null;
+    const eff = P.limit || P.limitEst || null, est = !P.limit && !!P.limitEst, kmh = Math.round(GPS.speed * 3.6), over = eff && kmh > eff + 3;
+    const lim = eff ? (S.speedUnit === 'mph' ? Math.round(eff / 1.609) : eff) : null;
     const st = $('#stLimit'); if (st) { st.hidden = !lim; st.textContent = lim || ''; }
-    $$('.limsign,.limchip').forEach(e => { e.hidden = !lim; e.textContent = lim || ''; });
+    $$('.limsign,.limchip').forEach(e => { e.hidden = !lim; e.textContent = lim || ''; e.classList.toggle('est', est); e.title = est ? 'Límite estimado por el tipo de vía (no figura en el mapa)' : ''; });
     $$('.spdbub,.cock').forEach(e => e.classList.toggle('over', !!over)); $('#stSpeed')?.classList.toggle('over', !!over);
   }
 

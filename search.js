@@ -33,7 +33,7 @@ const Search = (() => {
   /* ── Interfaz ── */
   function build() {
     el = document.createElement('div'); el.id = 'sx'; el.hidden = true;
-    el.innerHTML = '<div class="sxp"><div class="sxbar"><input id="sxq" type="search" enterkeyhint="search" placeholder="Dirección, lugar o lat,lon" autocomplete="off" autocorrect="off" spellcheck="false"><button class="btn" id="sxgo" type="button">Buscar</button><button class="btn sec" id="sxx" type="button" aria-label="Cerrar">✕</button></div><div class="sxl" id="sxl"></div></div>';
+    el.innerHTML = '<div class="sxp"><div class="sxbar"><input id="sxq" type="search" enterkeyhint="search" placeholder="Dirección, lugar o lat,lon" autocomplete="off" autocorrect="off" spellcheck="false"><button class="btn" id="sxgo" type="button">Buscar</button><button class="btn sec" id="sxx" type="button" aria-label="Cerrar"><svg viewBox="0 0 24 24" width="20" height="20"><path d="M5 5L19 19M19 5L5 19" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/></svg></button></div><div class="sxl" id="sxl"></div></div>';
     document.body.append(el); inp = $('#sxq', el); list = $('#sxl', el);
     $('#sxx', el).onclick = close; $('#sxgo', el).onclick = () => run(inp.value, true);
     el.addEventListener('pointerdown', e => { if (e.target === el) close(); });

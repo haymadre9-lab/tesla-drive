@@ -503,3 +503,14 @@ html[data-theme=light] .sxp{background:#fff;color:#111826;border-color:rgba(0,0,
 body.searching .navtop,body.searching .navtools{pointer-events:none;}
 .navlayers{top:236px;} @media (max-height:560px) and (min-aspect-ratio:1/1){ .navlayers{top:auto;} }
 .fwin.flat .navwrap:not(.tools-on) .navtools,.navwrap.tools-off .navtools{display:none;}
+
+/* ══ Controles de edición dibujados con SVG (sin depender de glifos de la fuente) y botón de quitar en rojo ══ */
+.wres::after{content:none !important;} .wres{display:grid;place-items:center;width:52px;height:52px;} .wres svg{display:block;pointer-events:none;}
+.wtool button{width:44px;height:44px;padding:0;display:grid;place-items:center;color:var(--txt);} .wtool svg{pointer-events:none;display:block;}
+.wtool [data-t=del]{width:52px;height:52px;background:#e0141b;border:3px solid #fff;box-shadow:0 0 0 3px #e0141b,0 6px 18px rgba(0,0,0,.65);color:#fff;} .wtool [data-t=del]:active{background:#a80d12;}
+.sxbar #sxx svg{display:block;}
+.nme.arrow::before,.nme.chev::before,.nme.car::before{display:none !important;} .nme.arrow svg,.nme.chev svg,.nme.car svg{width:100% !important;height:100% !important;display:block;} .nme.arrow svg{filter:drop-shadow(0 5px 7px rgba(0,0,0,.55));} .nme.arrow,.nme.chev,.nme.car{transition:transform .25s linear;}
+.rg-ic{display:grid;place-items:center;} .rg-ic svg{width:19cqmin;height:19cqmin;display:block;filter:drop-shadow(0 2px 5px rgba(0,0,0,.6));} .rg-x{display:flex;gap:3cqmin;justify-content:center;margin-top:1cqmin;} .rg-x span{display:flex;align-items:center;gap:1cqmin;font-size:5cqmin;opacity:.9;} .rg-x svg{width:6.5cqmin;height:6.5cqmin;} .rg-x b{font-weight:600;font-variant-numeric:tabular-nums;}
+.limchip.est,.limsign.est,#stLimit.est{border-style:dashed;opacity:.88;}
+.rg .rg-ic svg,.rg .rg-x svg{position:static;inset:auto;} .rg .rg-ic svg{width:17cqmin;height:17cqmin;} .rg .rg-x svg{width:6.5cqmin;height:6.5cqmin;} .rg .rg-ic{margin-top:8cqmin;line-height:0;}
+.rg .rg-ic{margin-top:13cqmin;} .rg .rg-ic svg{width:15cqmin;height:15cqmin;}
