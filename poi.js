@@ -11,6 +11,13 @@ const Poi = (() => {
   const dist = (a, b) => { const R = 6371000, dLa = rad(b[0] - a[0]), dLo = rad(b[1] - a[1]); const x = Math.sin(dLa / 2) ** 2 + Math.cos(rad(a[0])) * Math.cos(rad(b[0])) * Math.sin(dLo / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); };
   const bearing = (a, b) => (Math.atan2(Math.sin(rad(b[1] - a[1])) * Math.cos(rad(b[0])), Math.cos(rad(a[0])) * Math.sin(rad(b[0])) - Math.sin(rad(a[0])) * Math.cos(rad(b[0])) * Math.cos(rad(b[1] - a[1]))) * 180 / Math.PI + 360) % 360;
   const angDiff = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; };
+  const RADL = { fijo: 'Radar fijo', tramo: 'Radar de tramo', semaforo: 'Radar de semáforo', movil: 'Radar móvil (zona)' };
+  /* Radares cercanos: los de OpenStreetMap + tu base de radares (data/radares.json), sin duplicados */
+  function camsNear(p, r) {
+    const out = P.cams.filter(c => dist(p, [c.lat, c.lon]) <= r).map(c => ({ id: 'c' + c.id, lat: c.lat, lon: c.lon, max: c.max, k: c.type === 'traffic_signals' ? 'semaforo' : c.type === 'average_speed' ? 'tramo' : 'fijo' }));
+    if (typeof Data !== 'undefined') Data.near('rad', p, r).forEach(x => { if (dist(p, [x.lat, x.lon]) <= r && !out.some(o => Math.abs(o.lat - x.lat) < .0003 && Math.abs(o.lon - x.lon) < .0003)) out.push(x); });
+    return out;
+  }
   const REP = { accident: ['💥', 'Accidente'], hazard: ['⚠️', 'Peligro en la vía'], stopped: ['🚗', 'Vehículo parado'], pothole: ['🕳️', 'Bache'], jam: ['🐌', 'Retención'] };
   const HOUR3 = 3 * 3600e3;
 
@@ -87,7 +94,7 @@ const Poi = (() => {
   function alerts(p, kmh) {
     const bar = $('#alertbar'); if (!bar) return;
     const h = P.heading; const cands = [];
-    if (S.radarAlerts) P.cams.forEach(c => cands.push({ id: 'c' + c.id, lat: c.lat, lon: c.lon, ico: '📷', label: c.type === 'traffic_signals' ? 'Radar de semáforo' : c.type === 'average_speed' ? 'Radar de tramo' : 'Radar', max: c.max }));
+    if (S.radarAlerts) camsNear(p, 1500).forEach(c => cands.push({ id: c.id, lat: c.lat, lon: c.lon, ico: '📷', label: RADL[c.k] || 'Radar', max: c.max }));
     if (S.layers.reports) liveReports().forEach(r => cands.push({ id: 'r' + r.id, lat: r.lat, lon: r.lon, ico: REP[r.type][0], label: REP[r.type][1] }));
     let best = null, bd = 1e9, now = Date.now();
     for (const c of cands) {
@@ -122,7 +129,7 @@ const Poi = (() => {
     const on = k => S.layers[k] || (k === 'cams' && S.radarAlerts && S.layers.cams);
     ['cams', 'chargers', 'fuel', 'reports'].forEach(k => {
       const g = P.groups[k]; if (!S.layers[k]) return;
-      if (k === 'cams') P.cams.filter(near).forEach(x => g.add([x.lat, x.lon], icon('📷', 'cam'), SZ, () => info(`📷 Radar${x.max ? ' · ' + x.max + ' km/h' : ''}`, 'Radar fijo (datos de OpenStreetMap). Puede no estar actualizado.', x)));
+      if (k === 'cams') camsNear(cc, 12000).slice(0, 400).forEach(x => g.add([x.lat, x.lon], icon('📷', x.k === 'movil' ? 'rep' : 'cam'), SZ, () => info(`📷 ${RADL[x.k] || 'Radar'}${x.max ? ' · ' + x.max + ' km/h' : ''}`, x.k === 'movil' ? 'Zona donde puede haber radar móvil: no es un aviso en tiempo real.' : 'Datos de tu base de radares / OpenStreetMap. Puede no estar actualizado.', x)));
       if (k === 'chargers') P.chargers.filter(near).forEach(x => g.add([x.lat, x.lon], icon('⚡', x.tesla ? 'tesla' : 'chg'), SZ, () => info('⚡ ' + x.name, [x.op, x.cap ? x.cap + ' puntos' : ''].filter(Boolean).join(' · '), x, true)));
       if (k === 'fuel') P.fuel.filter(near).forEach(x => g.add([x.lat, x.lon], icon('⛽', 'fuel'), SZ, () => info('⛽ ' + x.name, x.op, x, true)));
       if (k === 'reports') liveReports().forEach(r => g.add([r.lat, r.lon], icon(REP[r.type][0], 'rep'), SZ, () => dlg(`<h3>${REP[r.type][0]} ${REP[r.type][1]}</h3><div class="note">Reportado hace ${Math.round((Date.now() - r.t) / 60000)} min (solo en este dispositivo).</div><div class="acts"><button class="btn bad" id="d">Eliminar</button><button class="btn sec" id="c">Cerrar</button></div>`, d => { $('#c', d).onclick = closeDlg; $('#d', d).onclick = () => { S.reports = S.reports.filter(z => z !== r); save(); closeDlg(); draw(); }; })));
@@ -145,5 +152,5 @@ const Poi = (() => {
     });
   }
   function init() { try { const j = JSON.parse(localStorage.getItem(KEY) || '{}'); ['cams', 'chargers', 'fuel'].forEach(k => P[k] = j[k] || []); } catch { } }
-  return { init, onPos, attach, draw, refresh, reportDlg, renderLimit, ovp, need: k => { P.need[k] = true; refresh(); }, state: P, clearReports: () => { S.reports = []; save(); draw(); } };
+  return { camsNear, RADL, init, onPos, attach, draw, refresh, reportDlg, renderLimit, ovp, need: k => { P.need[k] = true; refresh(); }, state: P, clearReports: () => { S.reports = []; save(); draw(); } };
 })();

@@ -72,11 +72,10 @@ const Nav = (() => {
   const shade = (hex, f) => { const v = parseInt((/^#[0-9a-f]{6}$/i.test(hex) ? hex : '#ff2d2d').slice(1), 16), m = c => Math.max(0, Math.min(255, Math.round(f >= 0 ? c + (255 - c) * f : c * (1 + f)))); return `rgb(${m(v >> 16)},${m(v >> 8 & 255)},${m(v & 255)})`; };
   let UID = 0;
   const ICONS = { // cada icono recibe el color elegido y devuelve [html, [ancho, alto]] a tamaño 100 %
-    arrow: c => { const u = 'ar' + (++UID); return [`<div class="nme arrow"><svg viewBox="-26 -32 52 70" overflow="visible"><defs><linearGradient id="${u}l" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${shade(c, .45)}"/><stop offset="1" stop-color="${c}"/></linearGradient><linearGradient id="${u}r" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${shade(c, -.1)}"/><stop offset="1" stop-color="${shade(c, -.5)}"/></linearGradient></defs>
-      <ellipse cx="0" cy="26" rx="21" ry="9" fill="rgba(0,0,0,.45)" filter="blur(3px)"/>
-      <path d="M0 -20 L-18 28 L0 16 L18 28Z" transform="translate(0 7)" fill="${shade(c, -.72)}" stroke="${shade(c, -.72)}" stroke-width="3" stroke-linejoin="round"/>
-      <path d="M0 -29 L-18 21 L0 9Z" fill="url(#${u}l)"/><path d="M0 -29 L18 21 L0 9Z" fill="url(#${u}r)"/>
-      <path d="M0 -29 L-18 21 L0 9 L18 21Z" fill="none" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/><path d="M0 -26 L0 8" stroke="rgba(255,255,255,.55)" stroke-width="1.6" stroke-linecap="round"/></svg></div>`, [48, 64]]; },
+    arrow: c => { const u = 'ar' + (++UID); return [`<div class="nme arrow"><svg viewBox="-22 -22 44 48" overflow="visible"><defs><linearGradient id="${u}l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${shade(c, .35)}"/><stop offset="1" stop-color="${c}"/></linearGradient><linearGradient id="${u}r" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${shade(c, -.12)}"/><stop offset="1" stop-color="${shade(c, -.3)}"/></linearGradient></defs>
+      <ellipse cx="0" cy="19" rx="14" ry="4.5" fill="rgba(0,0,0,.38)"/>
+      <path d="M0 -19 L-17 17 L0 8Z" fill="url(#${u}l)"/><path d="M0 -19 L17 17 L0 8Z" fill="url(#${u}r)"/>
+      <path d="M0 -19 L-17 17 L0 8 L17 17Z" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"/></svg></div>`, [38, 42]]; },
     dot: c => [`<div class="nme" style="--acc:${c}"><i></i></div>`, [34, 34]],
     chev: c => [`<div class="nme chev"><svg viewBox="-20 -20 40 40"><path d="M0 -17 L13 15 L0 8 L-13 15Z" fill="${c}" stroke="#fff" stroke-width="2.6" stroke-linejoin="round"/></svg></div>`, [44, 44]],
     car: () => ['<div class="nme car"><svg viewBox="-20 -34 40 68"><rect x="-14" y="-31" width="28" height="62" rx="12" fill="#eef2f8" stroke="#0b0f17" stroke-width="2"/><rect x="-10" y="-17" width="20" height="13" rx="4" fill="#243247"/><rect x="-10" y="9" width="20" height="9" rx="3" fill="#243247"/><rect x="-17" y="-22" width="4" height="10" rx="2" fill="#0b0f17"/><rect x="13" y="-22" width="4" height="10" rx="2" fill="#0b0f17"/><rect x="-17" y="12" width="4" height="10" rx="2" fill="#0b0f17"/><rect x="13" y="12" width="4" height="10" rx="2" fill="#0b0f17"/></svg></div>', [40, 68]],
@@ -95,9 +94,33 @@ const Nav = (() => {
   const angLerp = (a, b, t) => { let d = ((b - a + 540) % 360) - 180; return (a + d * t + 360) % 360; };
   function centerOn(p, z, anim) { // coloca mi posición en el punto de enfoque (centro, derecha o izquierda; en 3D, abajo)
     const m = N.mx, d3 = is3d(); m.focus(N.fx, d3 ? .26 : 0);
-    if (d3) m.view(p, z == null ? m.zoom() : Math.min(z, 17.4), { anim: !!anim, dur: 900, linear: true, bearing: N.hdg == null ? m.bearing() : N.hdg, pitch: 58 });
+    if (m.kind === 'gl' && F.fix && N.follow) { if (z != null) N.tz = z; return; } // en GL lo mueve el bucle de animación
+    if (d3) m.view(p, z == null ? m.zoom() : Math.min(z, 17.4), { anim: !!anim, dur: 900, linear: true, bearing: N.hd == null ? m.bearing() : N.hd, pitch: 58 });
     else m.view(p, z, { anim: !!anim, dur: 700, bearing: 0, pitch: 0 });
   }
+  function zoomBtn(d) { if (N.mx.kind === 'gl' && F.fix && N.follow) { N.tzUser = true; N.tz = Math.max(3, Math.min(19, (N.tz == null ? N.mx.zoom() : N.tz) + d)); } else N.mx.zoomBy(d); }
+  /* Animación fluida: la posición, el rumbo, la inclinación y el zoom se interpolan a 60 fps entre un GPS y el siguiente
+     (el GPS llega ~1 vez por segundo; si se moviera todo a saltos, la flecha iría a trompicones) */
+  const F = { fix: null, fixT: 0, v: [0, 0], off: [0, 0], disp: null, cb: null, bb: 0, cp: 0, cz: null, last: 0 };
+  const meEl = () => N.me && N.me.el && (N.me._e || (N.me._e = N.me.el.querySelector('.nme')));
+  const followCam = () => N.follow && (N.active || ((page === 'map' || N.fx !== .5) && !N.coords.length));
+  function frame(t) {
+    requestAnimationFrame(frame);
+    if (!N.mx || !F.fix || !N.me || document.hidden) { F.last = t; return; }
+    const dt = Math.min(.1, Math.max(0, (t - (F.last || t)) / 1000)); F.last = t;
+    const age = Math.min(2.5, (Date.now() - F.fixT) / 1000), k = Math.exp(-dt / .6); F.off = [F.off[0] * k, F.off[1] * k];
+    F.disp = [F.fix[0] + F.v[0] * age + F.off[0], F.fix[1] + F.v[1] * age + F.off[1]]; N.me.set(F.disp);
+    if (N.hd != null) F.cb = F.cb == null ? N.hd : angLerp(F.cb, N.hd, 1 - Math.exp(-dt / .45));
+    const m = N.mx;
+    if (m.kind === 'gl' && followCam() && N.el.isConnected) {
+      const d3 = is3d(), kk = 1 - Math.exp(-dt / .5); m.focus(N.fx, d3 ? .26 : 0);
+      const tb = d3 && F.cb != null ? F.cb : 0, tz = N.tz == null ? m.zoom() : N.tz, tp = d3 ? 58 : 0;
+      if (N.snap) { F.bb = tb; F.cp = tp; F.cz = tz; N.snap = false; } else { F.bb = angLerp(F.bb, tb, kk); F.cp += (tp - F.cp) * kk; F.cz = F.cz == null ? tz : F.cz + (tz - F.cz) * (1 - Math.exp(-dt / 1.1)); }
+      m.view(F.disp, N.tz == null ? tz : F.cz, { bearing: F.bb, pitch: F.cp });
+    }
+    const e = meEl(); if (e && F.cb != null) e.style.setProperty('--h', (F.cb - m.bearing()) + 'deg');
+  }
+  requestAnimationFrame(frame);
   function drawRoute() { if (!N.mx) return; N.mx.line(N.active || N.coords.length ? N.coords : null, S.accent || '#3e9bff'); }
   function setMode(d3) {
     S.map3d = !!d3; save(); const b = $('#n3d', N.el); if (b) { b.textContent = is3d() ? '3D' : '2D'; b.classList.toggle('on', is3d()); }
@@ -112,8 +135,8 @@ const Nav = (() => {
       $('#nmaps', N.el).onclick = () => Maps.switchFrom(N.el);
       $('#nsb', N.el).onclick = () => openSearch();
       $('#nstop', N.el).onclick = stop; $('#nsim', N.el).onclick = simulate;
-      $('#nctr', N.el).onclick = () => { N.follow = true; if (N.pos) centerOn(N.pos, N.mx.zoom(), true); };
-      $('#nzi', N.el).onclick = () => N.mx.zoomBy(1); $('#nzo', N.el).onclick = () => N.mx.zoomBy(-1); $('#n3d', N.el).onclick = () => { if (!N.mx.can3d) return toast('Este navegador no admite el mapa 3D (sin WebGL): se usa el mapa 2D', 3500); setMode(!is3d()); toast(is3d() ? 'Vista 3D' : 'Vista 2D'); };
+      $('#nctr', N.el).onclick = () => { N.follow = true; N.tzUser = false; if (N.pos) centerOn(N.pos, N.mx.zoom(), true); };
+      $('#nzi', N.el).onclick = () => zoomBtn(1); $('#nzo', N.el).onclick = () => zoomBtn(-1); $('#n3d', N.el).onclick = () => { if (!N.mx.can3d) return toast('Este navegador no admite el mapa 3D (sin WebGL): se usa el mapa 2D', 3500); setMode(!is3d()); toast(is3d() ? 'Vista 3D' : 'Vista 2D'); };
       $('#ncmp', N.el).onclick = () => { N.hdg = null; N.mx.resetNorth(); N.follow = false; };
       $('#nmute', N.el).onclick = () => { N.muted = !N.muted; $('#nmute', N.el).textContent = N.muted ? '🔇' : '🔊'; if (N.muted) try { speechSynthesis.cancel(); } catch { } };
       $('#nfav', N.el).onclick = saveFav;
@@ -133,7 +156,7 @@ const Nav = (() => {
     N.mx = MapX.create(box, { c: p, z: 15, style: (N.opt && N.opt.mapstyle) || S.mapStyle || 'auto' }); N.map = N.mx; N.iconKey = null;
     N.mx.onUser(() => { N.follow = false; });
     N.mx.onMove(() => { if (Date.now() - (Poi.state.lastDraw || 0) > 4000) { Poi.state.lastDraw = Date.now(); Poi.draw(); } });
-    N.mx.onRotate(() => { const a = $('.nme', N.el); if (a && N.hd != null) a.style.setProperty('--h', (N.hd - N.mx.bearing()) + 'deg'); const c = $('#ncmp i', N.el); if (c) c.style.transform = `rotate(${-N.mx.bearing()}deg)`; });
+    N.mx.onRotate(() => { const c = $('#ncmp i', N.el); if (c) c.style.transform = `rotate(${-N.mx.bearing()}deg)`; });
     if (window.ResizeObserver) new ResizeObserver(() => N.mx && N.mx.resize()).observe(box);
     applyStyle(); Poi.attach(N.mx);
     if (!N._thm) { N._thm = true; new MutationObserver(() => applyStyle()).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] }); }
@@ -164,7 +187,7 @@ const Nav = (() => {
     const r = await fetchRoute(o, d);
     if (!r.rt) { toast(r.none ? 'No hay ruta por carretera hasta ese lugar' : 'No se pudo calcular la ruta (' + (r.errs || []).join(' · ') + '). Reintenta en unos segundos.', 5000); return false; }
     const rt = r.rt;
-    N.route = rt; N.coords = rt.geometry.coordinates.map(c => [c[1], c[0]]); N.steps = rt.legs[0].steps; N.idx = 0; N.dest = d; N.off = 0; N.active = true; N.follow = true;
+    N.tzUser = false; N.route = rt; N.coords = rt.geometry.coordinates.map(c => [c[1], c[0]]); N.steps = rt.legs[0].steps; N.idx = 0; N.dest = d; N.off = 0; N.active = true; N.follow = true;
     N.steps.forEach(s => { s.v1 = s.v2 = false; });
     drawRoute(); if (N.dm) N.dm.remove(); N.dm = N.mx.marker([d.lat, d.lon], '<div class="poi" style="border-color:var(--acc);font-size:21px">🏁</div>', [36, 36]);
     if (!quiet) { N.mx.focus(N.fx, 0); N.mx.fit(N.coords); setTimeout(() => { N.follow = true; }, 4000); S.navRecent = [d, ...(S.navRecent || []).filter(x => x.name !== d.name)].slice(0, 5); save(); chips(); if (typeof Adv !== 'undefined') Adv.logTrip(d); say('Ruta calculada. ' + fmtD(rt.distance) + ' hasta ' + d.name); }
@@ -206,15 +229,17 @@ const Nav = (() => {
     N.active = false; clearInterval(N.simT); setTimeout(() => { if (!N.active) stop(); }, 8000);
   }
   function onPos(c) {
-    if (!N.mx) return; const p = [c.latitude, c.longitude], prev = N.pos; N.pos = p; N.me.set(p);
-    const kmh = (c.speed || 0) * 3.6;
-    let h = c.heading != null && !isNaN(c.heading) && kmh > 3 ? c.heading : (prev && dist(prev, p) > 6 ? (Math.atan2(rad(p[1] - prev[1]) * Math.cos(rad(prev[0])), rad(p[0] - prev[0])) * 180 / Math.PI + 360) % 360 : null);
-    if (h != null) { N.hd = h; N.hdg = N.hdg == null ? h : angLerp(N.hdg, h, .5); }
-    const a = $('.nme', N.el); if (a && N.hd != null) a.style.setProperty('--h', (N.hd - (is3d() ? (N.follow ? N.hdg : N.mx.bearing()) : 0)) + 'deg');
+    if (!N.mx) return; const p = [c.latitude, c.longitude], prev = N.pos; N.pos = p; const sp = c.speed || 0, kmh = sp * 3.6;
+    const h = c.heading != null && !isNaN(c.heading) && kmh > 3 ? c.heading : (prev && dist(prev, p) > 6 ? (Math.atan2(rad(p[1] - prev[1]) * Math.cos(rad(prev[0])), rad(p[0] - prev[0])) * 180 / Math.PI + 360) % 360 : null);
+    if (h != null) N.hd = h;
+    const hh = rad(N.hd == null ? 0 : N.hd), kl = 111320;
+    if (!F.disp || dist(F.disp, p) > 250) { F.disp = p; F.off = [0, 0]; N.snap = true; if (N.hd != null) F.cb = N.hd; } else F.off = [F.disp[0] - p[0], F.disp[1] - p[1]];
+    F.fix = p; F.fixT = Date.now(); F.v = sp > 1 && N.hd != null ? [sp * Math.cos(hh) / kl, sp * Math.sin(hh) / (kl * Math.max(.2, Math.cos(rad(p[0]))))] : [0, 0];
+    const gl = N.mx.kind === 'gl'; if (!gl) { N.me.set(p); const a = meEl(); if (a && N.hd != null) a.style.setProperty('--h', N.hd + 'deg'); }
     if (N.active) {
       update(p);
-      if (N.follow) { const v = spdConv(GPS.speed) * (S.speedUnit === 'mph' ? 1.609 : 1); centerOn(p, v < 30 ? 17 : v < 70 ? 16 : 15, true); }
-    } else if (N.follow && (page === 'map' || N.fx !== .5) && !N.coords.length) centerOn(p, N.mx.zoom(), is3d());
+      if (N.follow) { const v = spdConv(GPS.speed) * (S.speedUnit === 'mph' ? 1.609 : 1), z = v < 30 ? 17 : v < 70 ? 16 : 15; if (!N.tzUser) N.tz = is3d() ? Math.min(z, 17.4) : z; if (!gl) centerOn(p, z, true); }
+    } else if (N.follow && (page === 'map' || N.fx !== .5) && !N.coords.length) { if (!gl) centerOn(p, N.mx.zoom(), false); }
   }
   function simulate() {
     if (N.sim) { clearInterval(N.simT); N.sim = false; $('#nsim', N.el).textContent = '🧪 Simular ruta'; return; }
