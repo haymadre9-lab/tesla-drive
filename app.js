@@ -33,7 +33,7 @@ const DEF = {
   speedUnit: 'kmh', pressUnit: 'bar', tempUnit: 'c', tpWarn: 2.0, tpDanger: 1.6, spare: false,
   tires: { fl: 2.4, fr: 2.4, rl: 2.5, rr: 2.5 },
   fab: { on: true, click: 'home', long: 'daynight', x: null, y: null }, keys: [],
-  city: null, lastPos: null, last: {}, recent: [], teslaMode: IS_TESLA, voice: true, tripT: 0, dash: 'classic', dashboards: null, dock: null, syncMode: 'ask', syncUrl: '', winDots: true, cfgRev: 0, radarAlerts: true, poiSize: 60, autoFS: true, limitEst: true, navIcon: 'arrow', navIconColor: '#ff2d2d', navIconSize: 100, layers: { cams: true, chargers: false, fuel: false, reports: true }, reports: [], navRecent: [], favs: { home: null, work: null }, maxSpeed: 0, trip: 0,
+  city: null, lastPos: null, last: {}, recent: [], teslaMode: IS_TESLA, voice: true, tripT: 0, dash: 'classic', dashboards: null, dock: null, syncMode: 'ask', syncUrl: '', winDots: true, cfgRev: 0, radarAlerts: true, manStyle: 'a', poiSize: 60, autoFS: true, limitEst: true, navIcon: 'arrow', navIconColor: '#ff2d2d', navIconSize: 100, layers: { cams: true, chargers: false, fuel: false, reports: true }, reports: [], navRecent: [], favs: { home: null, work: null }, maxSpeed: 0, trip: 0,
 };
 let S;
 try { S = Object.assign(structuredClone(DEF), JSON.parse(localStorage.getItem('leco.v1') || '{}')); } catch { S = structuredClone(DEF); }
@@ -201,7 +201,7 @@ function promptDlg(title, ph = '', val = '') {
   return new Promise(ok => dlg(`<h3>${esc(title)}</h3><div class="f"><input class="in" id="dv" placeholder="${esc(ph)}" value="${esc(val)}"></div>
     <div class="acts"><button class="btn sec" id="dc">Cancelar</button><button class="btn" id="dk">Aceptar</button></div>`, d => {
     const i = $('#dv', d); i.focus(); const fin = v => { closeDlg(); ok(v); };
-    $('#dc', d).onclick = () => fin(null); $('#dk', d).onclick = () => fin(i.value.trim()); i.onkeydown = e => e.key === 'Enter' && fin(i.value.trim());
+    $('#dc', d).onclick = () => fin(null); $('#dk', d).onclick = () => fin(i.value.trim()); i.onkeydown = e => { if (e.key === 'Enter') fin(i.value.trim()); };
   }));
 }
 
@@ -406,7 +406,7 @@ function navDlg(a) {
     const i = $('#nd', d); i.focus();
     $$('[data-r]', d).forEach(c => c.onclick = () => { i.value = c.dataset.r; });
     const go1 = v => { closeDlg(); navigateTo(v, i.value); };
-    $('#n1', d).onclick = () => go1(via); $('#n3', d).onclick = () => go1('geo'); i.onkeydown = e => e.key === 'Enter' && go1(via);
+    $('#n1', d).onclick = () => go1(via); $('#n3', d).onclick = () => go1('geo'); i.onkeydown = e => { if (e.key === 'Enter') go1(via); };
     $('#c', d).onclick = closeDlg;
     $('#n2', d).onclick = () => {
       const q = i.value.trim(), p = myPos(); closeDlg();
@@ -625,7 +625,7 @@ function settingRow(it) {
   if (it.t === 'walls') return wallsEditor();
   if (it.t === 'keys') return keysEditor();
   const val = getK(it.k), r = el(`<div class="row"><div class="tx"><b>${esc(it.l)}</b>${it.d ? `<small>${esc(it.d)}</small>` : ''}</div><div class="ctrl"></div></div>`), c = $('.ctrl', r);
-  const commit = v => { setK(it.k, v); save(); applyTheme(); placeFab(); if (['wallMode', 'wallEffect', 'wallInterval'].includes(it.k)) Wall.apply(); if (['speedUnit', 'tempUnit', 'pressUnit', 'rows', 'colw', 'visualizer', 'hideLyrics'].includes(it.k)) refreshHome(); if (it.k === 'radarAlerts' || it.k.startsWith('layers.')) { Poi.draw(); Poi.refresh(); } if (['mapStyle', 'navIcon', 'navIconColor', 'navIconSize'].includes(it.k)) Nav.applyStyle(); if (it.k === 'poiSize') applyPoiSize(); };
+  const commit = v => { setK(it.k, v); save(); applyTheme(); placeFab(); if (['wallMode', 'wallEffect', 'wallInterval'].includes(it.k)) Wall.apply(); if (['speedUnit', 'tempUnit', 'pressUnit', 'rows', 'colw', 'visualizer', 'hideLyrics'].includes(it.k)) refreshHome(); if (it.k === 'radarAlerts' || it.k.startsWith('layers.')) { Poi.draw(); Poi.refresh(); } if (['mapStyle', 'navIcon', 'navIconColor', 'navIconSize'].includes(it.k)) Nav.applyStyle(); if (it.k === 'poiSize') applyPoiSize(); if (it.k === 'manStyle' && typeof Nav !== 'undefined') Nav.refreshMan(); };
   if (it.type === 'toggle') { const s = el(`<div class="sw ${val ? 'on' : ''}"></div>`); s.onclick = () => { s.classList.toggle('on'); commit(s.classList.contains('on')); }; c.append(s); }
   else if (it.type === 'select' || it.type === 'action') {
     const opts = it.type === 'action' ? Object.entries(ACTIONS).map(([k, v]) => [k, v[0]]) : OPT[it.k];
