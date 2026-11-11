@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0b0f17">
+<title>Wikipedia · lector para el coche</title>
+<style>
+:root{--bg:#0b0f17;--card:#151b27;--card2:#1d2635;--txt:#eef2f8;--dim:#93a0b4;--acc:#3e9bff;--bd:#263042;--fs:19px}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font:var(--fs)/1.55 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;overscroll-behavior:none}
+body{display:flex;flex-direction:column}
+header{display:flex;gap:8px;align-items:center;padding:8px 10px;background:#0e131d;border-bottom:1px solid var(--bd);flex:none}
+header input{flex:1;min-width:0;font:inherit;font-size:18px;padding:12px 14px;border-radius:14px;border:2px solid var(--bd);background:var(--card);color:var(--txt);outline:0;-webkit-text-fill-color:var(--txt)}
+header input:focus{border-color:var(--acc)}
+button{font:inherit;font-size:16px;color:var(--txt);background:var(--card2);border:0;border-radius:14px;padding:12px 14px;min-width:46px;cursor:pointer;touch-action:manipulation}
+button:active{filter:brightness(1.4)} button.pri{background:var(--acc);color:#fff;font-weight:700} button.on{outline:2px solid var(--acc)}
+#bar2{display:flex;gap:8px;padding:6px 10px;flex:none;overflow-x:auto;border-bottom:1px solid var(--bd);background:#0b1019}
+#main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 14px 60px}
+.note{color:var(--dim);padding:18px 4px}.err{color:#ff9b9b}
+.res{display:block;padding:14px 12px;margin:8px 0;background:var(--card);border-radius:16px;border:1px solid var(--bd);cursor:pointer}
+.res:active{background:var(--card2)} .res b{display:block;font-size:1.05em}.res small{color:var(--dim);display:block;margin-top:2px;line-height:1.4}.res em{float:right;font-style:normal;color:var(--acc);font-size:.85em;margin-left:10px}
+.searchmatch{color:var(--acc);font-weight:600}
+h1.t{font-size:1.5em;margin:8px 0 12px;line-height:1.2}
+#art{max-width:900px;margin:0 auto} #art p{margin:.7em 0} #art h2,#art h3{margin:1.2em 0 .4em;border-bottom:1px solid var(--bd);padding-bottom:.2em;line-height:1.25}
+#art a{color:var(--acc);text-decoration:none} #art img{max-width:100%;height:auto;border-radius:10px;background:#fff1} #art table{display:block;overflow-x:auto;max-width:100%;border-collapse:collapse;font-size:.85em;margin:10px 0} #art td,#art th{border:1px solid var(--bd);padding:5px 8px} #art ul,#art ol{padding-left:1.3em} #art figure{margin:10px 0} #art figcaption,#art .thumbcaption{color:var(--dim);font-size:.85em}
+#art .infobox,#art .infobox_v2{float:none;width:100%!important;margin:10px 0;background:var(--card);border-radius:12px;padding:6px}
+#art .mw-parser-output>.thumb,#art .thumb{float:none!important;margin:10px 0!important;width:auto!important}
+#art sup,#art .mw-cite-backlink{font-size:.7em}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <button id="back" class="hide" title="Volver">◀</button>
+  <input id="q" type="search" enterkeyhint="search" placeholder="Buscar en Wikipedia…" autocomplete="off" autocorrect="off" spellcheck="false">
+  <button id="go" class="pri">Buscar</button>
+</header>
+<div id="bar2">
+  <button id="near" title="Artículos de lugares cerca de ti">📍 Cerca de ti</button>
+  <button id="rnd" title="Artículo al azar">🎲 Al azar</button>
+  <button id="lang" title="Idioma">ES</button>
+  <button id="fsm" title="Letra más pequeña">A−</button><button id="fsp" title="Letra más grande">A+</button>
+  <button id="say" class="hide" title="Leer en voz alta">🔊 Leer</button>
+</div>
+<div id="main"><div class="note">Escribe algo para buscar, o toca <b>📍 Cerca de ti</b> para ver artículos de los sitios por donde pasas.</div></div>
+<script>
+'use strict';
+(() => {
+  const $ = id => document.getElementById(id), Q = new URLSearchParams(location.search);
+  const ls = { get: (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { } } };
+  let lang = ls.get('wk.lang', 'es') === 'en' ? 'en' : 'es', fs = +ls.get('wk.fs', 19) || 19, stack = [], cur = null, seq = 0, speaking = false;
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const T = { es: { s: 'Buscar en Wikipedia…', none: 'Sin resultados para ', near: 'Cerca de ti', geo: 'No se pudo obtener tu posición (activa el GPS y permite la ubicación).', fail: 'No se pudo conectar con Wikipedia. Comprueba la conexión.', retry: 'Reintentar', load: 'Cargando…', tts: 'es-ES', hint: 'Escribe algo para buscar, o toca <b>📍 Cerca de ti</b> para ver artículos de los sitios por donde pasas.' }, en: { s: 'Search Wikipedia…', none: 'No results for ', near: 'Near you', geo: 'Could not get your position (turn on GPS and allow location).', fail: 'Could not reach Wikipedia. Check your connection.', retry: 'Retry', load: 'Loading…', tts: 'en-US', hint: 'Type to search, or tap <b>📍 Near you</b> to see articles about the places you pass.' } };
+  const t = k => T[lang][k];
+  const api = async p => {
+    const c = new AbortController(), tm = setTimeout(() => c.abort(), 15000);
+    try { const r = await fetch(`https://${lang}.wikipedia.org/w/api.php?` + new URLSearchParams(Object.assign({ format: 'json', origin: '*' }, p)), { signal: c.signal }); if (!r.ok) throw new Error('HTTP ' + r.status); const j = await r.json(); if (j.error) throw new Error(j.error.info || j.error.code); return j; } finally { clearTimeout(tm); }
+  };
+  const main = $('main');
+  const applyFs = () => { document.documentElement.style.setProperty('--fs', fs + 'px'); ls.set('wk.fs', fs); };
+  const stopSay = () => { speaking = false; try { speechSynthesis.cancel(); } catch { } if ($('say')) $('say').classList.remove('on'); };
+  const fail = (e, retry) => { main.innerHTML = `<div class="note err">${esc(t('fail'))}<br><small>${esc(e && e.message || e)}</small></div><button class="pri" id="rt">${esc(t('retry'))}</button>`; $('rt').onclick = retry; };
+  const dist = m => m >= 1000 ? (m / 1000).toFixed(m >= 10000 ? 0 : 1) + ' km' : Math.round(m / 10) * 10 + ' m';
+  const home = () => { stopSay(); cur = null; if ($('say')) $('say').classList.add('hide'); main.innerHTML = `<div class="note">${t('hint')}</div>`; $('back').classList.toggle('hide', !stack.length); };
+
+  async function search(q) {
+    q = (q || '').trim(); if (!q) return; const my = ++seq; stopSay(); if ($('say')) $('say').classList.add('hide'); main.innerHTML = `<div class="note">${t('load')}</div>`;
+    try {
+      const j = await api({ action: 'query', list: 'search', srsearch: q, srlimit: 20, srprop: 'snippet' }); if (my !== seq) return;
+      const r = (j.query && j.query.search) || []; if (!r.length) { main.innerHTML = `<div class="note">${esc(t('none'))}«${esc(q)}»</div>`; return; }
+      main.innerHTML = r.map(x => `<a class="res" data-t="${esc(x.title)}"><b>${esc(x.title)}</b><small>${x.snippet.replace(/<(?!\/?span)[^>]*>/g, '').replace(/<span(?![^>]*searchmatch)[^>]*>/g, '')}…</small></a>`).join(''); main.scrollTop = 0;
+    } catch (e) { if (my === seq) fail(e, () => search(q)); }
+  }
+  function position() {
+    return new Promise((res, rej) => {
+      const la = parseFloat(Q.get('lat')), lo = parseFloat(Q.get('lon'));
+      if (navigator.geolocation) navigator.geolocation.getCurrentPosition(p => res([p.coords.latitude, p.coords.longitude]), () => Number.isFinite(la) && Number.isFinite(lo) ? res([la, lo]) : rej(new Error(t('geo'))), { timeout: 8000, maximumAge: 60000 });
+      else if (Number.isFinite(la) && Number.isFinite(lo)) res([la, lo]); else rej(new Error(t('geo')));
+    });
+  }
+  async function nearby() {
+    const my = ++seq; stopSay(); if ($('say')) $('say').classList.add('hide'); main.innerHTML = `<div class="note">${t('load')}</div>`;
+    try {
+      const p = await position(), j = await api({ action: 'query', list: 'geosearch', gscoord: p[0] + '|' + p[1], gsradius: 10000, gslimit: 40 }); if (my !== seq) return;
+      const r = ((j.query && j.query.geosearch) || []).sort((a, b) => a.dist - b.dist); if (!r.length) { main.innerHTML = `<div class="note">${esc(t('none'))}${esc(t('near'))}</div>`; return; }
+      main.innerHTML = `<div class="note">📍 ${esc(t('near'))}</div>` + r.map(x => `<a class="res" data-t="${esc(x.title)}"><em>${dist(x.dist)}</em><b>${esc(x.title)}</b></a>`).join(''); main.scrollTop = 0;
+    } catch (e) { if (my === seq) fail(e, nearby); }
+  }
+  async function random() { try { const j = await api({ action: 'query', list: 'random', rnnamespace: 0, rnlimit: 1 }); const x = j.query.random[0]; if (x) open(x.title); } catch (e) { fail(e, random); } }
+
+  /* El HTML de Wikipedia se limpia antes de mostrarlo: sin scripts, sin atributos on*, enlaces internos manejados aquí */
+  function clean(html) {
+    const d = new DOMParser().parseFromString('<div id="r">' + html + '</div>', 'text/html'), r = d.getElementById('r');
+    r.querySelectorAll('script,style,iframe,object,embed,form,link,meta,input,button,.mw-editsection,.navbox,.vertical-navbox,.sistersitebox,.noprint,.mw-empty-elt,.reference,.metadata,.ambox,.printfooter,.catlinks,.mw-authority-control,.navbar,.hatnote.navigation-not-searchable').forEach(n => n.parentNode && n.parentNode.removeChild(n));
+    r.querySelectorAll('*').forEach(n => { for (const a of [...n.attributes]) { const k = a.name.toLowerCase(); if (k.startsWith('on') || k === 'style' || k === 'srcset' || k === 'class' && false) n.removeAttribute(a.name); } });
+    r.querySelectorAll('a').forEach(a => {
+      const h = a.getAttribute('href') || '', m = h.match(/^(?:https?:)?(?:\/\/[a-z.]*wikipedia\.org)?\/wiki\/([^#?]+)/i);
+      if (m && !/^(Especial|Special|Archivo|File|Ayuda|Help|Wikipedia|Categor[ií]a|Category|Portal|Plantilla|Template|Discusi[oó]n|Talk|Imagen):/i.test(decodeURIComponent(m[1]))) { a.setAttribute('data-t', decodeURIComponent(m[1]).replace(/_/g, ' ')); a.removeAttribute('href'); }
+      else if (h.startsWith('#')) { a.removeAttribute('href'); a.removeAttribute('title'); }
+      else if (/^(https?:)?\/\//i.test(h)) { a.setAttribute('href', h.startsWith('//') ? 'https:' + h : h); a.setAttribute('target', '_blank'); a.setAttribute('rel', 'noopener noreferrer'); }
+      else { a.removeAttribute('href'); }
+    });
+    r.querySelectorAll('img').forEach(i => { const s = i.getAttribute('src') || ''; if (s.startsWith('//')) i.setAttribute('src', 'https:' + s); i.setAttribute('loading', 'lazy'); i.removeAttribute('width'); i.removeAttribute('height'); });
+    return r.innerHTML;
+  }
+  async function open(title, push = true) {
+    const my = ++seq; stopSay(); if (push && cur) stack.push(cur); main.innerHTML = `<div class="note">${t('load')}</div>`; $('back').classList.toggle('hide', !stack.length && !push);
+    try {
+      const j = await api({ action: 'parse', page: title, prop: 'text|displaytitle', redirects: 1, disableeditsection: 1, disabletoc: 1 }); if (my !== seq) return;
+      cur = title; main.innerHTML = `<h1 class="t">${esc((j.parse.title || title))}</h1><div id="art">${clean(j.parse.text['*'])}</div>`; main.scrollTop = 0; if ($('say')) $('say').classList.remove('hide'); $('back').classList.remove('hide');
+    } catch (e) { if (my === seq) { if (push && cur) stack.pop(); fail(e, () => open(title, false)); } }
+  }
+  function say() {
+    if (speaking) return stopSay();
+    const ps = [...document.querySelectorAll('#art p')].map(p => p.textContent.replace(/\[\d+\]/g, '').trim()).filter(x => x.length > 30).slice(0, 12); if (!ps.length) return;
+    const chunks = []; ps.join(' ').replace(/([^.!?]+[.!?]+)\s*/g, (m, s) => { if (chunks.length && (chunks[chunks.length - 1] + s).length < 220) chunks[chunks.length - 1] += s; else chunks.push(s); return ''; });
+    speaking = true; $('say').classList.add('on'); let i = 0;
+    const next = () => { if (!speaking || i >= chunks.length) return stopSay(); const u = new SpeechSynthesisUtterance(chunks[i++]); u.lang = t('tts'); u.onend = next; u.onerror = stopSay; speechSynthesis.speak(u); };
+    try { speechSynthesis.cancel(); } catch { } next();
+  }
+
+  main.addEventListener('click', e => { const a = e.target.closest('[data-t]'); if (a) { e.preventDefault(); open(a.dataset.t); } });
+  $('go').onclick = () => search($('q').value); $('q').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); search(e.target.value); e.target.blur(); } });
+  $('near').onclick = nearby; $('rnd').onclick = random; if ($('say')) $('say').onclick = say;
+  $('back').onclick = () => { if (stack.length) open(stack.pop(), false); else home(); };
+  $('lang').onclick = () => { lang = lang === 'es' ? 'en' : 'es'; ls.set('wk.lang', lang); $('lang').textContent = lang.toUpperCase(); $('q').placeholder = t('s'); if (cur) open(cur, false); else home(); };
+  $('fsm').onclick = () => { fs = Math.max(14, fs - 2); applyFs(); }; $('fsp').onclick = () => { fs = Math.min(34, fs + 2); applyFs(); };
+  if (!('speechSynthesis' in window)) $('say').remove();
+  $('lang').textContent = lang.toUpperCase(); $('q').placeholder = t('s'); applyFs();
+  if (Q.get('q')) { $('q').value = Q.get('q'); search(Q.get('q')); } else if (Q.get('near') === '1') nearby(); else home();
+  window.__wk = { clean, search, open, nearby };
+})();
+</script>
+</body>
+</html>

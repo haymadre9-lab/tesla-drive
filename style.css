@@ -554,3 +554,8 @@ html[data-theme=light] .navmenu{background:#fff;color:#111826;border-color:rgba(
 .tb-gps{width:15px;height:15px;border-radius:50%;background:#ff4d4d;box-shadow:0 0 9px rgba(255,77,77,.8);align-self:center;flex:none;} .tb-gps[data-ok="1"]{background:#39d98a;box-shadow:0 0 9px rgba(57,217,138,.85);}
 .navhdr{top:8px !important;} .fwin.flat .navwrap .navhdr{top:12px !important;right:14px !important;} .navtools{top:60px !important;} .fwin.flat .navwrap.tools-on .navtools{top:66px !important;}
 @media (max-height:560px) and (min-aspect-ratio:1/1){ .navhdr{top:4px !important;} .navtools{top:50px !important;} }
+
+/* ══ Catálogo de apps recomendadas ══ */
+.cat-l{max-height:62vh;overflow-y:auto;margin:8px -4px;padding:0 4px;-webkit-overflow-scrolling:touch;} .cat-h{margin:14px 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);} .cat-r{display:flex;gap:12px;align-items:center;padding:10px;border-radius:14px;background:var(--card);margin:6px 0;border:1px solid var(--bd);}
+.cat-e{font-size:28px;width:38px;text-align:center;flex:none;} .cat-t{flex:1;min-width:0;} .cat-t b{font-size:16px;} .cat-t small{display:block;color:var(--dim);font-size:13px;line-height:1.35;margin-top:2px;} .cat-b{display:flex;flex-direction:column;gap:6px;flex:none;} .cat-b .btn{padding:8px 12px;font-size:13px;}
+.cat-g{display:inline-block;font-size:11px;padding:2px 8px;border-radius:99px;background:rgba(128,138,155,.2);vertical-align:middle;margin-left:4px;font-weight:600;}

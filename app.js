@@ -22,7 +22,10 @@ const DEF_APPS = [
   { id: 'windy', n: 'Windy', u: 'https://www.windy.com', e: '🌬️', k: 'windy' },
   { id: 'hud', n: 'Tesla HUD (antiguo)', u: 'old-hud/index.html', e: '🚘' },
   { id: 'gmail', n: 'Gmail', u: 'https://mail.google.com', e: '✉️', k: 'blocked' },
-  { id: 'wiki', n: 'Wikipedia', u: 'https://es.m.wikipedia.org', e: '📚' },
+  { id: 'wiki', n: 'Wikipedia', u: 'mini/wiki.html', e: '📚', k: 'wikipro' },
+  { id: 'rain', n: 'Radar de lluvia', u: 'mini/lluvia.html', e: '🌧️', k: 'rain' },
+  { id: 'media', n: 'Reproductor por enlace', u: 'https://youtube.com', e: '🎶', k: 'media' },
+  { id: 'lichess', n: 'Lichess TV (ajedrez)', u: 'https://lichess.org/tv/frame?theme=brown&bg=dark', e: '♟️', k: 'lichess' },
 ];
 const DEF = {
   theme: 'auto-time', accent: '#3e9bff', radius: 22, colw: 300, rows: 2, rhd: false,
@@ -365,11 +368,30 @@ function ytEmbed(t) {
   if (id) return `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0${list ? '&list=' + list : ''}`;
   if (list) return `https://www.youtube-nocookie.com/embed/videoseries?list=${list}&autoplay=1`;
 }
+/* Reproductor por enlace: cada servicio tiene su widget/embed oficial (los sitios normales prohíben el iframe). Devuelve {u, n} o null. */
+function mediaEmbed(v) {
+  v = String(v || '').trim(); let m;
+  const yt = ytEmbed(v); if (yt) return { u: yt, n: 'YouTube' };
+  if ((m = v.match(/open\.spotify\.com\/(?:intl-\w+\/)?(track|album|playlist|episode|show|artist)\/(\w+)/))) return { u: `https://open.spotify.com/embed/${m[1]}/${m[2]}`, n: 'Spotify' };
+  if (/soundcloud\.com\/[\w-]+/i.test(v) && !/on\.soundcloud\.com/i.test(v)) return { u: `https://w.soundcloud.com/player/?url=${encodeURIComponent(v.split('?')[0])}&auto_play=true&show_comments=false`, n: 'SoundCloud' };
+  if ((m = v.match(/mixcloud\.com(\/[\w-]+\/[\w%-]+)/i))) return { u: `https://www.mixcloud.com/widget/iframe/?hide_cover=1&autoplay=1&feed=${encodeURIComponent(m[1] + '/')}`, n: 'Mixcloud' };
+  if ((m = v.match(/^https?:\/\/(music|podcasts)\.apple\.com(\/\S+)$/i))) return { u: `https://embed.${m[1].toLowerCase()}.apple.com${m[2]}`, n: m[1].toLowerCase() === 'music' ? 'Apple Music' : 'Apple Podcasts' };
+  if ((m = v.match(/deezer\.com\/(?:[a-z]{2}\/)?(track|album|playlist|artist|episode|show)\/(\d+)/i))) return { u: `https://widget.deezer.com/widget/dark/${m[1].toLowerCase()}/${m[2]}`, n: 'Deezer' };
+  if ((m = v.match(/vimeo\.com\/(?:video\/)?(\d{6,})/i))) return { u: `https://player.vimeo.com/video/${m[1]}?autoplay=1`, n: 'Vimeo' };
+  if ((m = v.match(/(?:dailymotion\.com\/video\/|dai\.ly\/)([a-z0-9]+)/i))) return { u: `https://www.dailymotion.com/embed/video/${m[1]}?autoplay=1`, n: 'Dailymotion' };
+  if ((m = v.match(/^https?:\/\/(?:www\.|m\.)?twitch\.tv\/(\w{3,25})\/?$/i))) return { u: `https://player.twitch.tv/?channel=${m[1]}&parent=${location.hostname || 'localhost'}`, n: 'Twitch' };
+  return null;
+}
 async function embedFor(a) {
   const L = S.last, ask = async (k, title, ph) => { const v = await promptDlg(title, ph, L[k] || ''); if (v) { L[k] = v; save(); } return v; };
   const bad = m => (toast(m, 3000), null);
   switch (a.k) {
     case 'blocked': return { blocked: true };
+    case 'wazemap': { const p = myPos(); return { u: `https://embed.waze.com/iframe?zoom=13&lat=${p[0]}&lon=${p[1]}&pin=1`, smart: 1 }; }
+    case 'wikipro': { const p = myPos(); return { u: `mini/wiki.html?lat=${p[0].toFixed(4)}&lon=${p[1].toFixed(4)}`, smart: 1 }; }
+    case 'rain': { const p = myPos(); return { u: `mini/lluvia.html?lat=${p[0].toFixed(3)}&lon=${p[1].toFixed(3)}`, smart: 1 }; }
+    case 'lichess': return { u: 'https://lichess.org/tv/frame?theme=brown&bg=dark', orig: 'https://lichess.org/tv', smart: 1 };
+    case 'media': { const v = await ask('media', 'Pega el enlace: YouTube, Spotify, SoundCloud, Mixcloud, Apple Music, Deezer, Vimeo, Dailymotion o Twitch', 'https://…'); if (v === null) return null; const r = mediaEmbed(v); return r ? { u: r.u, orig: v, smart: 1 } : bad('No reconozco ese enlace. Prueba con uno de YouTube, Spotify, SoundCloud, Mixcloud, Apple Music, Deezer, Vimeo, Dailymotion o Twitch'); }
     case 'gmaps': { const q = await ask('gmaps', 'Google Maps: lugar o dirección (vacío = tu posición)', 'Ej. Gasolinera cerca'); if (q === null) return null; const p = myPos(); return { u: `https://maps.google.com/maps?q=${encodeURIComponent(q || p.join(','))}&z=15&output=embed`, orig: 'https://www.google.com/maps/search/' + encodeURIComponent(q || p.join(',')), smart: 1 }; }
     case 'waze': { const p = myPos(); return { u: `https://embed.waze.com/iframe?zoom=14&lat=${p[0]}&lon=${p[1]}&pin=1`, smart: 1 }; }
     case 'windy': { const p = myPos(); return { u: `https://embed.windy.com/embed2.html?lat=${p[0].toFixed(2)}&lon=${p[1].toFixed(2)}&zoom=7&level=surface&overlay=wind&product=ecmwf&marker=true&message=true`, smart: 1 }; }
