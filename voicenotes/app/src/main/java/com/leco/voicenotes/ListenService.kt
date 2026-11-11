@@ -54,6 +54,14 @@ class ListenService : Service() {
 
         @Volatile var running = false
         @Volatile var status = "Detenido"
+
+        /** Estado que sobrevive si Android mata el proceso: want = el usuario quiere escuchar; alive = servicio vivo. */
+        fun prefs(ctx: Context) = ctx.getSharedPreferences("state", Context.MODE_PRIVATE)
+
+        fun event(ctx: Context, text: String) {
+            val t = java.text.SimpleDateFormat("dd/MM HH:mm", Locale("es")).format(java.util.Date())
+            prefs(ctx).edit().putString("lastEvent", "$t · $text").apply()
+        }
     }
 
     private lateinit var db: NoteDb
@@ -89,13 +97,18 @@ class ListenService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
+            prefs(this).edit().putBoolean("want", false).apply()
             stopSelf()
             return START_NOT_STICKY
         }
         if (running) return START_STICKY
-        startInForeground()
+        if (!startInForeground()) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
         running = true
         stopFlag = false
+        prefs(this).edit().putBoolean("alive", true).apply()
 
         val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "voicenotes:listen").apply { acquire() }
@@ -121,6 +134,7 @@ class ListenService : Service() {
         stopFlag = true
         running = false
         status = "Detenido"
+        prefs(this).edit().putBoolean("alive", false).apply()
         try { lm.removeUpdates(locListener) } catch (_: Exception) {}
         worker?.interrupt()
         tts?.shutdown()
@@ -131,7 +145,7 @@ class ListenService : Service() {
 
     // ---------- notificación fija ----------
 
-    private fun startInForeground() {
+    private fun startInForeground(): Boolean {
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         nm.createNotificationChannel(
             NotificationChannel(CHANNEL, "Escucha de notas", NotificationManager.IMPORTANCE_LOW)
@@ -159,9 +173,11 @@ class ListenService : Service() {
             } else {
                 startForeground(NOTIF_ID, n)
             }
+            return true
         } catch (e: Exception) {
             status = "No se pudo iniciar: ${e.message}"
-            stopSelf()
+            event(this, "No se pudo reactivar la escucha (${e.javaClass.simpleName}). Ábrela desde la app.")
+            return false
         }
     }
 
@@ -270,12 +286,13 @@ class ListenService : Service() {
             speak(rec, "No te he entendido")
             return
         }
-        val (cat, content) = Parser.parse(raw)
+        val (cat, content) = Parser.parse(raw, CatStore.all(this))
+        val label = CatStore.find(this, cat).label
         val loc = lastLoc
         db.insert(content, cat, loc?.latitude, loc?.longitude)
         NoteSync.kick(this, db)
-        status = "Guardado en $cat: $content"
-        speak(rec, "Anotado en $cat")
+        status = "Guardado en $label: $content"
+        speak(rec, "Anotado en $label")
     }
 
     private fun dictate(model: Model, rec: AudioRecord, buf: ShortArray): String {

@@ -11,7 +11,7 @@ APK Android (Kotlin) para dictar notas conduciendo, sin tocar el móvil. Todo gr
    - "lugar la ferretería buena está aquí" (guarda tu ubicación)
 4. Tras 2 s de silencio la guarda y responde por voz: "Anotado en trabajo".
 
-Pantalla: pestañas por categoría con color e icono (💼 trabajo azul, 🏠 casa naranja, 🛒 compra verde, 📍 lugar rojo, 📝 general violeta), secciones por fecha («Hoy», «Ayer»…) o por cercanía, tocar una nota la marca como hecha, 🧭 navega al punto guardado (o 🔎 busca el texto en el mapa) y ＋ añade una nota escribiendo. La pestaña Ajustes explica el uso, sincroniza con Tesla Drive y ayuda con la batería de Realme.
+Pestañas editables (✎ Editar o Ajustes → Pestañas): añade, quita o renombra tipos de nota, elige icono, color y las palabras con las que se reconocen al dictar; «Sindicato» viene incluida. Pantalla: pestañas por categoría con color e icono (💼 trabajo azul, 🏠 casa naranja, 🛒 compra verde, 📍 lugar rojo, 📝 general violeta), secciones por fecha («Hoy», «Ayer»…) o por cercanía, tocar una nota la marca como hecha, 🧭 navega al punto guardado (o 🔎 busca el texto en el mapa) y ＋ añade una nota escribiendo. La pestaña Ajustes explica el uso, sincroniza con Tesla Drive y ayuda con la batería de Realme.
 
 ## Compilar
 Actions → *Compilar Notas de Voz* → descarga el artefacto `NotasDeVoz-apk` (APK de depuración, instalable directamente).

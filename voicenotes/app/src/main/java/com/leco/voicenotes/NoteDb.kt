@@ -96,6 +96,20 @@ class NoteDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, "notes.db"
         writableDatabase.update("notes", v, "id=?", arrayOf(id.toString()))
     }
 
+    /** Mueve las notas de una pestaña a otra (al borrar una pestaña) y las deja pendientes de reenviar. */
+    @Synchronized
+    fun reassign(oldKey: String, newKey: String) {
+        val v = ContentValues().apply { put("cat", newKey); put("synced", 0) }
+        writableDatabase.update("notes", v, "cat=?", arrayOf(oldKey))
+    }
+
+    /** Reenvía las notas de una pestaña (cuando cambia su nombre, icono o color). */
+    @Synchronized
+    fun resyncCat(key: String) {
+        val v = ContentValues().apply { put("synced", 0) }
+        writableDatabase.update("notes", v, "cat=?", arrayOf(key))
+    }
+
     @Synchronized
     fun delete(id: Long) {
         writableDatabase.delete("notes", "id=?", arrayOf(id.toString()))

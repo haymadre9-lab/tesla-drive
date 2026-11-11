@@ -225,6 +225,42 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:text="🗂  Pestañas y palabras que reconoce"
+                        android:textColor="@color/text"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="Añade, quita o renombra tipos de nota y elige con qué palabra los reconoce al dictar (por ejemplo «sindicato»)."
+                        android:textColor="@color/dim"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:id="@+id/catsBtn"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:background="@drawable/bg_btn_sec"
+                        android:gravity="center"
+                        android:padding="12dp"
+                        android:text="Editar pestañas"
+                        android:textColor="@color/text" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/bg_card"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
                         android:text="☁️  Sincronizar con Tesla Drive"
                         android:textColor="@color/text"
                         android:textSize="16sp"
@@ -306,6 +342,14 @@
                         android:lineSpacingExtra="3dp"
                         android:text="Realme/ColorOS cierra apps en segundo plano. Pulsa el botón y:\n• Permite «Inicio automático» y «Actividad en segundo plano».\n• Quita el ahorro de batería para esta app.\n• En Recientes, bloquea la app (candado)."
                         android:textColor="@color/dim"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:id="@+id/killInfo"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:textColor="@color/text"
                         android:textSize="13sp" />
 
                     <TextView

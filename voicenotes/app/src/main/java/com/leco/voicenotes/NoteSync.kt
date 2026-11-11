@@ -70,10 +70,13 @@ object NoteSync {
         return "e1:" + Base64.getEncoder().encodeToString(iv + ct)
     }
 
-    private fun payload(n: Note): String = JSONObject().apply {
+    private fun payload(n: Note, cat: CatDef): String = JSONObject().apply {
         put("i", "${n.ts}-${n.id}")
         put("t", n.text)
         put("c", n.cat)
+        put("cl", cat.label)
+        put("ce", cat.emoji)
+        put("cc", String.format("#%06X", cat.color and 0xFFFFFF))
         put("s", n.ts)
         put("u", System.currentTimeMillis()) // versión: Tesla Drive aplica la más reciente
         if (n.lat != null && n.lon != null) {
@@ -82,7 +85,7 @@ object NoteSync {
         }
     }.toString()
 
-    private fun post(code: String, n: Note): Boolean {
+    private fun post(ctx: Context, code: String, n: Note): Boolean {
         val conn = URL(BASE + topic(code)).openConnection() as HttpURLConnection
         try {
             conn.requestMethod = "POST"
@@ -90,7 +93,7 @@ object NoteSync {
             conn.readTimeout = 10_000
             conn.doOutput = true
             conn.setRequestProperty("Content-Type", "text/plain")
-            conn.outputStream.use { it.write(encrypt(code, payload(n)).toByteArray(Charsets.UTF_8)) }
+            conn.outputStream.use { it.write(encrypt(code, payload(n, CatStore.find(ctx, n.cat))).toByteArray(Charsets.UTF_8)) }
             return conn.responseCode in 200..299
         } finally {
             conn.disconnect()
@@ -104,7 +107,7 @@ object NoteSync {
         val pending = db.unsynced()
         if (pending.isEmpty()) { lastStatus = "Sincronizado"; return }
         for (n in pending) {
-            val ok = try { post(code, n) } catch (e: Exception) { false }
+            val ok = try { post(ctx, code, n) } catch (e: Exception) { false }
             if (!ok) { lastStatus = "Sin conexión: ${pending.size} nota(s) pendientes"; return }
             db.markSynced(n.id)
         }

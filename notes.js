@@ -12,8 +12,18 @@ const Notes = (() => {
   const rd = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch { return d; } };
   const wr = (k, v) => { try { localStorage.setItem(k, v); } catch { } };
   const js = (k, d) => { try { const v = JSON.parse(rd(k, '')); return v ?? d; } catch { return d; } };
-  const CAT = { trabajo: '💼', casa: '🏠', compra: '🛒', lugar: '📍', general: '📝' };
-  const N = { code: rd(K.code, ''), list: js(K.list, []), del: js(K.del, []), es: null, gen: 0, estado: '', onState: null, sort: 'date', cat: 'todas' };
+  /* Pestañas por defecto; el móvil envía nombre, icono y color de las que crees o renombres (Notas de Voz → Pestañas). */
+  const DEF = { trabajo: { e: '💼', l: 'Trabajo', c: '#1E88E5' }, casa: { e: '🏠', l: 'Casa', c: '#FB8C00' }, compra: { e: '🛒', l: 'Compra', c: '#43A047' }, lugar: { e: '📍', l: 'Lugar', c: '#E53935' }, sindicato: { e: '✊', l: 'Sindicato', c: '#00ACC1' }, general: { e: '📝', l: 'General', c: '#8E6CEF' } };
+  const K2 = 'leco.notes.cats';
+  const N = { cats: js(K2, {}), code: rd(K.code, ''), list: js(K.list, []), del: js(K.del, []), es: null, gen: 0, estado: '', onState: null, sort: 'date', cat: 'todas' };
+  const ci = k => N.cats[k] || DEF[k] || DEF.general;
+  const known = k => typeof k === 'string' && !!(N.cats[k] || DEF[k]);
+  function upsertCat(j) { // el móvil manda nombre/icono/color de la pestaña con cada nota
+    if (typeof j.c !== 'string' || typeof j.cl !== 'string' || !j.cl.trim() || j.c.length > 40) return false;
+    const v = { e: String(j.ce || '🏷').slice(0, 8), l: j.cl.trim().slice(0, 30), c: /^#[0-9a-f]{6}$/i.test(j.cc) ? j.cc : '#8E6CEF' }, o = N.cats[j.c];
+    if (o && o.e === v.e && o.l === v.l && o.c === v.c) return false;
+    N.cats[j.c] = v; wr(K2, JSON.stringify(N.cats)); return true;
+  }
   const norm = c => String(c || '').toLowerCase().replace(/[^a-z0-9]/g, '');
   const valid = () => norm(N.code).length >= 8;
   const state = s => { N.estado = s; if (N.onState) N.onState(s); };
@@ -41,13 +51,14 @@ const Notes = (() => {
   function accept(j) {
     if (!j || typeof j.i !== 'string' || typeof j.t !== 'string' || !j.t.trim()) return false;
     if (N.del.includes(j.i)) return false;
+    const cch = upsertCat(j), ck = known(j.c) ? j.c : 'general';
     const old = N.list.find(n => n.i === j.i), u = +j.u || 0;
     if (old) { // ya la tenía: solo se actualiza si es una edición más reciente
-      if (u <= (old.u || 0) || (old.t === j.t.slice(0, 2000) && old.c === (CAT[j.c] ? j.c : 'general'))) return false;
-      old.t = j.t.slice(0, 2000); old.c = CAT[j.c] ? j.c : 'general'; old.u = u; return 'upd';
+      if (u <= (old.u || 0) || (old.t === j.t.slice(0, 2000) && old.c === ck)) return cch ? 'cat' : false;
+      old.t = j.t.slice(0, 2000); old.c = ck; old.u = u; return 'upd';
     }
     const ok = typeof j.la === 'number' && typeof j.lo === 'number' && Math.abs(j.la) <= 90 && Math.abs(j.lo) <= 180;
-    N.list.push({ i: j.i.slice(0, 60), t: j.t.slice(0, 2000), c: CAT[j.c] ? j.c : 'general', u, s: +j.s || Date.now(), la: ok ? j.la : null, lo: ok ? j.lo : null });
+    N.list.push({ i: j.i.slice(0, 60), t: j.t.slice(0, 2000), c: ck, u, s: +j.s || Date.now(), la: ok ? j.la : null, lo: ok ? j.lo : null });
     return true;
   }
 
@@ -67,7 +78,7 @@ const Notes = (() => {
       try {
         const m = JSON.parse(ev.data); if (m.event !== 'message') return;
         const j = await decrypt(d.key, m.message);
-        const r = accept(j); if (r) { save(); toast((r === 'upd' ? '📝 Nota editada: ' : '📝 Nota nueva: ') + j.t.slice(0, 60), 3500); if (N.onState) N.onState('Enlazado · ' + N.list.length + ' notas'); }
+        const r = accept(j); if (r) { save(); if (r !== 'cat') toast((r === 'upd' ? '📝 Nota editada: ' : '📝 Nota nueva: ') + j.t.slice(0, 60), 3500); if (N.onState) N.onState('Enlazado · ' + N.list.length + ' notas'); }
       } catch { /* mensaje ajeno o corrupto: se ignora */ }
     };
   }
@@ -91,7 +102,7 @@ const Notes = (() => {
 
   function dialog() {
     dlg(`<h3>📝 Notas del móvil</h3>
-      <div class="adv-ask"><select class="in" id="ntc"><option value="todas">Todas</option>${Object.keys(CAT).map(c => `<option value="${c}">${CAT[c]} ${c}</option>`).join('')}</select>
+      <div class="adv-ask"><select class="in" id="ntc"><option value="todas">Todas</option>${[...new Set([...Object.keys(DEF), ...Object.keys(N.cats)])].map(c => `<option value="${esc(c)}">${esc(ci(c).e)} ${esc(ci(c).l)}</option>`).join('')}</select>
       <button class="btn sec" id="nts" type="button"></button></div>
       <div class="note" id="nte"></div>
       <div id="ntl"></div>
@@ -102,7 +113,7 @@ const Notes = (() => {
         sb.textContent = N.sort === 'near' ? 'Orden: cercanía' : 'Orden: fecha';
         st.textContent = 'Estado: ' + (N.estado || 'Sin código: no enlazado');
         const l = rows();
-        list.innerHTML = l.length ? l.map((n, i) => { const m = dist(n); return `<div class="note nt" data-i="${i}"><b>${CAT[n.c]} ${esc(n.c)}</b> · ${esc(fmtT(n.s))}${m != null ? ' · 📍 ' + fmtD(m) : n.la != null ? ' · 📍' : ''}<br>${esc(n.t)}<div class="acts">${n.la != null ? '<button class="btn" data-a="go" type="button">🧭 Ir al punto</button>' : ''}<button class="btn sec" data-a="find" type="button">🔎 Buscar</button><button class="btn bad" data-a="del" type="button">✕</button></div></div>`; }).join('') : '<div class="note">No hay notas todavía. Dicta una desde la app del móvil.</div>';
+        list.innerHTML = l.length ? l.map((n, i) => { const m = dist(n); return `<div class="note nt" data-i="${i}" style="border-left:5px solid ${ci(n.c).c}"><b style="color:${ci(n.c).c}">${esc(ci(n.c).e)} ${esc(ci(n.c).l)}</b> · ${esc(fmtT(n.s))}${m != null ? ' · 📍 ' + fmtD(m) : n.la != null ? ' · 📍' : ''}<br>${esc(n.t)}<div class="acts">${n.la != null ? '<button class="btn" data-a="go" type="button">🧭 Ir al punto</button>' : ''}<button class="btn sec" data-a="find" type="button">🔎 Buscar</button><button class="btn bad" data-a="del" type="button">✕</button></div></div>`; }).join('') : '<div class="note">No hay notas todavía. Dicta una desde la app del móvil.</div>';
         list._l = l;
       };
       N.onState = draw; draw();
