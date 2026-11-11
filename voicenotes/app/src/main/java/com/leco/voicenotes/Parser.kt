@@ -10,9 +10,13 @@ object Parser {
     private val CATS = linkedMapOf(
         "trabajo" to listOf("trabajo", "laboral", "curro"),
         "casa" to listOf("casa", "hogar"),
-        "compra" to listOf("lista de la compra", "compras", "compra", "supermercado", "super"),
+        "compra" to listOf("lista de la compra", "comprar", "compras", "compra", "supermercado", "super"),
         "lugar" to listOf("lugar", "sitio", "ubicacion", "direccion")
     )
+
+    /** Palabras que forman parte de la nota («comprar leche» se queda como «Comprar leche»). */
+    private val KEEP = setOf("comprar")
+    private val FALLBACK = Regex("\\b(comprar|compra|compras|supermercado)\\b")
 
     private val REGEX: Regex
     private val KEY_TO_CAT = HashMap<String, String>()
@@ -39,8 +43,11 @@ object Parser {
         val original = raw.trim()
         if (original.isEmpty()) return "general" to ""
         val flat = strip(original.lowercase())
-        val m = REGEX.find(flat) ?: return "general" to cap(original)
-        val cat = KEY_TO_CAT[m.groupValues[1]] ?: "general"
+        val m = REGEX.find(flat)
+            ?: return (if (FALLBACK.containsMatchIn(flat)) "compra" else "general") to cap(original)
+        val key = m.groupValues[1]
+        val cat = KEY_TO_CAT[key] ?: "general"
+        if (key in KEEP) return cat to cap(original)
         val rest = m.groups[2]!!
         val content = if (flat.length == original.length) original.substring(rest.range.first) else rest.value
         return cat to cap(content.ifBlank { original })

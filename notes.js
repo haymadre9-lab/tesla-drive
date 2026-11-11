@@ -40,9 +40,14 @@ const Notes = (() => {
   const save = () => { N.list.sort((a, b) => b.s - a.s); N.list = N.list.slice(0, MAX); wr(K.list, JSON.stringify(N.list)); wr(K.del, JSON.stringify(N.del.slice(-MAX))); refreshBtn(); };
   function accept(j) {
     if (!j || typeof j.i !== 'string' || typeof j.t !== 'string' || !j.t.trim()) return false;
-    if (N.del.includes(j.i) || N.list.some(n => n.i === j.i)) return false;
+    if (N.del.includes(j.i)) return false;
+    const old = N.list.find(n => n.i === j.i), u = +j.u || 0;
+    if (old) { // ya la tenía: solo se actualiza si es una edición más reciente
+      if (u <= (old.u || 0) || (old.t === j.t.slice(0, 2000) && old.c === (CAT[j.c] ? j.c : 'general'))) return false;
+      old.t = j.t.slice(0, 2000); old.c = CAT[j.c] ? j.c : 'general'; old.u = u; return 'upd';
+    }
     const ok = typeof j.la === 'number' && typeof j.lo === 'number' && Math.abs(j.la) <= 90 && Math.abs(j.lo) <= 180;
-    N.list.push({ i: j.i.slice(0, 60), t: j.t.slice(0, 2000), c: CAT[j.c] ? j.c : 'general', s: +j.s || Date.now(), la: ok ? j.la : null, lo: ok ? j.lo : null });
+    N.list.push({ i: j.i.slice(0, 60), t: j.t.slice(0, 2000), c: CAT[j.c] ? j.c : 'general', u, s: +j.s || Date.now(), la: ok ? j.la : null, lo: ok ? j.lo : null });
     return true;
   }
 
@@ -62,7 +67,7 @@ const Notes = (() => {
       try {
         const m = JSON.parse(ev.data); if (m.event !== 'message') return;
         const j = await decrypt(d.key, m.message);
-        if (accept(j)) { save(); toast('📝 Nota nueva: ' + j.t.slice(0, 60), 3500); if (N.onState) N.onState('Enlazado · ' + N.list.length + ' notas'); }
+        const r = accept(j); if (r) { save(); toast((r === 'upd' ? '📝 Nota editada: ' : '📝 Nota nueva: ') + j.t.slice(0, 60), 3500); if (N.onState) N.onState('Enlazado · ' + N.list.length + ' notas'); }
       } catch { /* mensaje ajeno o corrupto: se ignora */ }
     };
   }

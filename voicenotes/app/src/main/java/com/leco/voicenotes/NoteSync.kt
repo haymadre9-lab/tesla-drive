@@ -75,6 +75,7 @@ object NoteSync {
         put("t", n.text)
         put("c", n.cat)
         put("s", n.ts)
+        put("u", System.currentTimeMillis()) // versión: Tesla Drive aplica la más reciente
         if (n.lat != null && n.lon != null) {
             put("la", n.lat)
             put("lo", n.lon)

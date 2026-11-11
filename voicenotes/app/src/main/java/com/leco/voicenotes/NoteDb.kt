@@ -84,6 +84,18 @@ class NoteDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, "notes.db"
     @Synchronized
     fun toggleDone(id: Long, done: Boolean) = set(id, "done", if (done) 1 else 0)
 
+    /** Edita texto y categoría; queda pendiente de reenviar a Tesla Drive. */
+    @Synchronized
+    fun update(id: Long, text: String, cat: String) {
+        val v = ContentValues().apply {
+            put("text", text)
+            put("cat", cat)
+            put("synced", 0)
+            put("notified", 0)
+        }
+        writableDatabase.update("notes", v, "id=?", arrayOf(id.toString()))
+    }
+
     @Synchronized
     fun delete(id: Long) {
         writableDatabase.delete("notes", "id=?", arrayOf(id.toString()))
