@@ -19,6 +19,7 @@ import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Button
+import android.widget.EditText
 import android.widget.ListView
 import android.widget.Spinner
 import android.widget.TextView
@@ -84,6 +85,25 @@ class MainActivity : Activity() {
             refresh()
         }
         findViewById<Button>(R.id.battery).setOnClickListener { openBatterySettings() }
+
+        val codeBox = findViewById<EditText>(R.id.code)
+        codeBox.setText(NoteSync.code(this))
+        findViewById<Button>(R.id.codeSave).setOnClickListener {
+            val c = codeBox.text.toString().trim()
+            if (!NoteSync.valid(c)) {
+                Toast.makeText(this, "Código demasiado corto (mínimo 8). Genera uno en Tesla Drive → 📝 → Enlace", Toast.LENGTH_LONG).show()
+            } else {
+                NoteSync.setCode(this, c)
+                db.resetSynced()
+                NoteSync.kick(this, db)
+                Toast.makeText(this, "Código guardado; enviando notas…", Toast.LENGTH_SHORT).show()
+            }
+        }
+        findViewById<Button>(R.id.resend).setOnClickListener {
+            db.resetSynced()
+            NoteSync.kick(this, db)
+            Toast.makeText(this, "Reenviando todas las notas a Tesla Drive…", Toast.LENGTH_SHORT).show()
+        }
 
         list.setOnItemClickListener { _, _, pos, _ ->
             val n = notes.getOrNull(pos) ?: return@setOnItemClickListener
@@ -189,7 +209,8 @@ class MainActivity : Activity() {
     }
 
     private fun refresh() {
-        status.text = (if (ListenService.running) "● " else "○ ") + ListenService.status
+        status.text = (if (ListenService.running) "● " else "○ ") + ListenService.status +
+            (if (NoteSync.lastStatus.isNotEmpty()) "\nTesla Drive: " + NoteSync.lastStatus else "")
         toggle.text = if (ListenService.running) "Detener escucha" else "Activar escucha"
 
         val sel = cats[filter.selectedItemPosition.coerceAtLeast(0)]

@@ -111,6 +111,7 @@ class ListenService : Service() {
         } catch (_: RuntimeException) {
         }
         startLocation()
+        NoteSync.startPeriodic(this, db)
 
         worker = Thread({ loop() }, "voicenotes-listen").also { it.start() }
         return START_STICKY
@@ -272,6 +273,7 @@ class ListenService : Service() {
         val (cat, content) = Parser.parse(raw)
         val loc = lastLoc
         db.insert(content, cat, loc?.latitude, loc?.longitude)
+        NoteSync.kick(this, db)
         status = "Guardado en $cat: $content"
         speak(rec, "Anotado en $cat")
     }

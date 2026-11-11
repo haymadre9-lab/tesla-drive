@@ -15,7 +15,7 @@ data class Note(
     val notified: Boolean
 )
 
-class NoteDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, "notes.db", null, 1) {
+class NoteDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, "notes.db", null, 2) {
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
@@ -26,11 +26,14 @@ class NoteDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, "notes.db"
                 "ts INTEGER NOT NULL," +
                 "lat REAL," +
                 "lon REAL," +
-                "notified INTEGER NOT NULL DEFAULT 0)"
+                "notified INTEGER NOT NULL DEFAULT 0," +
+                "synced INTEGER NOT NULL DEFAULT 0)"
         )
     }
 
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {}
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        if (oldVersion < 2) db.execSQL("ALTER TABLE notes ADD COLUMN synced INTEGER NOT NULL DEFAULT 0")
+    }
 
     @Synchronized
     fun insert(text: String, cat: String, lat: Double?, lon: Double?): Long {
@@ -84,5 +87,39 @@ class NoteDb(ctx: Context) : SQLiteOpenHelper(ctx.applicationContext, "notes.db"
     @Synchronized
     fun delete(id: Long) {
         writableDatabase.delete("notes", "id=?", arrayOf(id.toString()))
+    }
+
+    /** Notas aún no enviadas a Tesla Drive, de más antigua a más reciente. */
+    @Synchronized
+    fun unsynced(): List<Note> {
+        val out = ArrayList<Note>()
+        readableDatabase.rawQuery(
+            "SELECT id,text,cat,ts,lat,lon,notified FROM notes WHERE synced=0 ORDER BY ts ASC", null
+        ).use {
+            while (it.moveToNext()) {
+                out.add(
+                    Note(
+                        it.getLong(0), it.getString(1), it.getString(2), it.getLong(3),
+                        if (it.isNull(4)) null else it.getDouble(4),
+                        if (it.isNull(5)) null else it.getDouble(5),
+                        it.getInt(6) != 0
+                    )
+                )
+            }
+        }
+        return out
+    }
+
+    @Synchronized
+    fun markSynced(id: Long) {
+        val v = ContentValues().apply { put("synced", 1) }
+        writableDatabase.update("notes", v, "id=?", arrayOf(id.toString()))
+    }
+
+    /** Marca todas como pendientes para reenviarlas (botón «Reenviar»). */
+    @Synchronized
+    fun resetSynced() {
+        val v = ContentValues().apply { put("synced", 0) }
+        writableDatabase.update("notes", v, null, null)
     }
 }
