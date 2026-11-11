@@ -16,7 +16,7 @@
         android:allowBackup="false"
         android:icon="@drawable/ic_mic"
         android:label="Notas de Voz"
-        android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        android:theme="@style/AppTheme">
 
         <activity
             android:name=".MainActivity"
