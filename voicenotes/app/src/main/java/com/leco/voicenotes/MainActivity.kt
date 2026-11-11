@@ -26,7 +26,9 @@ import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
 import android.view.View
 import android.view.ViewGroup
+import android.text.InputType
 import android.view.WindowManager
+import android.widget.HorizontalScrollView
 import android.widget.BaseAdapter
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -140,6 +142,12 @@ class MainActivity : Activity() {
             refresh()
         }
 
+        list.setOnItemLongClickListener { _, _, pos, _ ->
+            val r = adapter.rows.getOrNull(pos) as? Row.Item
+            if (r != null) editDialog(r.n)
+            true
+        }
+
         btnToggle.setOnClickListener {
             if (ListenService.running) {
                 startService(Intent(this, ListenService::class.java).setAction(ListenService.ACTION_STOP))
@@ -241,7 +249,7 @@ class MainActivity : Activity() {
             sb.append(phrase)
             box.addView(line(sb, 14f, C_TEXT, 8))
         }
-        box.addView(line("Sin tipo, va a 📝 General. Toca una nota para marcarla como hecha.", 12f, C_DIM, 10))
+        box.addView(line("Sin tipo, va a 📝 General. Toca una nota para marcarla como hecha; mantén pulsada para editarla.", 12f, C_DIM, 10))
     }
 
     // ---------- permisos y arranque ----------
@@ -313,6 +321,70 @@ class MainActivity : Activity() {
             .create()
         d.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)
         d.show()
+    }
+
+    /** Pulsación larga: cambiar el texto y el tipo de una nota. */
+    private fun editDialog(n: Note) {
+        var chosen = n.cat
+        val et = EditText(this).apply {
+            setText(n.text)
+            setSelection(n.text.length)
+            setTextColor(C_TEXT)
+            setHintTextColor(C_DIM)
+            minLines = 2
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+        }
+        val chipViews = ArrayList<Pair<String, TextView>>()
+        fun paint() {
+            for ((k, tv) in chipViews) {
+                val c = catOf(k)
+                val sel = k == chosen
+                tv.background = rounded(if (sel) c.color else C_CHIP, 20)
+                tv.setTextColor(if (sel) Color.WHITE else C_DIM)
+            }
+        }
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        for (c in CATS.filter { it.key != "todas" }) {
+            val tv = TextView(this).apply {
+                text = "${c.emoji} ${c.label}"
+                textSize = 14f
+                setPadding(dp(12), dp(8), dp(12), dp(8))
+                setOnClickListener { chosen = c.key; paint() }
+            }
+            chipViews.add(c.key to tv)
+            row.addView(
+                tv,
+                LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+                    .apply { marginEnd = dp(8) }
+            )
+        }
+        paint()
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), 0)
+            addView(et)
+            addView(
+                HorizontalScrollView(this@MainActivity).apply { isHorizontalScrollBarEnabled = false; addView(row) },
+                LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+                    .apply { topMargin = dp(14) }
+            )
+        }
+        AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+            .setTitle("Editar nota")
+            .setView(box)
+            .setPositiveButton("Guardar") { _, _ ->
+                val t = et.text.toString().trim()
+                if (t.isEmpty()) {
+                    Toast.makeText(this, "La nota no puede quedar vacía", Toast.LENGTH_SHORT).show()
+                } else {
+                    db.update(n.id, t.replaceFirstChar { it.uppercase() }, chosen)
+                    NoteSync.kick(this, db)
+                    lastSig = ""
+                    refresh()
+                }
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
     }
 
     private fun confirmDelete(n: Note) {
