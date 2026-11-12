@@ -99,6 +99,8 @@ const Cat = (() => {
 const Media = (() => {
   const F = () => (S.mediaFavs ||= []), Rc = () => (S.mediaRecent ||= []); // la sincronización puede reemplazar S: siempre se lee con valor por defecto
   const nameOf = u => { const r = mediaEmbed(u); if (!r) return u; let seg = ''; try { const p = new URL(/^https?:/i.test(u) ? u : 'https://' + u).pathname.split('/').filter(Boolean); seg = decodeURIComponent(p[p.length - 1] || '').replace(/[-_]/g, ' '); } catch { } return r.n + (seg && seg.length < 40 ? ' · ' + seg : ''); };
+  /* Favoritos de arranque (solo la primera vez): directos de YouTube que se pueden incrustar y tu enlace, para tocar sin escribir */
+  if (!S.mediaSeed) { const f = F(); [{ n: 'Lofi Girl · directo (YouTube)', u: 'https://www.youtube.com/watch?v=jfKfPfyJRdk' }, { n: 'Synthwave · directo (YouTube)', u: 'https://www.youtube.com/watch?v=4xDzrJKXOOY' }, { n: 'Tu enlace de YouTube (se abre fuera)', u: typeof YT_DEFAULT === 'string' ? YT_DEFAULT : 'https://share.google/59pnNBgXOUBLdbM3p' }].forEach(x => { if (!f.some(y => y.u === x.u)) f.push(x); }); S.mediaSeed = 1; save(); }
   const remember = u => { S.mediaRecent = [{ u, n: nameOf(u) }, ...Rc().filter(x => x.u !== u)].slice(0, 8); save(); };
   const fav = (u, n) => { if (F().some(x => x.u === u)) return false; F().unshift({ u, n: (n || nameOf(u)).slice(0, 60) }); save(); return true; };
   const send = u => { if (typeof Link === 'undefined' || !Link.valid()) { toast('Primero configura el enlace entre dispositivos: Ajustes → Mapa → «Enlace con D3D Clone / Autoboard-nav»', 5000); return false; } Link.publishMedia(u); toast('Enviado al otro dispositivo'); return true; };

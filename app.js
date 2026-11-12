@@ -397,10 +397,10 @@ async function embedFor(a) {
     case 'gmaps': { const q = await ask('gmaps', 'Google Maps: lugar o dirección (vacío = tu posición)', 'Ej. Gasolinera cerca'); if (q === null) return null; const p = myPos(); return { u: `https://maps.google.com/maps?q=${encodeURIComponent(q || p.join(','))}&z=15&output=embed`, orig: 'https://www.google.com/maps/search/' + encodeURIComponent(q || p.join(',')), smart: 1 }; }
     case 'waze': { const p = myPos(); return { u: `https://embed.waze.com/iframe?zoom=14&lat=${p[0]}&lon=${p[1]}&pin=1`, smart: 1 }; }
     case 'windy': { const p = myPos(); return { u: `https://embed.windy.com/embed2.html?lat=${p[0].toFixed(2)}&lon=${p[1].toFixed(2)}&zoom=7&level=surface&overlay=wind&product=ecmwf&marker=true&message=true`, smart: 1 }; }
-    case 'yt': { // el enlace ya viene escrito (en el navegador del Tesla no se puede pegar): basta con pulsar Aceptar
-      const v = await promptDlg('YouTube: enlace del vídeo o lista (ya está puesto el tuyo; pulsa Aceptar)', 'https://youtu.be/…', L.yt || YT_DEFAULT); if (v === null || v === undefined) return null; if (v) { L.yt = v; save(); }
-      const u = ytEmbed(v); if (u) return { u, orig: v, smart: 1 };
-      if (/^https?:\/\//i.test(v)) { window.open(v, '_blank', 'noopener'); toast('Ese enlace no es de un vídeo (youtu.be/…): YouTube solo se puede ver dentro de la ventana con enlace de vídeo. Se abre fuera.', 5000); return null; }
+    case 'yt': { // YouTube: favoritos para tocar (sin escribir; en el navegador del coche no se puede pegar) + enlace manual
+      const v = typeof mediaPick === 'function' ? await mediaPick() : await promptDlg('YouTube: enlace del vídeo o lista', 'https://youtu.be/…', L.yt || YT_DEFAULT); if (v === null || v === undefined) return null;
+      const r = mediaEmbed(v); if (r) return { u: r.u, orig: v, smart: 1 };
+      if (/^https?:\/\//i.test(v)) { window.open(v, '_blank', 'noopener'); toast('Ese enlace no es de un vídeo (youtu.be/…): YouTube solo se puede ver dentro de la ventana con enlace de vídeo o de lista. Se abre fuera.', 5000); return null; }
       return bad('Enlace de YouTube no válido'); }
     case 'own': return { smart: 1 };
     case 'spot': { const v = await ask('spot', 'Spotify: pega el enlace de canción, álbum o lista', 'https://open.spotify.com/…'); if (v === null) return null; const m = v.match(/open\.spotify\.com\/(?:intl-\w+\/)?(track|album|playlist|episode|show|artist)\/(\w+)/); return m ? { u: `https://open.spotify.com/embed/${m[1]}/${m[2]}`, orig: v, smart: 1 } : bad('Enlace de Spotify no válido'); }
