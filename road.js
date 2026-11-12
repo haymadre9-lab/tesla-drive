@@ -105,7 +105,7 @@ const Road = (() => {
   bus.on('music', npUpd); setInterval(npUpd, 2000);
 
   WIDGETS.topbar = {
-    n: 'Barra superior (hora, temperatura, GPS)', cls: 'w-2x1', render: el => {
+    n: 'Barra superior (hora, temperatura, GPS)', cls: 'w-2x1', noPointer: true, render: el => {
       el.classList.add('tbw'); el.innerHTML = `<div class="tb"><span class="tb-t"><b class="js-clock">--:--</b><i class="js-tbtemp">--</i><span class="tb-gps js-tbc" title="GPS"></span></span></div>`;
       tbUpd(); tickClock();
     },
@@ -114,7 +114,7 @@ const Road = (() => {
   setInterval(tbUpd, 3000); bus.on('pos', tbUpd);
 
   WIDGETS.roadbar = {
-    n: 'Barra inferior (vía actual y viaje)', cls: 'w-2x1', render: el => { el.classList.add('rbw'); rbUpd(); },
+    n: 'Barra inferior (vía actual y viaje)', cls: 'w-2x1', noPointer: true, render: el => { el.classList.add('rbw'); rbUpd(); },
   };
   function rbUpd() { const mi = S.speedUnit === 'mph', d = mi ? S.trip / 1609.34 : S.trip / 1000; $$('.rbw').forEach(e => { e.innerHTML = `<div class="rb"><span class="rb-r">🚗 <b>${esc(R.name || 'Vía sin identificar')}</b></span><span class="rb-o"><i>VIAJE</i> ${d.toFixed(1)} ${mi ? 'mi' : 'km'}</span></div>`; }); }
   bus.on('road', rbUpd); bus.on('pos', rbUpd);
