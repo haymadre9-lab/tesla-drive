@@ -567,3 +567,5 @@ html[data-theme=light] .navmenu{background:#fff;color:#111826;border-color:rgba(
 .navmenu .nm-st{display:flex;gap:6px;} .navmenu .nm-st button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 2px;border-radius:12px;border:2px solid transparent;background:rgba(128,138,155,.18);color:inherit;font:inherit;font-size:11px;cursor:pointer;min-width:0;} .navmenu .nm-st button.on{border-color:var(--acc);color:var(--acc);} .navmenu .nm-st svg{display:block;}
 
 .navhdr .nlay{width:36px;height:36px;border-radius:50%;opacity:.95;} .navtools #nsm{display:none;}
+
+.mp-v{padding:8px 10px;} .mp-v img{width:96px;height:54px;object-fit:cover;border-radius:8px;flex:none;background:#0004;} .mp-v > div{flex:1;min-width:0;} .mp-v b{display:block;white-space:normal;max-height:2.7em;overflow:hidden;font-size:15px;line-height:1.35;} .mp-v small{display:block;opacity:.65;font-size:12px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
