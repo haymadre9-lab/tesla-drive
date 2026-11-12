@@ -28,7 +28,6 @@ const Cat = (() => {
       { id: 'codriver', n: 'CoDriver', e: '🧭', t: 'probar', d: 'CoDriver (app.codriver.io).', a: { u: 'https://app.codriver.io/?lang=en', img: 'icons/codriver.svg' } },
       { id: 'dgt', n: 'DGT · tráfico y cámaras', e: '🚧', t: 'probar', d: 'Incidencias, obras y cámaras de la DGT.', a: { u: 'https://infocar.dgt.es/etraffic/' } },
       { id: 'abrp', n: 'A Better Route Planner', e: '⚡', t: 'probar', d: 'Planificador de rutas con paradas de carga para eléctricos.', a: { u: 'https://abetterrouteplanner.com/' } },
-      { id: 'plugshare', n: 'PlugShare', e: '🔌', t: 'probar', d: 'Mapa de cargadores con comentarios.', a: { u: 'https://www.plugshare.com/' } },
     ]],
     ['Música, podcasts y vídeo', [
       { id: 'yt', n: 'YouTube', e: '▶️', t: 'embed', d: 'Se abre dentro de la ventana con el enlace ya escrito: solo pulsa Aceptar. Los enlaces de vídeo (youtu.be/…) se reproducen; otros enlaces se abren fuera.', a: { u: 'https://m.youtube.com', k: 'yt' } },
@@ -42,10 +41,11 @@ const Cat = (() => {
       { id: 'tetris', n: 'Tetris', e: '🧱', t: 'propia', d: 'Horizontal, con botones grandes (girar, mover, caída rápida, pausa), pieza siguiente y niveles.', a: { u: 'mini/games/tetris.html', k: 'own', mode: 'full' } },
       { id: 'snake', n: 'Serpiente', e: '🐍', t: 'propia', d: 'Desliza o usa las flechas; se acelera al comer. Récord guardado.', a: { u: 'mini/games/snake.html', k: 'own', mode: 'full' } },
       { id: 'clumsy', n: 'Clumsy Bird', e: '🐦', t: 'ghp', d: 'Versión libre de Flappy Bird: un toque para aletear.', a: { u: 'https://ellisonleao.github.io/clumsy-bird/' } },
-      { id: 'playables', n: 'YouTube Playables', e: '🎮', t: 'probar', d: 'Juegos de YouTube que funcionan solo con el navegador (Tesla los cita como válidos). Si no abre dentro, usa ↗.', a: { u: 'https://www.youtube.com/playables' } },
-      { id: 'lichess', n: 'Lichess TV (ajedrez)', e: '♟️', t: 'embed', d: 'Partidas de ajedrez en directo (embed oficial de Lichess TV).', a: { u: 'https://lichess.org/tv/frame?theme=brown&bg=dark', k: 'lichess' } },
+      { id: 'lichess', n: 'Ajedrez · Lichess TV', e: '♟️', t: 'propia', d: 'Partidas en directo de Lichess TV (embed oficial) ampliadas a la pantalla, con botones + y − para ajustar el tamaño.', a: { u: 'mini/games/ajedrez.html', k: 'own', mode: 'full' } },
     ]],
     ['Servicios que NO se pueden abrir dentro de una ventana', [
+      { id: 'plugshare', n: 'PlugShare', e: '🔌', t: 'bloquea', d: 'No se puede abrir dentro de una ventana (comprobado en tu coche). Se abre en pestaña con un toque.', a: { u: 'https://www.plugshare.com/', mode: 'tab' } },
+      { id: 'playables', n: 'YouTube Playables', e: '🎮', t: 'bloquea', d: 'No se puede abrir dentro de una ventana (comprobado en tu coche). Se abre en pestaña con un toque.', a: { u: 'https://www.youtube.com/playables', mode: 'tab' } },
       { id: 'tg', n: 'Telegram Web', e: '✈️', t: 'bloquea', d: 'Telegram envía SAMEORIGIN: no se puede incrustar. Se abre en pestaña.', a: { u: 'https://web.telegram.org/k/', k: 'blocked' } },
     ]],
   ];
@@ -67,6 +67,11 @@ const Cat = (() => {
     const w = S.apps.find(a => a.id === 'wiki'); if (w && /wikipedia\.org/.test(w.u || '')) { w.u = 'mini/wiki.html'; w.k = 'wikipro'; w.n = 'Wikipedia'; }
     ['media', 'lichess'].forEach(id => { if (!have(id) && !(id === 'wikipro')) { const x = find(id); if (x) S.apps.push(mk(x)); } });
     S.appsV2 = 1; save();
+  }
+  /* Migración V7: ajedrez ampliable a pantalla completa; PlugShare y Playables se abren fuera */
+  if (!S.appsV7) {
+    S.apps.forEach(a => { if (a.id === 'lichess') { a.n = 'Ajedrez · Lichess TV'; a.u = 'mini/games/ajedrez.html'; a.k = 'own'; a.mode = 'full'; } if (a.id === 'plugshare' || a.id === 'playables') a.mode = 'tab'; });
+    S.appsV7 = 1; save();
   }
   /* Migración V6: juegos propios en horizontal (sustituyen a 2048 y Hextris externos) y YouTube con enlace ya escrito */
   if (!S.appsV6) {
@@ -101,19 +106,49 @@ const Media = (() => {
   const nameOf = u => { const r = mediaEmbed(u); if (!r) return u; let seg = ''; try { const p = new URL(/^https?:/i.test(u) ? u : 'https://' + u).pathname.split('/').filter(Boolean); seg = decodeURIComponent(p[p.length - 1] || '').replace(/[-_]/g, ' '); } catch { } return r.n + (seg && seg.length < 40 ? ' · ' + seg : ''); };
   /* Favoritos de arranque (solo la primera vez): directos de YouTube que se pueden incrustar y tu enlace, para tocar sin escribir */
   if (!S.mediaSeed) { const f = F(); [{ n: 'Lofi Girl · directo (YouTube)', u: 'https://www.youtube.com/watch?v=jfKfPfyJRdk' }, { n: 'Synthwave · directo (YouTube)', u: 'https://www.youtube.com/watch?v=4xDzrJKXOOY' }, { n: 'Tu enlace de YouTube (se abre fuera)', u: typeof YT_DEFAULT === 'string' ? YT_DEFAULT : 'https://share.google/59pnNBgXOUBLdbM3p' }].forEach(x => { if (!f.some(y => y.u === x.u)) f.push(x); }); S.mediaSeed = 1; save(); }
-  const remember = u => { S.mediaRecent = [{ u, n: nameOf(u) }, ...Rc().filter(x => x.u !== u)].slice(0, 8); save(); };
+  const remember = (u, n) => { S.mediaRecent = [{ u, n: (n || nameOf(u)).slice(0, 60) }, ...Rc().filter(x => x.u !== u)].slice(0, 8); save(); };
+  /* Búsqueda en YouTube: usa la API oficial con TU clave (gratis, ~100 búsquedas al día). La clave vive solo en este dispositivo (localStorage «leco.yt»). */
+  const ytKey = () => { try { return localStorage.getItem('leco.yt') || ''; } catch { return ''; } };
+  async function ytSearch(q) {
+    const c = new AbortController(), t = setTimeout(() => c.abort(), 12000);
+    try {
+      const r = await fetch('https://www.googleapis.com/youtube/v3/search?' + new URLSearchParams({ part: 'snippet', type: 'video', videoEmbeddable: 'true', maxResults: '12', regionCode: 'ES', relevanceLanguage: 'es', q, key: ytKey() }), { signal: c.signal }), j = await r.json();
+      if (!r.ok) throw new Error((j.error && j.error.message) || 'HTTP ' + r.status);
+      return (j.items || []).filter(x => x.id && x.id.videoId).map(x => ({ id: x.id.videoId, t: x.snippet.title, ch: x.snippet.channelTitle, th: x.snippet.thumbnails && (x.snippet.thumbnails.medium || x.snippet.thumbnails.default || {}).url }));
+    } finally { clearTimeout(t); }
+  }
+  function ytKeyDlg() {
+    dlg(`<h3>Clave de YouTube (para buscar)</h3><div class="note">Opcional. Permite buscar vídeos desde el reproductor. Crea una clave gratuita de «YouTube Data API v3» en Google Cloud (consola de APIs) y escríbela o pégala aquí desde el móvil. Se guarda solo en este dispositivo: no se sincroniza ni se publica. Cuota gratuita: unas 100 búsquedas al día.</div><label class="lab">API key<input class="in" id="ykk" type="password" autocomplete="off" placeholder="AIza…" value="${esc(ytKey())}"></label><div id="ykr" class="note"></div><div class="acts"><button class="btn bad" id="ykd" type="button">Borrar</button><button class="btn sec" id="ykt" type="button">Probar</button><button class="btn" id="yks" type="button">Guardar</button><button class="btn sec" id="ykx" type="button">Cerrar</button></div>`, d => {
+      const val = () => $('#ykk', d).value.trim(), out = t => { $('#ykr', d).textContent = t; };
+      $('#ykx', d).onclick = closeDlg; $('#ykd', d).onclick = () => { try { localStorage.removeItem('leco.yt'); } catch { } closeDlg(); toast('Clave de YouTube borrada'); };
+      $('#yks', d).onclick = () => { try { localStorage.setItem('leco.yt', val()); } catch { return toast('No se pudo guardar en este dispositivo'); } closeDlg(); toast(val() ? 'Clave de YouTube guardada' : 'Sin clave'); };
+      $('#ykt', d).onclick = async () => { out('Probando…'); const old = ytKey(); try { localStorage.setItem('leco.yt', val()); await ytSearch('musica'); out('✔ La clave funciona'); } catch (e) { out('✘ No funciona: ' + e.message); } finally { try { localStorage.setItem('leco.yt', old); } catch { } } };
+    });
+  }
+
   const fav = (u, n) => { if (F().some(x => x.u === u)) return false; F().unshift({ u, n: (n || nameOf(u)).slice(0, 60) }); save(); return true; };
   const send = u => { if (typeof Link === 'undefined' || !Link.valid()) { toast('Primero configura el enlace entre dispositivos: Ajustes → Mapa → «Enlace con D3D Clone / Autoboard-nav»', 5000); return false; } Link.publishMedia(u); toast('Enviado al otro dispositivo'); return true; };
   function pick() {
     return new Promise(res => {
       const row = (ico, x, i, k) => `<div class="mp-r" data-${k}="${i}"><span>${ico}</span><b>${esc(x.n)}</b>${k === 'f' ? `<button class="mp-x" data-df="${i}" type="button" aria-label="Quitar"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M5 5L19 19M19 5L5 19" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></button>` : ''}</div>`;
       const body = () => (F().length ? '<div class="cat-h">⭐ Favoritos (tócalos para reproducir)</div>' + F().map((x, i) => row('⭐', x, i, 'f')).join('') : '<div class="note">Aún no tienes favoritos. Guárdalos desde el móvil: se sincronizan con el coche y no hay que escribir nada.</div>') + (Rc().length ? '<div class="cat-h">🕘 Recientes</div>' + Rc().map((x, i) => row('🕘', x, i, 'r')).join('') : '');
-      dlg(`<h3>🎶 Reproductor</h3><div id="mpl" class="cat-l" style="max-height:34vh"></div><div class="cat-h">Otro enlace</div><div class="adv-ask"><input class="in" id="mpi" placeholder="Escribe o pega un enlace" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn" id="mpg" type="button">▶</button></div>
+      dlg(`<h3>🎶 Reproductor</h3><div id="mpl" class="cat-l" style="max-height:34vh"></div><div class="cat-h">Buscar en YouTube o pegar un enlace</div><div class="adv-ask"><input class="in" id="mpi" placeholder="Buscar… o enlace" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn" id="mpq" type="button" aria-label="Buscar"><svg viewBox="0 0 24 24" width="22" height="22"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M15.5 15.5L21 21" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/></svg></button><button class="btn sec" id="mpg" type="button" aria-label="Reproducir enlace">▶</button></div>
         <div class="acts"><button class="btn sec" id="mps" type="button">⭐ Guardar</button><button class="btn sec" id="mpe" type="button">📲 Enviar a otro dispositivo</button><button class="btn sec" id="mpx" type="button">Cerrar</button></div>`, d => {
         const list = $('#mpl', d), inp = $('#mpi', d); let done = false; const fin = v => { if (done) return; done = true; closeDlg(); res(v); };
         const draw = () => { list.innerHTML = body(); $$('[data-f]', list).forEach(r => r.onclick = e => { if (e.target.closest('[data-df]')) return; const x = F()[+r.dataset.f]; remember(x.u); fin(x.u); }); $$('[data-r]', list).forEach(r => r.onclick = () => fin(Rc()[+r.dataset.r].u)); $$('[data-df]', list).forEach(b => b.onclick = e => { e.stopPropagation(); F().splice(+b.dataset.df, 1); save(); draw(); }); };
         draw(); const val = () => inp.value.trim(), okv = () => { const v = val(); if (!mediaEmbed(v)) { toast('No reconozco ese enlace (YouTube, Spotify, SoundCloud, Mixcloud, Apple, Deezer, Vimeo, Dailymotion, Twitch)', 4000); return null; } return v; };
-        $('#mpg', d).onclick = () => { const v = okv(); if (v) { remember(v); fin(v); } }; inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#mpg', d).click(); } });
+        const showRes = async q => {
+          if (!ytKey()) { toast('Para buscar hace falta tu clave de YouTube (gratis): Ajustes → Mapa → «Clave de YouTube»', 5000); return; }
+          list.innerHTML = '<div class="note">Buscando…</div>';
+          try {
+            const rs = await ytSearch(q); if (!rs.length) { list.innerHTML = '<div class="note">Sin resultados.</div><div class="mp-r" id="mpb"><span>◀</span><b>Volver a favoritos</b></div>'; $('#mpb', list).onclick = draw; return; }
+            list.innerHTML = '<div class="mp-r" id="mpb"><span>◀</span><b>Volver a favoritos</b></div>' + rs.map((x, i) => `<div class="mp-r mp-v" data-v="${i}">${x.th ? `<img src="${esc(x.th)}" alt="" loading="lazy">` : '<span>🎬</span>'}<div><b>${esc(x.t)}</b><small>${esc(x.ch)}</small></div><button class="mp-x" data-sv="${i}" type="button" aria-label="Guardar en favoritos">★</button></div>`).join('');
+            $('#mpb', list).onclick = draw; const link = x => 'https://www.youtube.com/watch?v=' + x.id;
+            $$('[data-v]', list).forEach(r => r.onclick = e => { const x = rs[+r.dataset.v]; if (e.target.closest('[data-sv]')) { e.stopPropagation(); toast(fav(link(x), x.t) ? 'Guardado en favoritos' : 'Ya estaba en favoritos'); return; } remember(link(x), x.t); fin(link(x)); });
+          } catch (e) { list.innerHTML = `<div class="note">No se pudo buscar (${esc(e.name === 'AbortError' ? 'tarda demasiado' : e.message)}). Revisa la clave en Ajustes → Mapa.</div><div class="mp-r" id="mpb"><span>◀</span><b>Volver a favoritos</b></div>`; $('#mpb', list).onclick = draw; }
+        };
+        const go1 = () => { const v = val(); if (!v) return; if (mediaEmbed(v)) { remember(v); fin(v); } else if (/^https?:\/\//i.test(v)) toast('No reconozco ese enlace (YouTube, Spotify, SoundCloud, Mixcloud, Apple, Deezer, Vimeo, Dailymotion, Twitch)', 4000); else showRes(v); };
+        $('#mpg', d).onclick = () => { const v = okv(); if (v) { remember(v); fin(v); } }; $('#mpq', d).onclick = () => { const v = val(); if (v) showRes(v); }; inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); go1(); } });
         $('#mps', d).onclick = () => { const v = okv(); if (v) { toast(fav(v) ? 'Guardado en favoritos' : 'Ya estaba en favoritos'); inp.value = ''; draw(); } };
         $('#mpe', d).onclick = () => { const v = okv(); if (v) send(v); };
         $('#mpx', d).onclick = () => fin(null); $('#modal').onclick = e => { if (e.target.id === 'modal') fin(null); };
@@ -132,6 +167,7 @@ const Media = (() => {
     });
   }
   setTimeout(shared, 900);
-  return { pick, remember, fav, send, nameOf, shared };
+  return { pick, remember, fav, send, nameOf, shared, ytKey, ytKeyDlg, ytSearch };
 })();
 const mediaPick = () => Media.pick();
+CATS.mapa[1].push({ t: 'btn', get l() { return 'Clave de YouTube para buscar (opcional): ' + (Media.ytKey() ? 'configurada' : 'sin clave'); }, f: () => Media.ytKeyDlg() });
