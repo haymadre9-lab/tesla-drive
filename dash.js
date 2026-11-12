@@ -155,7 +155,7 @@ const Dash = (() => {
   /* ── Navegación entre dashboards ── */
   ACTIONS.nextdash = ['Siguiente dashboard', () => next(1)]; ACTIONS.prevdash = ['Dashboard anterior', () => next(-1)]; ACTIONS.dashpick = ['Elegir dashboard', picker];
   const _go = go;
-  go = function (p) { _go(p); tag(); syncImm(p); }; // eslint-disable-line no-func-assign
+  go = function (p) { _go(p); tag(); syncImm(p); if (typeof Dash !== 'undefined' && Dash.grip) Dash.grip(p); }; // eslint-disable-line no-func-assign
 
   renderers.home = () => {
     const D = sync(cur()), root = $('#p-home'); root.innerHTML = '<div class="grid"></div>'; const g = $('.grid', root);
@@ -199,5 +199,24 @@ const Dash = (() => {
   document.addEventListener('pointerdown', e => { if (document.body.classList.contains('imm-open') && !e.target.closest('#dock,#status,#imm,#modal')) document.body.classList.remove('imm-open'); }, true);
   const t = document.createElement('div'); t.id = 'dashtag'; t.innerHTML = '<button data-d="-1">◀</button><b></b><button data-d="1">▶</button>'; $('#pages').append(t);
   $$('button', t).forEach(b => b.onclick = () => next(+b.dataset.d)); $('b', t).onclick = picker;
-  return { cur, accent, use, next, picker, tag };
+  /* Cambiar de dashboard arrastrando hacia abajo desde el borde superior (los botones y el mapa conservan su gesto) */
+  OPT.dashSwipe = [['edge', 'Arrastrar hacia abajo desde el borde superior'], ['off', 'Desactivado (solo con el icono 🎛)']];
+  CATS.inicio[1].unshift({ k: 'dashSwipe', l: 'Cambiar de dashboard deslizando', d: 'Empieza el dedo en el borde superior de la pantalla y arrastra hacia abajo: pasa al siguiente dashboard. El icono 🎛 sigue disponible.', type: 'select' });
+  const grip = (() => { const g = document.createElement('div'); g.id = 'swipegrip'; document.body.append(g); return g; })();
+  const gripUpd = p => { grip.style.display = (p || page) === 'home' && S.dashSwipe !== 'off' ? 'block' : 'none'; };
+  {
+    const EDGE = 52, MIN = 70; let g = null;
+    const blocked = t => t && t.closest && t.closest('button,input,select,textarea,a,#modal,#sx,.wtool,.wres,.navhdr,.navmenu,#imm,#fab');
+    const ok = () => S.dashSwipe !== 'off' && page === 'home' && !document.body.classList.contains('layedit') && !$('#modal').offsetParent && !(document.getElementById('sx') && !document.getElementById('sx').hidden);
+    const start = (x, y, t) => { if (!ok() || y > EDGE || blocked(t)) return false; g = { x, y, done: false }; return true; };
+    const move = (x, y) => { const dy = y - g.y, dx = x - g.x; if (!g.done && dy > MIN && dy > Math.abs(dx) * 1.4) { g.done = true; next(1); } };
+    const o = { capture: true, passive: false };
+    document.addEventListener('touchstart', e => { if (e.touches.length === 1 && start(e.touches[0].clientX, e.touches[0].clientY, e.target)) e.stopPropagation(); }, o);
+    document.addEventListener('touchmove', e => { if (!g) return; e.stopPropagation(); if (e.cancelable) e.preventDefault(); move(e.touches[0].clientX, e.touches[0].clientY); }, o);
+    const end = e => { if (g) { e.stopPropagation(); g = null; } }; document.addEventListener('touchend', end, o); document.addEventListener('touchcancel', end, o);
+    document.addEventListener('mousedown', e => { if (e.button === 0 && start(e.clientX, e.clientY, e.target)) e.stopPropagation(); }, o);
+    document.addEventListener('mousemove', e => { if (!g) return; e.stopPropagation(); move(e.clientX, e.clientY); }, o);
+    document.addEventListener('mouseup', end, o);
+  }
+  return { cur, accent, use, next, picker, tag, grip: gripUpd };
 })();

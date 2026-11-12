@@ -11,32 +11,26 @@ const bus = (() => { const m = {}; return { on: (e, f) => (m[e] ||= []).push(f),
 
 /* ───────────── Estado ───────────── */
 const DEF_APPS = [
-  { id: 'maps', n: 'Google Maps', u: 'https://www.google.com/maps', e: '📍', k: 'gmaps' },
-  { id: 'waze', n: 'Waze', u: 'https://www.waze.com/live-map', e: '🚙', k: 'waze' },
-  { id: 'yt', n: 'YouTube', u: 'https://m.youtube.com', e: '▶️', k: 'yt' },
-  { id: 'spot', n: 'Spotify', u: 'https://open.spotify.com', e: '🎧', k: 'spot' },
-  { id: 'nflx', n: 'Netflix', u: 'https://www.netflix.com', e: '🎬', k: 'blocked' },
-  { id: 'twitch', n: 'Twitch', u: 'https://m.twitch.tv', e: '🟣', k: 'twitch' },
-  { id: 'wa', n: 'WhatsApp', u: 'https://web.whatsapp.com', e: '💬', k: 'blocked' },
-  { id: 'radio', n: 'Radio Garden', u: 'https://radio.garden', e: '📻' },
-  { id: 'windy', n: 'Windy', u: 'https://www.windy.com', e: '🌬️', k: 'windy' },
-  { id: 'hud', n: 'Tesla HUD (antiguo)', u: 'old-hud/index.html', e: '🚘' },
-  { id: 'gmail', n: 'Gmail', u: 'https://mail.google.com', e: '✉️', k: 'blocked' },
+  { id: 'd3d', n: 'D3D Clone', u: 'https://haymadre9-lab.github.io/hudMapa3D/', img: 'icons/d3d.png', e: '🛣️' },
+  { id: 'tiempo', n: 'El tiempo', u: 'mini/tiempo.html', e: '⛅', k: 'tiempo' },
   { id: 'wiki', n: 'Wikipedia', u: 'mini/wiki.html', e: '📚', k: 'wikipro' },
-  { id: 'rain', n: 'Radar de lluvia', u: 'mini/lluvia.html', e: '🌧️', k: 'rain' },
+  { id: 'radio', n: 'Radio Garden', u: 'https://radio.garden', e: '📻' },
   { id: 'media', n: 'Reproductor por enlace', u: 'https://youtube.com', e: '🎶', k: 'media' },
+  { id: 'viajando', n: 'Viajando en Tesla', u: 'https://www.viajandoentesla.es/navegador', img: 'icons/viajando.svg', e: '🚗' },
+  { id: 'launcher', n: 'Launcher', u: 'https://apkapp-driver.github.io/Teslalaunch/', img: 'icons/launcher.svg', e: '🚀' },
+  { id: 'codriver', n: 'CoDriver', u: 'https://app.codriver.io/?lang=en', img: 'icons/codriver.svg', e: '🧭' },
   { id: 'lichess', n: 'Lichess TV (ajedrez)', u: 'https://lichess.org/tv/frame?theme=brown&bg=dark', e: '♟️', k: 'lichess' },
 ];
 const DEF = {
   theme: 'auto-time', accent: '#3e9bff', radius: 22, colw: 300, rows: 2, rhd: false,
   wallMode: 'default', wallSel: 0, wallInterval: 30, wallEffect: 'fade',
   widgets: [['clock', 1], ['weather', 1], ['music', 1], ['map', 1], ['speed', 1], ['tpms', 1], ['apps', 1]],
-  apps: DEF_APPS, quick: ['maps', 'yt', 'spot', 'waze', 'hud'], openMode: 'float', sort: 'default',
+  apps: DEF_APPS, quick: ['d3d', 'tiempo', 'viajando', 'codriver', 'launcher'], openMode: 'float', sort: 'default',
   hideLyrics: false, visualizer: true, lyricSize: 28, lyricCur: '#ffffff', lyricNorm: '#9aa3b2',
   speedUnit: 'kmh', pressUnit: 'bar', tempUnit: 'c', tpWarn: 2.0, tpDanger: 1.6, spare: false,
   tires: { fl: 2.4, fr: 2.4, rl: 2.5, rr: 2.5 },
   fab: { on: true, click: 'home', long: 'daynight', x: null, y: null }, keys: [],
-  city: null, lastPos: null, last: {}, recent: [], teslaMode: IS_TESLA, voice: true, tripT: 0, dash: 'classic', dashboards: null, dock: null, syncMode: 'ask', syncUrl: '', winDots: true, cfgRev: 0, radarAlerts: true, manStyle: 'a', poiSize: 60, autoFS: true, limitEst: true, navIcon: 'arrow', navIconColor: '#ff2d2d', navIconSize: 100, layers: { cams: true, chargers: false, fuel: false, reports: true }, reports: [], navRecent: [], favs: { home: null, work: null }, maxSpeed: 0, trip: 0,
+  city: null, lastPos: null, last: {}, recent: [], teslaMode: IS_TESLA, voice: true, tripT: 0, dash: 'classic', dashboards: null, dock: null, syncMode: 'ask', syncUrl: '', winDots: true, cfgRev: 0, radarAlerts: true, dashSwipe: 'edge', manStyle: 'a', poiSize: 60, autoFS: true, limitEst: true, navIcon: 'arrow', navIconColor: '#ff2d2d', navIconSize: 100, layers: { cams: true, chargers: false, fuel: false, reports: true }, reports: [], navRecent: [], favs: { home: null, work: null }, maxSpeed: 0, trip: 0,
 };
 let S;
 try { S = Object.assign(structuredClone(DEF), JSON.parse(localStorage.getItem('leco.v1') || '{}')); } catch { S = structuredClone(DEF); }
@@ -136,10 +130,8 @@ function tickClock() {
 const GPS = { pos: null, speed: 0, status: 'off', last: null };
 const spdConv = ms => S.speedUnit === 'mph' ? ms * 2.23694 : ms * 3.6;
 const spdUnit = () => S.speedUnit === 'mph' ? 'mph' : 'km/h';
-function startGPS() {
-  if (!navigator.geolocation) return setGpsDot('off');
-  setGpsDot('wait');
-  navigator.geolocation.watchPosition(p => {
+let gpsWatch = null;
+const onGeo = p => {
     if (Nav.state.sim) return;
     const c = p.coords; GPS.pos = c; GPS.speed = c.speed != null && !isNaN(c.speed) ? Math.max(0, c.speed) : 0;
     const nowT = Date.now(); if (GPS.t && GPS.speed > 1) S.tripT = (S.tripT || 0) + Math.min(10, (nowT - GPS.t) / 1000); GPS.t = nowT;
@@ -147,8 +139,16 @@ function startGPS() {
     if (!GPS.last || c.accuracy < 60) GPS.last = { latitude: c.latitude, longitude: c.longitude };
     S.maxSpeed = Math.max(S.maxSpeed, GPS.speed); S.lastPos = [c.latitude, c.longitude];
     setGpsDot('on'); bus.emit('pos', c); renderSpeedUI(); saveSoon();
-  }, () => setGpsDot('off'), { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 });
+};
+const GEO_OPTS = { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 };
+function startGPS() {
+  if (!navigator.geolocation) return setGpsDot('off');
+  setGpsDot('wait');
+  if (gpsWatch != null) try { navigator.geolocation.clearWatch(gpsWatch); } catch { }
+  gpsWatch = navigator.geolocation.watchPosition(onGeo, () => setGpsDot('off'), GEO_OPTS);
 }
+/* Posición fresca al momento (al volver a la app el watch puede haberse quedado dormido) */
+function refreshGPS() { if (navigator.geolocation) navigator.geolocation.getCurrentPosition(onGeo, () => { }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }); }
 let sv; const saveSoon = () => { clearTimeout(sv); sv = setTimeout(save, 3000); };
 function setGpsDot(s) { GPS.status = s; const d = $('#stGps'); d.className = 'dot ' + (s === 'on' ? 'on' : s === 'wait' ? 'wait' : ''); }
 function hav(a, b) { const R = 6371000, r = x => x * Math.PI / 180, dLa = r(b.latitude - a.latitude), dLo = r(b.longitude - a.longitude); const x = Math.sin(dLa / 2) ** 2 + Math.cos(r(a.latitude)) * Math.cos(r(b.latitude)) * Math.sin(dLo / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); }
@@ -389,7 +389,7 @@ async function embedFor(a) {
     case 'blocked': return { blocked: true };
     case 'wazemap': { const p = myPos(); return { u: `https://embed.waze.com/iframe?zoom=13&lat=${p[0]}&lon=${p[1]}&pin=1`, smart: 1 }; }
     case 'wikipro': { const p = myPos(); return { u: `mini/wiki.html?lat=${p[0].toFixed(4)}&lon=${p[1].toFixed(4)}`, smart: 1 }; }
-    case 'rain': { const p = myPos(); return { u: `mini/lluvia.html?lat=${p[0].toFixed(3)}&lon=${p[1].toFixed(3)}`, smart: 1 }; }
+    case 'tiempo': { const p = myPos(); return { u: `mini/tiempo.html?lat=${p[0].toFixed(3)}&lon=${p[1].toFixed(3)}`, smart: 1 }; }
     case 'lichess': return { u: 'https://lichess.org/tv/frame?theme=brown&bg=dark', orig: 'https://lichess.org/tv', smart: 1 };
     case 'media': { const v = typeof mediaPick === 'function' ? await mediaPick() : await ask('media', 'Pega el enlace: YouTube, Spotify, SoundCloud, Mixcloud, Apple Music, Deezer, Vimeo, Dailymotion o Twitch', 'https://…'); if (v === null || v === undefined) return null; const r = mediaEmbed(v); return r ? { u: r.u, orig: v, smart: 1 } : bad('No reconozco ese enlace. Prueba con uno de YouTube, Spotify, SoundCloud, Mixcloud, Apple Music, Deezer, Vimeo, Dailymotion o Twitch'); }
     case 'gmaps': { const q = await ask('gmaps', 'Google Maps: lugar o dirección (vacío = tu posición)', 'Ej. Gasolinera cerca'); if (q === null) return null; const p = myPos(); return { u: `https://maps.google.com/maps?q=${encodeURIComponent(q || p.join(','))}&z=15&output=embed`, orig: 'https://www.google.com/maps/search/' + encodeURIComponent(q || p.join(',')), smart: 1 }; }
@@ -461,7 +461,7 @@ function openFloat(a, full = false) {
     <iframe src="${esc(a.u)}" allow="geolocation; autoplay; fullscreen; encrypted-media; picture-in-picture" referrerpolicy="no-referrer-when-downgrade"></iframe>`}
     <div class="ft" title="Arrastra para mover">⋯ mover ⋯</div>`;
   $('#floats').append(w); floats.push(w); fitFloat(w, true);
-  $('[data-b=x]', w).onclick = () => { w.remove(); floats.splice(floats.indexOf(w), 1); };
+  $('[data-b=x]', w).onclick = () => { w.remove(); floats.splice(floats.indexOf(w), 1); setTimeout(() => typeof Nav !== 'undefined' && Nav.resume && Nav.resume(), 250); };
   $('[data-b=full]', w).onclick = () => { w.classList.toggle('full'); if (!w.classList.contains('full')) { w.style.width = w.style.height = ''; fitFloat(w, true); } };
   $('[data-b=ctr]', w).onclick = () => { w.classList.remove('full'); w.style.width = w.style.height = ''; fitFloat(w, true); };
   $$('[data-b=tab]', w).forEach(b => b.onclick = () => window.open(a.orig || a.u, '_blank', 'noopener'));
@@ -647,7 +647,7 @@ function settingRow(it) {
   if (it.t === 'walls') return wallsEditor();
   if (it.t === 'keys') return keysEditor();
   const val = getK(it.k), r = el(`<div class="row"><div class="tx"><b>${esc(it.l)}</b>${it.d ? `<small>${esc(it.d)}</small>` : ''}</div><div class="ctrl"></div></div>`), c = $('.ctrl', r);
-  const commit = v => { setK(it.k, v); save(); applyTheme(); placeFab(); if (['wallMode', 'wallEffect', 'wallInterval'].includes(it.k)) Wall.apply(); if (['speedUnit', 'tempUnit', 'pressUnit', 'rows', 'colw', 'visualizer', 'hideLyrics'].includes(it.k)) refreshHome(); if (it.k === 'radarAlerts' || it.k.startsWith('layers.')) { Poi.draw(); Poi.refresh(); } if (['mapStyle', 'navIcon', 'navIconColor', 'navIconSize'].includes(it.k)) Nav.applyStyle(); if (it.k === 'poiSize') applyPoiSize(); if (it.k === 'manStyle' && typeof Nav !== 'undefined') Nav.refreshMan(); };
+  const commit = v => { setK(it.k, v); save(); applyTheme(); placeFab(); if (['wallMode', 'wallEffect', 'wallInterval'].includes(it.k)) Wall.apply(); if (['speedUnit', 'tempUnit', 'pressUnit', 'rows', 'colw', 'visualizer', 'hideLyrics'].includes(it.k)) refreshHome(); if (it.k === 'radarAlerts' || it.k.startsWith('layers.')) { Poi.draw(); Poi.refresh(); } if (['mapStyle', 'navIcon', 'navIconColor', 'navIconSize'].includes(it.k)) Nav.applyStyle(); if (it.k === 'poiSize') applyPoiSize(); if (it.k === 'manStyle' && typeof Nav !== 'undefined') Nav.refreshMan(); if (it.k === 'dashSwipe' && typeof Dash !== 'undefined') Dash.grip(); };
   if (it.type === 'toggle') { const s = el(`<div class="sw ${val ? 'on' : ''}"></div>`); s.onclick = () => { s.classList.toggle('on'); commit(s.classList.contains('on')); }; c.append(s); }
   else if (it.type === 'select' || it.type === 'action') {
     const opts = it.type === 'action' ? Object.entries(ACTIONS).map(([k, v]) => [k, v[0]]) : OPT[it.k];
@@ -719,4 +719,7 @@ document.addEventListener('pointerup', () => {
   if (S.autoFS === false || document.fullscreenElement || !matchMedia('(display-mode: standalone), (display-mode: minimal-ui)').matches) return;
   document.documentElement.requestFullscreen?.().then(() => screen.orientation?.lock?.('landscape').catch(() => { })).catch(() => { });
 }, { once: true });
+/* Al volver a la app (otra pestaña, otra ventana, pantalla apagada…): GPS reiniciado, mapa redibujado y centrado, ruta conservada */
+let backT = 0; const onBack = () => { clearTimeout(backT); backT = setTimeout(() => { startGPS(); if (typeof Nav !== 'undefined' && Nav.resume) Nav.resume(); }, 350); };
+document.addEventListener('visibilitychange', () => { if (!document.hidden) onBack(); }); addEventListener('pageshow', e => { if (e.persisted) onBack(); }); addEventListener('focus', onBack);
 addEventListener('DOMContentLoaded', init); // tras cargar también dash.js

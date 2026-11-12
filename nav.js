@@ -178,7 +178,7 @@ const Nav = (() => {
       $$('#nlay [data-l]', N.el).forEach(b => b.onclick = () => { S.layers[b.dataset.l] = !S.layers[b.dataset.l]; save(); sync(); Poi.draw(); Poi.refresh(); });
       sync();
     }
-    root.innerHTML = ''; root.append(N.el); N.opt = emb ? (opt || {}) : {}; N.el.classList.toggle('emb', !!emb); N.fx = ({ right: .72, left: .28 })[emb && opt && opt.focus] || .5; N.el.classList.toggle('nosearch', !!emb && !!opt && opt.search === false); N.el.classList.toggle('nolayers', !!emb && !!opt && opt.layers === false); N.el.classList.toggle('tools-on', !!emb && !!opt && String(opt.tools) === 'true'); N.el.classList.toggle('tools-off', !!emb && !!opt && String(opt.tools) === 'false'); initMap(); applyStyle(N.opt); chips(); N.mx.resize(); setTimeout(() => N.mx && N.mx.resize(), 150); const b3 = $('#n3d', N.el); b3.textContent = is3d() ? '3D' : '2D'; b3.classList.toggle('on', is3d()); b3.style.display = N.mx.can3d ? '' : 'none'; $('#ncmp', N.el).style.display = N.mx.can3d ? '' : 'none';
+    root.innerHTML = ''; root.append(N.el); N.opt = emb ? (opt || {}) : {}; N.el.classList.toggle('emb', !!emb); N.fx = ({ right: .72, left: .28 })[emb && opt && opt.focus] || .5; N.el.classList.toggle('nosearch', !!emb && !!opt && opt.search === false); N.el.classList.toggle('nolayers', !!emb && !!opt && opt.layers === false); N.el.classList.toggle('tools-on', !!emb && !!opt && String(opt.tools) === 'true'); N.el.classList.toggle('tools-off', !!emb && !!opt && String(opt.tools) === 'false'); initMap(); applyStyle(N.opt); chips(); N.mx.resize(); setTimeout(() => N.mx && N.mx.resize(), 150); const b3 = $('#n3d', N.el); b3.textContent = is3d() ? '3D' : '2D'; b3.classList.toggle('on', is3d()); b3.style.display = N.mx.can3d ? '' : 'none'; $('#ncmp', N.el).style.display = N.mx.can3d ? '' : 'none'; setTimeout(() => resume(), 300);
   }
   function initMap() {
     if (N.mx) return;
@@ -212,6 +212,22 @@ const Nav = (() => {
     }
     return { errs };
   }
+  /* La ruta activa sobrevive a recargas/cierres de pestaña (el navegador del coche descarta pestañas en segundo plano) */
+  const saveRoute = d => { S.navRoute = d ? { name: d.name, lat: d.lat, lon: d.lon, t: Date.now() } : null; save(); };
+  function maybeRestore() {
+    const r = S.navRoute; if (!r || N.active || N.restoring || !N.mx) return; if (Date.now() - r.t > 6 * 3600e3) { saveRoute(null); return; }
+    N.restoring = true; N.restoreT = Date.now(); routeTo({ name: r.name, lat: r.lat, lon: r.lon, link: true }, true).then(ok => { if (ok) toast('Ruta recuperada: ' + r.name, 3000); }).finally(() => { N.restoring = false; });
+  }
+  /* Al volver al mapa: se redibuja, se recarga la posición y se vuelve a centrar; la ruta se conserva (o se recupera) */
+  function resume() {
+    if (!N.mx || !N.el || !N.el.isConnected) return;
+    N.mx.resize(); try { if (N.mx.map && N.mx.map.triggerRepaint) N.mx.map.triggerRepaint(); } catch { }
+    N.follow = true; N.tzUser = false; N.snap = true; F.last = 0;
+    if (typeof refreshGPS === 'function') refreshGPS();
+    if (!N.active && !N.coords.length) N.tz = is3d() ? 16 : 15.5;
+    if (N.pos) centerOn(N.pos, N.tz, false);
+    maybeRestore(); if (typeof Poi !== 'undefined') Poi.draw();
+  }
   async function routeTo(d, quiet) {
     if (!N.mx) return toast('El mapa aún no está listo: abre la pestaña Mapa y reintenta', 3500);
     const o = GPS.pos ? [GPS.pos.latitude, GPS.pos.longitude] : S.lastPos || (() => { const c = N.mx.center(); toast('Sin GPS: se usa el centro del mapa como origen', 3500); return c; })();
@@ -222,12 +238,12 @@ const Nav = (() => {
     N.tzUser = false; N.route = rt; N.coords = rt.geometry.coordinates.map(c => [c[1], c[0]]); N.steps = rt.legs[0].steps; N.idx = 0; N.dest = d; N.off = 0; N.active = true; N.follow = true;
     N.steps.forEach(s => { s.v1 = s.v2 = false; });
     drawRoute(); if (N.dm) N.dm.remove(); N.dm = N.mx.marker([d.lat, d.lon], '<div class="poi" style="border-color:var(--acc);font-size:21px">🏁</div>', [36, 36]);
-    if (!quiet) { if (!d.link && typeof Link !== 'undefined') Link.publish(d); N.mx.focus(N.fx, 0); N.mx.fit(N.coords); setTimeout(() => { N.follow = true; }, 4000); S.navRecent = [{ name: d.name, lat: d.lat, lon: d.lon, sub: d.sub || '', t: Date.now() }, ...(S.navRecent || []).filter(x => x.name !== d.name && dist([x.lat, x.lon], [d.lat, d.lon]) > 60)].slice(0, 15); save(); chips(); if (typeof Adv !== 'undefined') Adv.logTrip(d); say('Ruta calculada. ' + fmtD(rt.distance) + ' hasta ' + d.name); }
+    if (!quiet) { saveRoute(d); if (!d.link && typeof Link !== 'undefined') Link.publish(d); N.mx.focus(N.fx, 0); N.mx.fit(N.coords); setTimeout(() => { N.follow = true; }, 4000); S.navRecent = [{ name: d.name, lat: d.lat, lon: d.lon, sub: d.sub || '', t: Date.now() }, ...(S.navRecent || []).filter(x => x.name !== d.name && dist([x.lat, x.lon], [d.lat, d.lon]) > 60)].slice(0, 15); save(); chips(); if (typeof Adv !== 'undefined') Adv.logTrip(d); say('Ruta calculada. ' + fmtD(rt.distance) + ' hasta ' + d.name); }
     $('#nguide', N.el).hidden = false; $('#nbar', N.el).hidden = false; N.el.classList.add('guiding'); $('#nsim', N.el).hidden = false; update(o);
     return true;
   }
   function stop() {
-    N.active = false; clearInterval(N.simT); N.sim = false; N.sum = null; bus.emit('nav'); try { speechSynthesis.cancel(); } catch { }
+    saveRoute(null); N.active = false; clearInterval(N.simT); N.sim = false; N.sum = null; bus.emit('nav'); try { speechSynthesis.cancel(); } catch { }
     N.coords = []; drawRoute(); if (N.dm) { N.dm.remove(); N.dm = null; }
     N.el.classList.remove('guiding'); ['nguide', 'nbar', 'nsim'].forEach(i => $('#' + i, N.el).hidden = true); $('#nsim', N.el).textContent = '🧪 Simular ruta';
   }
@@ -261,7 +277,8 @@ const Nav = (() => {
     N.active = false; clearInterval(N.simT); setTimeout(() => { if (!N.active) stop(); }, 8000);
   }
   function onPos(c) {
-    if (!N.mx) return; const p = [c.latitude, c.longitude], prev = N.pos; N.pos = p; const sp = c.speed || 0, kmh = sp * 3.6;
+    if (!N.mx) return; if (S.navRoute && !N.active && !N.restoring && Date.now() - (N.restoreT || 0) > 20000) maybeRestore();
+    const p = [c.latitude, c.longitude], prev = N.pos; N.pos = p; const sp = c.speed || 0, kmh = sp * 3.6;
     let h = c.heading != null && !isNaN(c.heading) && kmh > 6 ? c.heading : null;
     if (h == null) { // sin rumbo del GPS: se calcula desde un punto de referencia a ≥ 10 m (se mueve con el coche)
       if (!N.anchor) N.anchor = p; else { const da = dist(N.anchor, p); if (da >= 10 && (c.speed == null || sp > .8)) { h = (Math.atan2(rad(p[1] - N.anchor[1]) * Math.cos(rad(N.anchor[0])), rad(p[0] - N.anchor[0])) * 180 / Math.PI + 360) % 360; N.anchor = p; } else if (da > 60) N.anchor = p; }
@@ -291,5 +308,5 @@ const Nav = (() => {
     }, 1000);
   }
   function prefill(q) { go('map'); setTimeout(() => openSearch(q), 150); }
-  return { refreshMan: () => { if (N.active && N.pos) update(N.pos); }, manSvg, applyStyle: () => applyStyle(), openPhone: () => navDlg(appById('maps') || { n: 'GPS', e: '🧭', k: 'gmaps' }), switchMap: () => Maps.switchFrom(N.el), setMode, toggle3d: () => { if (!N.mx) return; if (!N.mx.can3d) return toast('Este navegador no admite el mapa 3D'); setMode(!is3d()); toast(is3d() ? 'Vista 3D' : 'Vista 2D'); }, render, mount: el => render(el, true), onPos, prefill, routeTo, search, state: N, instr, distToLine: distToRoute, summary: () => N.sum };
+  return { resume, refreshMan: () => { if (N.active && N.pos) update(N.pos); }, manSvg, applyStyle: () => applyStyle(), openPhone: () => navDlg(appById('maps') || { n: 'GPS', e: '🧭', k: 'gmaps' }), switchMap: () => Maps.switchFrom(N.el), setMode, toggle3d: () => { if (!N.mx) return; if (!N.mx.can3d) return toast('Este navegador no admite el mapa 3D'); setMode(!is3d()); toast(is3d() ? 'Vista 3D' : 'Vista 2D'); }, render, mount: el => render(el, true), onPos, prefill, routeTo, search, state: N, instr, distToLine: distToRoute, summary: () => N.sum };
 })();
