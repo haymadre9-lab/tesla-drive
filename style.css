@@ -569,3 +569,5 @@ html[data-theme=light] .navmenu{background:#fff;color:#111826;border-color:rgba(
 .navhdr .nlay{width:36px;height:36px;border-radius:50%;opacity:.95;} .navtools #nsm{display:none;}
 
 .mp-v{padding:8px 10px;} .mp-v img{width:96px;height:54px;object-fit:cover;border-radius:8px;flex:none;background:#0004;} .mp-v > div{flex:1;min-width:0;} .mp-v b{display:block;white-space:normal;max-height:2.7em;overflow:hidden;font-size:15px;line-height:1.35;} .mp-v small{display:block;opacity:.65;font-size:12px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.nt{background:rgba(128,128,128,.14);border-radius:12px;padding:10px 12px;margin-bottom:8px;color:inherit;font-size:14px;} .nt .acts{margin-top:8px;flex-wrap:wrap;}
+.navhdr .nnotes{position:relative;} .navhdr .nnotes[data-n]:not([data-n=""])::after{content:attr(data-n);position:absolute;top:-5px;right:-5px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--acc);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;line-height:1;} #btnNotes svg{display:block;pointer-events:none;}
