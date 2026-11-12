@@ -64,3 +64,45 @@ const Cat = (() => {
   ACTIONS.catalog = ['Apps recomendadas', open];
   return { open, add, LIST, TAGS };
 })();
+
+/* ───────── Reproductor por enlace: pensado para NO escribir en el coche ─────────
+   · Favoritos: se guardan en el móvil y viajan al coche con la sincronización de ajustes (S.mediaFavs).
+   · Recientes: lo último que has abierto en este dispositivo.
+   · Enviar: desde el móvil se manda el enlace al coche por el enlace entre dispositivos (ntfy.sh, mismo código).
+   · Compartir: en el móvil, «Compartir» desde YouTube/Spotify/SoundCloud… → LecoAuto (PWA instalada) ofrece abrir, enviar o guardar. */
+const Media = (() => {
+  const F = () => (S.mediaFavs ||= []), Rc = () => (S.mediaRecent ||= []); // la sincronización puede reemplazar S: siempre se lee con valor por defecto
+  const nameOf = u => { const r = mediaEmbed(u); if (!r) return u; let seg = ''; try { const p = new URL(/^https?:/i.test(u) ? u : 'https://' + u).pathname.split('/').filter(Boolean); seg = decodeURIComponent(p[p.length - 1] || '').replace(/[-_]/g, ' '); } catch { } return r.n + (seg && seg.length < 40 ? ' · ' + seg : ''); };
+  const remember = u => { S.mediaRecent = [{ u, n: nameOf(u) }, ...Rc().filter(x => x.u !== u)].slice(0, 8); save(); };
+  const fav = (u, n) => { if (F().some(x => x.u === u)) return false; F().unshift({ u, n: (n || nameOf(u)).slice(0, 60) }); save(); return true; };
+  const send = u => { if (typeof Link === 'undefined' || !Link.valid()) { toast('Primero configura el enlace entre dispositivos: Ajustes → Mapa → «Enlace con D3D Clone / Autoboard-nav»', 5000); return false; } Link.publishMedia(u); toast('Enviado al otro dispositivo'); return true; };
+  function pick() {
+    return new Promise(res => {
+      const row = (ico, x, i, k) => `<div class="mp-r" data-${k}="${i}"><span>${ico}</span><b>${esc(x.n)}</b>${k === 'f' ? `<button class="mp-x" data-df="${i}" type="button" aria-label="Quitar"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M5 5L19 19M19 5L5 19" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></button>` : ''}</div>`;
+      const body = () => (F().length ? '<div class="cat-h">⭐ Favoritos (tócalos para reproducir)</div>' + F().map((x, i) => row('⭐', x, i, 'f')).join('') : '<div class="note">Aún no tienes favoritos. Guárdalos desde el móvil: se sincronizan con el coche y no hay que escribir nada.</div>') + (Rc().length ? '<div class="cat-h">🕘 Recientes</div>' + Rc().map((x, i) => row('🕘', x, i, 'r')).join('') : '');
+      dlg(`<h3>🎶 Reproductor</h3><div id="mpl" class="cat-l" style="max-height:34vh"></div><div class="cat-h">Otro enlace</div><div class="adv-ask"><input class="in" id="mpi" placeholder="Escribe o pega un enlace" autocomplete="off" autocapitalize="off" spellcheck="false"><button class="btn" id="mpg" type="button">▶</button></div>
+        <div class="acts"><button class="btn sec" id="mps" type="button">⭐ Guardar</button><button class="btn sec" id="mpe" type="button">📲 Enviar a otro dispositivo</button><button class="btn sec" id="mpx" type="button">Cerrar</button></div>`, d => {
+        const list = $('#mpl', d), inp = $('#mpi', d); let done = false; const fin = v => { if (done) return; done = true; closeDlg(); res(v); };
+        const draw = () => { list.innerHTML = body(); $$('[data-f]', list).forEach(r => r.onclick = e => { if (e.target.closest('[data-df]')) return; const x = F()[+r.dataset.f]; remember(x.u); fin(x.u); }); $$('[data-r]', list).forEach(r => r.onclick = () => fin(Rc()[+r.dataset.r].u)); $$('[data-df]', list).forEach(b => b.onclick = e => { e.stopPropagation(); F().splice(+b.dataset.df, 1); save(); draw(); }); };
+        draw(); const val = () => inp.value.trim(), okv = () => { const v = val(); if (!mediaEmbed(v)) { toast('No reconozco ese enlace (YouTube, Spotify, SoundCloud, Mixcloud, Apple, Deezer, Vimeo, Dailymotion, Twitch)', 4000); return null; } return v; };
+        $('#mpg', d).onclick = () => { const v = okv(); if (v) { remember(v); fin(v); } }; inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#mpg', d).click(); } });
+        $('#mps', d).onclick = () => { const v = okv(); if (v) { toast(fav(v) ? 'Guardado en favoritos' : 'Ya estaba en favoritos'); inp.value = ''; draw(); } };
+        $('#mpe', d).onclick = () => { const v = okv(); if (v) send(v); };
+        $('#mpx', d).onclick = () => fin(null); $('#modal').onclick = e => { if (e.target.id === 'modal') fin(null); };
+      });
+    });
+  }
+  /* «Compartir» desde otra app del móvil → LecoAuto (share_target del manifest) */
+  function shared() {
+    const q = new URLSearchParams(location.search), txt = [q.get('url'), q.get('text'), q.get('title')].filter(Boolean).join(' '); if (!txt) return;
+    const m = txt.match(/(https?:\/\/[^\s]+)/i), u = m && m[1]; try { history.replaceState(null, '', location.pathname); } catch { }
+    if (!u) return; if (!mediaEmbed(u)) return; // los enlaces de mapas/ubicaciones los gestiona el mapa
+    dlg(`<h3>🎶 ${esc(nameOf(u))}</h3><div class="note">Enlace compartido. ¿Qué quieres hacer?</div><div class="f"><button class="btn" id="sh1" type="button">▶ Abrir aquí</button><button class="btn" id="sh2" type="button">📲 Enviar al coche</button><button class="btn sec" id="sh3" type="button">⭐ Guardar en favoritos (se sincroniza con el coche)</button></div><div class="acts"><button class="btn sec" id="shx" type="button">Cerrar</button></div>`, d => {
+      $('#shx', d).onclick = closeDlg; $('#sh1', d).onclick = () => { closeDlg(); remember(u); const r = mediaEmbed(u); openFloat({ id: 'media-sh', n: r.n, e: '🎶', u: r.u, orig: u, smart: 1 }); };
+      $('#sh2', d).onclick = () => { if (send(u)) closeDlg(); }; $('#sh3', d).onclick = () => { toast(fav(u) ? 'Guardado en favoritos' : 'Ya estaba en favoritos'); closeDlg(); };
+    });
+  }
+  setTimeout(shared, 900);
+  return { pick, remember, fav, send, nameOf, shared };
+})();
+const mediaPick = () => Media.pick();

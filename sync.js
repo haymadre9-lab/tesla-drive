@@ -3,7 +3,7 @@
    También recibe enlaces compartidos desde el móvil ("Compartir" → LecoAuto) para crear apps o ventanas. */
 
 const Sync = (() => {
-  const LOCAL = ['lastPos', 'maxSpeed', 'trip', 'tripT', 'reports', 'recent', 'navRecent', 'last', 'cfgRev', 'cfgSeen', 'city', 'trips', 'mapDest', 'mapDestFor', 'advLoc'];
+  const LOCAL = ['lastPos', 'maxSpeed', 'trip', 'tripT', 'reports', 'recent', 'navRecent', 'last', 'cfgRev', 'cfgSeen', 'city', 'trips', 'mapDest', 'mapDestFor', 'advLoc', 'mediaRecent'];
   const cl = o => JSON.parse(JSON.stringify(o));
   const gh = () => { try { return JSON.parse(localStorage.getItem('leco.gh') || '{}'); } catch { return {}; } };
   const setGh = o => { try { localStorage.setItem('leco.gh', JSON.stringify(Object.assign(gh(), o))); } catch { toast('No se pudo guardar en este dispositivo'); } };

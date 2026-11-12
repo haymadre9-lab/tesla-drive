@@ -370,7 +370,7 @@ function ytEmbed(t) {
 }
 /* Reproductor por enlace: cada servicio tiene su widget/embed oficial (los sitios normales prohíben el iframe). Devuelve {u, n} o null. */
 function mediaEmbed(v) {
-  v = String(v || '').trim(); let m;
+  v = String(v || '').trim(); if (v && !/^https?:\/\//i.test(v) && /^[\w.-]+\.[a-z]{2,}\//i.test(v)) v = 'https://' + v; let m;
   const yt = ytEmbed(v); if (yt) return { u: yt, n: 'YouTube' };
   if ((m = v.match(/open\.spotify\.com\/(?:intl-\w+\/)?(track|album|playlist|episode|show|artist)\/(\w+)/))) return { u: `https://open.spotify.com/embed/${m[1]}/${m[2]}`, n: 'Spotify' };
   if (/soundcloud\.com\/[\w-]+/i.test(v) && !/on\.soundcloud\.com/i.test(v)) return { u: `https://w.soundcloud.com/player/?url=${encodeURIComponent(v.split('?')[0])}&auto_play=true&show_comments=false`, n: 'SoundCloud' };
@@ -391,7 +391,7 @@ async function embedFor(a) {
     case 'wikipro': { const p = myPos(); return { u: `mini/wiki.html?lat=${p[0].toFixed(4)}&lon=${p[1].toFixed(4)}`, smart: 1 }; }
     case 'rain': { const p = myPos(); return { u: `mini/lluvia.html?lat=${p[0].toFixed(3)}&lon=${p[1].toFixed(3)}`, smart: 1 }; }
     case 'lichess': return { u: 'https://lichess.org/tv/frame?theme=brown&bg=dark', orig: 'https://lichess.org/tv', smart: 1 };
-    case 'media': { const v = await ask('media', 'Pega el enlace: YouTube, Spotify, SoundCloud, Mixcloud, Apple Music, Deezer, Vimeo, Dailymotion o Twitch', 'https://…'); if (v === null) return null; const r = mediaEmbed(v); return r ? { u: r.u, orig: v, smart: 1 } : bad('No reconozco ese enlace. Prueba con uno de YouTube, Spotify, SoundCloud, Mixcloud, Apple Music, Deezer, Vimeo, Dailymotion o Twitch'); }
+    case 'media': { const v = typeof mediaPick === 'function' ? await mediaPick() : await ask('media', 'Pega el enlace: YouTube, Spotify, SoundCloud, Mixcloud, Apple Music, Deezer, Vimeo, Dailymotion o Twitch', 'https://…'); if (v === null || v === undefined) return null; const r = mediaEmbed(v); return r ? { u: r.u, orig: v, smart: 1 } : bad('No reconozco ese enlace. Prueba con uno de YouTube, Spotify, SoundCloud, Mixcloud, Apple Music, Deezer, Vimeo, Dailymotion o Twitch'); }
     case 'gmaps': { const q = await ask('gmaps', 'Google Maps: lugar o dirección (vacío = tu posición)', 'Ej. Gasolinera cerca'); if (q === null) return null; const p = myPos(); return { u: `https://maps.google.com/maps?q=${encodeURIComponent(q || p.join(','))}&z=15&output=embed`, orig: 'https://www.google.com/maps/search/' + encodeURIComponent(q || p.join(',')), smart: 1 }; }
     case 'waze': { const p = myPos(); return { u: `https://embed.waze.com/iframe?zoom=14&lat=${p[0]}&lon=${p[1]}&pin=1`, smart: 1 }; }
     case 'windy': { const p = myPos(); return { u: `https://embed.windy.com/embed2.html?lat=${p[0].toFixed(2)}&lon=${p[1].toFixed(2)}&zoom=7&level=surface&overlay=wind&product=ecmwf&marker=true&message=true`, smart: 1 }; }
