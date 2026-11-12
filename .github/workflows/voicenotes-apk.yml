@@ -1,0 +1,27 @@
+name: Compilar Notas de Voz
+on:
+  workflow_dispatch:
+  push:
+    paths: ['voicenotes/**', '.github/workflows/voicenotes-apk.yml']
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: '8.9' }
+      - name: Modelo de voz Vosk (español, offline, ~40 MB)
+        run: |
+          mkdir -p voicenotes/app/src/main/assets
+          curl -fSL -o /tmp/model.zip https://alphacephei.com/vosk/models/vosk-model-small-es-0.42.zip
+          unzip -q /tmp/model.zip -d /tmp/model-x
+          mv /tmp/model-x/vosk-model-small-es-0.42 voicenotes/app/src/main/assets/model
+          ls voicenotes/app/src/main/assets/model
+      - name: Compilar
+        run: gradle -p voicenotes assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NotasDeVoz-apk
+          path: voicenotes/app/build/outputs/apk/debug/app-debug.apk
