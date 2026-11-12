@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0b0f17">
+<title>Tetris</title>
+<style>
+:root{--bg:#0b0f17;--card:#151b27;--txt:#eef2f8;--dim:#93a0b4;--acc:#3e9bff}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+#app{display:flex;height:100%;align-items:center;justify-content:center;gap:3vmin;padding:1.5vmin}
+#wrap{position:relative;flex:none}canvas{display:block;background:#0e141f;border-radius:1.6vmin;border:2px solid #243247}
+#side{display:flex;flex-direction:column;gap:1.6vmin;width:min(26vw,230px)}
+.box{background:var(--card);border-radius:1.8vmin;padding:1.2vmin 2vmin;text-align:center}.box small{display:block;color:var(--dim);font-size:clamp(10px,2.4vmin,15px);text-transform:uppercase;letter-spacing:.08em}.box b{font-size:clamp(20px,6vmin,44px);font-variant-numeric:tabular-nums}
+#nx{display:block;margin:0 auto;width:min(18vmin,100px);height:min(18vmin,100px)}
+.row{display:flex;gap:1.4vmin}.row .box{flex:1}
+button{font:inherit;font-weight:700;font-size:clamp(14px,3.2vmin,22px);color:#fff;background:var(--acc);border:0;border-radius:2vmin;padding:1.8vmin;cursor:pointer;touch-action:manipulation}button.s{background:#243247}button:active{filter:brightness(1.35)}
+#ctl{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2vmin}#ctl button{background:#243247;padding:1vmin;display:grid;place-items:center;min-height:12vmin}#ctl button.p{background:var(--acc)}#ctl svg{width:5.4vmin;height:5.4vmin}
+#msg{position:absolute;inset:0;border-radius:1.6vmin;background:rgba(11,15,23,.84);display:none;flex-direction:column;align-items:center;justify-content:center;gap:2vmin;font-size:clamp(20px,5.6vmin,40px);font-weight:800;text-align:center;padding:2vmin}#msg.on{display:flex}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="wrap"><canvas id="cv"></canvas><div id="msg"><div id="mt">Tetris</div><button id="go">Jugar</button></div></div>
+  <div id="side">
+    <div class="box"><small>Siguiente</small><canvas id="nx" width="100" height="100"></canvas></div>
+    <div class="row"><div class="box"><small>Puntos</small><b id="sc">0</b></div><div class="box"><small>Nivel</small><b id="lv">1</b></div></div>
+    <div class="box"><small>Récord</small><b id="bs">0</b></div>
+    <div id="ctl">
+      <button data-a="l" aria-label="Izquierda"></button><button data-a="rot" class="p" aria-label="Girar"></button><button data-a="r" aria-label="Derecha"></button>
+      <button data-a="soft" aria-label="Bajar"></button><button data-a="hard" aria-label="Caer del todo"></button><button data-a="pause" aria-label="Pausa"></button>
+    </div>
+  </div>
+</div>
+<script>
+'use strict';
+(() => {
+  const $ = id => document.getElementById(id), cv = $('cv'), cx = cv.getContext('2d'), nxc = $('nx').getContext('2d'), COLS = 10, ROWS = 20;
+  const ls = { get: (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { } } };
+  const SH = { I: [[0, 0, 0, 0], [1, 1, 1, 1], [0, 0, 0, 0], [0, 0, 0, 0]], O: [[1, 1], [1, 1]], T: [[0, 1, 0], [1, 1, 1], [0, 0, 0]], S: [[0, 1, 1], [1, 1, 0], [0, 0, 0]], Z: [[1, 1, 0], [0, 1, 1], [0, 0, 0]], J: [[1, 0, 0], [1, 1, 1], [0, 0, 0]], L: [[0, 0, 1], [1, 1, 1], [0, 0, 0]] };
+  const CL = { I: '#4fd8ff', O: '#ffd54a', T: '#b57cff', S: '#5cf08a', Z: '#ff6b6b', J: '#5b8cff', L: '#ffa14a' }, KEYS = Object.keys(SH);
+  let cell = 24, grid, cur, next, score, lines, level, best = +ls.get('tetris.best', 0), timer = 0, running = false, dead = false, bag = [];
+  const ICO = { l: 'M15 5l-8 7 8 7z', r: 'M9 5l8 7-8 7z', soft: 'M5 9l7 8 7-8z', rot: 'M12 5a7 7 0 106.6 9.3M12 1l4 4-4 4', hard: 'M5 6l7 7 7-7M5 12l7 7 7-7', pause: 'M8 5v14M16 5v14' };
+  document.querySelectorAll('#ctl button').forEach(b => { const a = b.dataset.a, st = a === 'rot' || a === 'hard' || a === 'pause'; b.innerHTML = `<svg viewBox="0 0 24 24">${st ? `<path d="${ICO[a]}" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>` : `<path d="${ICO[a]}" fill="currentColor"/>`}</svg>`; b.onclick = () => act(a); });
+  function size() { const sideW = Math.min(innerWidth * .26, 230) + innerWidth * .03 + 12; cell = Math.max(12, Math.floor(Math.min((innerHeight - 20) / ROWS, (innerWidth - sideW - 20) / COLS))); cv.width = COLS * cell; cv.height = ROWS * cell; }
+  const rnd = () => { if (!bag.length) bag = KEYS.slice().sort(() => Math.random() - .5); return bag.pop(); };
+  const mk = k => ({ k, m: SH[k].map(r => r.slice()), x: Math.floor((COLS - SH[k][0].length) / 2), y: 0 });
+  const rot = m => m[0].map((_, i) => m.map(r => r[i]).reverse());
+  const hit = (p, m = p.m, x = p.x, y = p.y) => m.some((r, j) => r.some((v, i) => v && (x + i < 0 || x + i >= COLS || y + j >= ROWS || (y + j >= 0 && grid[y + j][x + i]))));
+  function reset() { size(); grid = Array.from({ length: ROWS }, () => Array(COLS).fill(0)); score = 0; lines = 0; level = 1; dead = false; bag = []; cur = mk(rnd()); next = rnd(); upd(); draw(); }
+  function upd() { $('sc').textContent = score; $('lv').textContent = level; $('bs').textContent = best; }
+  const speed = () => Math.max(90, 800 - (level - 1) * 70);
+  function start() { if (dead) reset(); running = true; $('msg').classList.remove('on'); clearInterval(timer); timer = setInterval(tick, speed()); }
+  function pause() { running = false; clearInterval(timer); $('mt').textContent = 'Pausa'; $('go').textContent = 'Seguir'; $('msg').classList.add('on'); }
+  function lock() {
+    cur.m.forEach((r, j) => r.forEach((v, i) => { if (v && cur.y + j >= 0) grid[cur.y + j][cur.x + i] = cur.k; }));
+    let n = 0; for (let y = ROWS - 1; y >= 0; y--) if (grid[y].every(Boolean)) { grid.splice(y, 1); grid.unshift(Array(COLS).fill(0)); n++; y++; }
+    if (n) { score += [0, 100, 300, 500, 800][n] * level; lines += n; const nl = 1 + Math.floor(lines / 10); if (nl !== level) { level = nl; if (running) { clearInterval(timer); timer = setInterval(tick, speed()); } } }
+    if (score > best) { best = score; ls.set('tetris.best', best); }
+    cur = mk(next); next = rnd(); if (hit(cur)) end(); upd();
+  }
+  function end() { running = false; dead = true; clearInterval(timer); $('mt').textContent = 'Fin · ' + score + ' puntos'; $('go').textContent = 'Otra vez'; $('msg').classList.add('on'); }
+  function tick() { if (!hit(cur, cur.m, cur.x, cur.y + 1)) cur.y++; else lock(); draw(); }
+  function act(a) {
+    if (a === 'pause') return running ? pause() : (dead ? 0 : start());
+    if (!running) { if (!dead) start(); return; }
+    if (a === 'l' && !hit(cur, cur.m, cur.x - 1, cur.y)) cur.x--;
+    else if (a === 'r' && !hit(cur, cur.m, cur.x + 1, cur.y)) cur.x++;
+    else if (a === 'soft') { if (!hit(cur, cur.m, cur.x, cur.y + 1)) { cur.y++; score++; upd(); } else lock(); }
+    else if (a === 'rot') { const m = rot(cur.m); for (const dx of [0, -1, 1, -2, 2]) if (!hit(cur, m, cur.x + dx, cur.y)) { cur.m = m; cur.x += dx; break; } }
+    else if (a === 'hard') { let d = 0; while (!hit(cur, cur.m, cur.x, cur.y + 1)) { cur.y++; d++; } score += d * 2; lock(); }
+    draw();
+  }
+  function box(c, x, y, s, col) { c.fillStyle = col; c.fillRect(x + 1, y + 1, s - 2, s - 2); c.fillStyle = 'rgba(255,255,255,.22)'; c.fillRect(x + 1, y + 1, s - 2, Math.max(2, s * .16)); }
+  function draw() {
+    cx.fillStyle = '#0e141f'; cx.fillRect(0, 0, cv.width, cv.height); cx.strokeStyle = 'rgba(255,255,255,.04)'; for (let i = 1; i < COLS; i++) { cx.beginPath(); cx.moveTo(i * cell, 0); cx.lineTo(i * cell, cv.height); cx.stroke(); } for (let j = 1; j < ROWS; j++) { cx.beginPath(); cx.moveTo(0, j * cell); cx.lineTo(cv.width, j * cell); cx.stroke(); }
+    grid.forEach((r, y) => r.forEach((k, x) => { if (k) box(cx, x * cell, y * cell, cell, CL[k]); }));
+    if (cur && !dead) { let gy = cur.y; while (!hit(cur, cur.m, cur.x, gy + 1)) gy++; cur.m.forEach((r, j) => r.forEach((v, i) => { if (v) { cx.strokeStyle = CL[cur.k]; cx.globalAlpha = .35; cx.strokeRect((cur.x + i) * cell + 2, (gy + j) * cell + 2, cell - 4, cell - 4); cx.globalAlpha = 1; } })); cur.m.forEach((r, j) => r.forEach((v, i) => { if (v) box(cx, (cur.x + i) * cell, (cur.y + j) * cell, cell, CL[cur.k]); })); }
+    nxc.clearRect(0, 0, 100, 100); const m = SH[next], s = 22, ox = (100 - m[0].length * s) / 2, oy = (100 - m.length * s) / 2; m.forEach((r, j) => r.forEach((v, i) => { if (v) box(nxc, ox + i * s, oy + j * s, s, CL[next]); }));
+  }
+  $('go').onclick = () => start();
+  addEventListener('keydown', e => { const m = { ArrowLeft: 'l', ArrowRight: 'r', ArrowDown: 'soft', ArrowUp: 'rot', ' ': 'hard', p: 'pause' }[e.key]; if (m) { e.preventDefault(); act(m); } });
+  let t0 = null; document.addEventListener('touchstart', e => { if (!e.target.closest('button')) t0 = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() }; }, { passive: true });
+  document.addEventListener('touchend', e => { if (!t0) return; const dx = e.changedTouches[0].clientX - t0.x, dy = e.changedTouches[0].clientY - t0.y, ax = Math.abs(dx), ay = Math.abs(dy); const t = t0; t0 = null; if (ax < 12 && ay < 12 && Date.now() - t.t < 300) return act('rot'); if (ax > ay && ax > 20) act(dx > 0 ? 'r' : 'l'); else if (ay > 20) act(dy > 0 ? 'hard' : 'rot'); }, { passive: true });
+  addEventListener('resize', () => { if (!running) { size(); draw(); } });
+  reset(); $('msg').classList.add('on'); window.__t = { act, tick, hit, get grid() { return grid; }, set grid(v) { grid = v; }, get cur() { return cur; }, set cur(v) { cur = v; }, mk, get score() { return score; }, get dead() { return dead; }, start, rot };
+})();
+</script>
+</body>
+</html>

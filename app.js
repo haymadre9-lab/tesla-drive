@@ -13,7 +13,7 @@ const bus = (() => { const m = {}; return { on: (e, f) => (m[e] ||= []).push(f),
 const DEF_APPS = [
   { id: 'd3d', n: 'D3D Clone', u: 'https://haymadre9-lab.github.io/hudMapa3D/', img: 'icons/d3d.png', e: '🛣️' },
   { id: 'tiempo', n: 'El tiempo', u: 'mini/tiempo.html', e: '⛅', k: 'tiempo' },
-  { id: 'yt', n: 'YouTube', u: 'https://www.youtube.com/tv', e: '▶️', mode: 'tab' },
+  { id: 'yt', n: 'YouTube', u: 'https://m.youtube.com', e: '▶️', k: 'yt' },
   { id: 'wiki', n: 'Wikipedia', u: 'mini/wiki.html', e: '📚', k: 'wikipro' },
   { id: 'radio', n: 'Radio Garden', u: 'https://radio.garden', e: '📻' },
   { id: 'media', n: 'Reproductor por enlace', u: 'https://youtube.com', e: '🎶', k: 'media' },
@@ -364,6 +364,7 @@ async function openApp(a, mode = (a.mode && a.mode !== 'default' ? a.mode : S.op
 }
 /* Cada servicio tiene su versión incrustable oficial (los sitios normales prohíben el iframe). */
 const myPos = () => GPS.pos ? [GPS.pos.latitude, GPS.pos.longitude] : S.lastPos || (S.city && [S.city.lat, S.city.lon]) || [40.4168, -3.7038];
+const YT_DEFAULT = 'https://share.google/59pnNBgXOUBLdbM3p'; // dirección que el usuario quiere por defecto (no se puede pegar en el navegador del coche)
 function ytEmbed(t) {
   const id = (t.match(/(?:v=|youtu\.be\/|shorts\/|embed\/)([\w-]{11})/) || [])[1], list = (t.match(/[?&]list=([\w-]+)/) || [])[1];
   if (id) return `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0${list ? '&list=' + list : ''}`;
@@ -396,7 +397,12 @@ async function embedFor(a) {
     case 'gmaps': { const q = await ask('gmaps', 'Google Maps: lugar o dirección (vacío = tu posición)', 'Ej. Gasolinera cerca'); if (q === null) return null; const p = myPos(); return { u: `https://maps.google.com/maps?q=${encodeURIComponent(q || p.join(','))}&z=15&output=embed`, orig: 'https://www.google.com/maps/search/' + encodeURIComponent(q || p.join(',')), smart: 1 }; }
     case 'waze': { const p = myPos(); return { u: `https://embed.waze.com/iframe?zoom=14&lat=${p[0]}&lon=${p[1]}&pin=1`, smart: 1 }; }
     case 'windy': { const p = myPos(); return { u: `https://embed.windy.com/embed2.html?lat=${p[0].toFixed(2)}&lon=${p[1].toFixed(2)}&zoom=7&level=surface&overlay=wind&product=ecmwf&marker=true&message=true`, smart: 1 }; }
-    case 'yt': { const v = await ask('yt', 'YouTube: pega el enlace de un vídeo o lista', 'https://youtu.be/…'); if (v === null) return null; const u = ytEmbed(v); return u ? { u, orig: v, smart: 1 } : bad('Enlace de YouTube no válido'); }
+    case 'yt': { // el enlace ya viene escrito (en el navegador del Tesla no se puede pegar): basta con pulsar Aceptar
+      const v = await promptDlg('YouTube: enlace del vídeo o lista (ya está puesto el tuyo; pulsa Aceptar)', 'https://youtu.be/…', L.yt || YT_DEFAULT); if (v === null || v === undefined) return null; if (v) { L.yt = v; save(); }
+      const u = ytEmbed(v); if (u) return { u, orig: v, smart: 1 };
+      if (/^https?:\/\//i.test(v)) { window.open(v, '_blank', 'noopener'); toast('Ese enlace no es de un vídeo (youtu.be/…): YouTube solo se puede ver dentro de la ventana con enlace de vídeo. Se abre fuera.', 5000); return null; }
+      return bad('Enlace de YouTube no válido'); }
+    case 'own': return { smart: 1 };
     case 'spot': { const v = await ask('spot', 'Spotify: pega el enlace de canción, álbum o lista', 'https://open.spotify.com/…'); if (v === null) return null; const m = v.match(/open\.spotify\.com\/(?:intl-\w+\/)?(track|album|playlist|episode|show|artist)\/(\w+)/); return m ? { u: `https://open.spotify.com/embed/${m[1]}/${m[2]}`, orig: v, smart: 1 } : bad('Enlace de Spotify no válido'); }
     case 'twitch': { const c = await ask('twitch', 'Twitch: nombre del canal', 'Ej. ibai'); if (c === null) return null; return /^\w{3,25}$/.test(c) ? { u: `https://player.twitch.tv/?channel=${c}&parent=${location.hostname || 'localhost'}`, orig: 'https://www.twitch.tv/' + c, smart: 1 } : bad('Canal no válido'); }
   }
