@@ -8,6 +8,7 @@
 
 const Cat = (() => {
   const TAGS = {
+    ghp: ['🟢 GitHub Pages', 'Alojado en GitHub Pages, que no prohíbe el iframe. El juego en sí no se ha podido abrir desde el entorno de desarrollo: pruébalo.'],
     propia: ['✅ Propia', 'Hecha por nosotros con datos abiertos: se abre dentro de la ventana sin depender de terceros (necesita internet).'],
     embed: ['🟢 Embed oficial', 'Usa la versión incrustable que el propio servicio ofrece para webs.'],
     probar: ['🟡 Probar', 'Sin verificar: puede que no se abra dentro de la ventana. Si sale en blanco, usa ↗ para abrirla fuera.'],
@@ -36,6 +37,10 @@ const Cat = (() => {
       { id: 'pocketcasts', n: 'Pocket Casts (web)', e: '🎧', t: 'probar', d: 'Tus podcasts (necesita cuenta).', a: { u: 'https://play.pocketcasts.com/' } },
     ]],
     ['Juegos', [
+      { id: 'g2048', n: '2048', e: '🔢', t: 'ghp', d: 'Desliza para unir fichas. El original de Gabriele Cirulli (alojado en GitHub Pages).', a: { u: 'https://gabrielecirulli.github.io/2048/' } },
+      { id: 'hextris', n: 'Hextris', e: '⬢', t: 'ghp', d: 'Tetris hexagonal: gira el hexágono para casar colores. Código abierto.', a: { u: 'https://hextris.github.io/hextris/' } },
+      { id: 'clumsy', n: 'Clumsy Bird', e: '🐦', t: 'ghp', d: 'Versión libre de Flappy Bird: un toque para aletear.', a: { u: 'https://ellisonleao.github.io/clumsy-bird/' } },
+      { id: 'playables', n: 'YouTube Playables', e: '🎮', t: 'probar', d: 'Juegos de YouTube que funcionan solo con el navegador (Tesla los cita como válidos). Si no abre dentro, usa ↗.', a: { u: 'https://www.youtube.com/playables' } },
       { id: 'lichess', n: 'Lichess TV (ajedrez)', e: '♟️', t: 'embed', d: 'Partidas de ajedrez en directo (embed oficial de Lichess TV).', a: { u: 'https://lichess.org/tv/frame?theme=brown&bg=dark', k: 'lichess' } },
     ]],
     ['Servicios que NO se pueden abrir dentro de una ventana', [
@@ -61,6 +66,8 @@ const Cat = (() => {
     ['media', 'lichess'].forEach(id => { if (!have(id) && !(id === 'wikipro')) { const x = find(id); if (x) S.apps.push(mk(x)); } });
     S.appsV2 = 1; save();
   }
+  /* Migración V4: juegos web (se añaden a Apps una sola vez) */
+  if (!S.appsV4) { ['g2048', 'hextris', 'clumsy'].forEach(id => { if (!have(id)) { const x = find(id); if (x) S.apps.push(mk(x)); } }); S.appsV4 = 1; save(); }
   /* Migración V3: se quitan las apps que ya no interesan y se añaden D3D Clone, El tiempo, Viajando en Tesla, Launcher y CoDriver */
   if (!S.appsV3) {
     const gone = ['maps', 'waze', 'nflx', 'yt', 'twitch', 'spot', 'wa', 'windy', 'rain', 'gmail', 'hud'];

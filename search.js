@@ -119,3 +119,4 @@ OPT.mapEngine = [['', 'Automático (3D si el dispositivo lo admite)'], ['leaflet
 CATS.mapa[1].unshift({ k: 'mapEngine', l: 'Motor del mapa', d: 'Si el mapa 3D va lento en la pantalla del coche, elige 2D clásico. Requiere recargar la página', type: 'select' });
 ACTIONS.map3d = ['Mapa: vista 3D / 2D', () => Nav.toggle3d()];
 CATS.mapa[1].push({ t: 'btn', get l() { return 'Clave de TomTom (opcional): ' + (Search.ttKey() ? 'configurada' : 'sin clave'); }, f: () => Search.ttDlg() });
+ACTIONS.mapstyle = ['Mapa: cambiar estilo (auto, satélite, día, noche)', () => Nav.cycleStyle()]; ACTIONS.mapday = ['Mapa: modo día', () => Nav.setStyle('light')]; ACTIONS.mapnight = ['Mapa: modo noche', () => Nav.setStyle('dark')]; ACTIONS.mapsat = ['Mapa: satélite', () => Nav.setStyle('sat')];
