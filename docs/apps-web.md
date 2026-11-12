@@ -18,3 +18,9 @@ El catálogo (Apps → 🛍 Recomendadas) etiqueta cada app según cómo funcion
 4. Reproductor por enlace: pega un enlace de SoundCloud / Mixcloud / YouTube. Spotify, Apple Music y Deezer solo reproducen fragmentos de 30 s si no hay sesión iniciada en ese servicio.
 5. Las 🟡 (DGT, TuneIn, Pocket Casts, ABRP, PlugShare, Radio Garden, Lichess web): anota cuáles se ven.
 6. Vídeo en movimiento: el navegador del Tesla puede bloquearlo con el coche en marcha; el audio sí suele seguir.
+
+## Sin escribir en el coche (el navegador del Tesla no permite pegar)
+- **Favoritos del reproductor:** se guardan en el móvil (⭐ Guardar) y viajan al coche con la sincronización de ajustes; en el coche solo se tocan.
+- **Compartir → LecoAuto (móvil):** desde YouTube, Spotify, SoundCloud… «Compartir» → LecoAuto (PWA instalada) ofrece abrir, enviar al coche o guardar en favoritos.
+- **Enviar al coche:** con el mismo código de enlace en móvil y coche (Ajustes → Mapa → «Enlace con D3D Clone / Autoboard-nav»), el enlace aparece y se reproduce en la ventana del coche.
+- Solo se abren enlaces de servicios conocidos (se convierten a su embed oficial); cualquier otra dirección recibida se ignora.

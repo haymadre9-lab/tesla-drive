@@ -21,6 +21,18 @@ const Link = (() => {
     const body = JSON.stringify({ d: L.device, n: d.name || 'Destino', la: d.lat, lo: d.lon });
     fetch(BASE + topic(), { method: 'POST', body, headers: { 'Content-Type': 'text/plain' } }).catch(() => { }); // sin conexión: el enlace es «lo mejor posible»
   }
+  /* Enviar un enlace de música/vídeo al otro dispositivo (así no hay que escribirlo en el coche). Solo viaja el enlace. */
+  function publishMedia(u) {
+    if (!valid() || !u) return false;
+    fetch(BASE + topic(), { method: 'POST', body: JSON.stringify({ d: L.device, u: String(u).slice(0, 600), n: 'media' }), headers: { 'Content-Type': 'text/plain' } }).catch(() => { });
+    return true;
+  }
+  /* Un enlace recibido: solo se abre si es de un servicio conocido (se convierte a su embed oficial; nunca se abre una URL cualquiera) */
+  function receiveMedia(u) {
+    const r = typeof mediaEmbed === 'function' ? mediaEmbed(u) : null; if (!r) return;
+    toast('🎶 Recibido: ' + r.n, 3500); openFloat({ id: 'media-rx', n: r.n, e: '🎶', u: r.u, orig: u, smart: 1 });
+    if (typeof Media !== 'undefined') Media.remember(u);
+  }
   /* Un destino recibido: arranca la ruta (sin volver a publicarlo, para no hacer ping-pong entre dispositivos) */
   function receive(p) {
     toast('📲 Destino recibido: ' + String(p.name).split(',')[0], 3500);
@@ -41,6 +53,7 @@ const Link = (() => {
         const m = JSON.parse(ev.data); if (m.event !== 'message') return;
         const t = +m.time || 0; if (t <= +rd(K.last, '0')) return; wr(K.last, String(t));
         const j = JSON.parse(m.message); if (j.d === L.device) return; // lo envié yo
+        if (typeof j.u === 'string') { if (Date.now() / 1000 - t <= 1800) receiveMedia(j.u); return; }
         if (typeof j.la !== 'number' || typeof j.lo !== 'number') return;
         if (Date.now() / 1000 - t > 1800) return; // mensajes de hace más de 30 min: no arrancar una ruta vieja al abrir la app
         receive({ name: String(j.n || 'Destino'), lat: j.la, lon: j.lo });
@@ -65,5 +78,5 @@ const Link = (() => {
   }
   start();
   CATS.mapa[1].push({ t: 'btn', get l() { return 'Enlace con D3D Clone / Autoboard-nav: ' + (valid() ? 'código ' + L.code : 'sin enlazar'); }, f: dialog });
-  return { publish, setCode, start, dialog, state: L, valid };
+  return { publishMedia, publish, setCode, start, dialog, state: L, valid };
 })();
