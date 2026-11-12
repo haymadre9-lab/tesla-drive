@@ -7,4 +7,5 @@ fs.mkdirSync('www');
 fs.cpSync('vendor', 'www/vendor', { recursive: true });
 fs.cpSync('data', 'www/data', { recursive: true });
 fs.cpSync('mini', 'www/mini', { recursive: true });
+fs.cpSync('icons', 'www/icons', { recursive: true });
 console.log('www listo');

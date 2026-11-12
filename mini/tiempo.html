@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0b0f17">
+<title>El tiempo</title>
+<style>
+:root{--bg:#0b0f17;--card:#151b27;--card2:#1d2635;--txt:#eef2f8;--dim:#93a0b4;--acc:#3e9bff;--bd:#263042}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font:17px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;overscroll-behavior:none}
+body{display:flex;flex-direction:column}
+header{display:flex;gap:8px;align-items:center;padding:8px 10px;background:#0e131d;border-bottom:1px solid var(--bd);flex:none}
+header input{flex:1;min-width:0;font:inherit;font-size:18px;padding:11px 14px;border-radius:14px;border:2px solid var(--bd);background:var(--card);color:var(--txt);outline:0;-webkit-text-fill-color:var(--txt)}
+header input:focus{border-color:var(--acc)}
+button{font:inherit;font-size:16px;color:var(--txt);background:var(--card2);border:0;border-radius:14px;padding:11px 14px;min-width:46px;cursor:pointer;touch-action:manipulation}
+button:active{filter:brightness(1.4)} .pri{background:var(--acc);color:#fff;font-weight:700}
+#sug{position:absolute;z-index:5;left:10px;right:10px;top:62px;background:#0e131d;border:1px solid var(--bd);border-radius:14px;overflow:hidden;box-shadow:0 12px 30px rgba(0,0,0,.6)} #sug[hidden]{display:none}
+#sug div{padding:13px 16px;border-bottom:1px solid var(--bd);cursor:pointer} #sug div:last-child{border:0} #sug small{color:var(--dim);margin-left:8px}
+#main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 14px 40px}
+.now{display:flex;align-items:center;gap:18px;flex-wrap:wrap;background:linear-gradient(135deg,#17315a,#0f1b33);border-radius:22px;padding:16px 20px;border:1px solid var(--bd)}
+.now .ic{font-size:76px;line-height:1}.now .t{font-size:72px;font-weight:300;line-height:1}.now .t small{font-size:.38em;color:var(--dim)}
+.now .d{font-size:22px;font-weight:600}.now .s{color:var(--dim);font-size:15px;margin-top:2px}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:10px 0}
+.kv div{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:10px 12px}.kv b{display:block;font-size:20px}.kv span{color:var(--dim);font-size:13px}
+.alert{background:#17314f;border:1px solid #2c5a93;border-radius:14px;padding:10px 14px;margin:10px 0;font-weight:600}
+h3{margin:16px 2px 8px;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);font-weight:600}
+.hrs{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px}.hr{flex:none;width:84px;text-align:center;background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:8px 4px}.hr .e{font-size:28px}.hr b{display:block;font-size:19px}.hr small{color:var(--dim);display:block;font-size:12px}.hr .p{color:#6bb6ff}
+.day{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:9px 14px;margin:6px 0}.day .n{width:92px;font-weight:600}.day .e{font-size:28px;width:40px;text-align:center}.day .p{color:#6bb6ff;width:56px;font-size:14px}.day .m{margin-left:auto;font-variant-numeric:tabular-nums}.day .m i{color:var(--dim);font-style:normal}
+.note{color:var(--dim);padding:20px 4px}.err{color:#ff9b9b}
+</style>
+</head>
+<body>
+<header>
+  <input id="q" type="search" enterkeyhint="search" placeholder="Otra ciudad…" autocomplete="off" autocorrect="off" spellcheck="false">
+  <button id="go" class="pri">Buscar</button><button id="me" title="Mi posición">📍</button>
+</header>
+<div id="sug" hidden></div>
+<div id="main"><div class="note">Cargando el tiempo…</div></div>
+<script>
+'use strict';
+(() => {
+  const $ = id => document.getElementById(id), Q = new URLSearchParams(location.search);
+  const ls = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { } } };
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const WMO = { 0: ['☀️', 'Despejado', '🌙'], 1: ['🌤️', 'Casi despejado', '🌙'], 2: ['⛅', 'Parcialmente nuboso', '☁️'], 3: ['☁️', 'Nublado'], 45: ['🌫️', 'Niebla'], 48: ['🌫️', 'Niebla con escarcha'], 51: ['🌦️', 'Llovizna débil'], 53: ['🌦️', 'Llovizna'], 55: ['🌧️', 'Llovizna intensa'], 56: ['🌧️', 'Llovizna helada'], 57: ['🌧️', 'Llovizna helada'], 61: ['🌧️', 'Lluvia débil'], 63: ['🌧️', 'Lluvia'], 65: ['🌧️', 'Lluvia fuerte'], 66: ['🌧️', 'Lluvia helada'], 67: ['🌧️', 'Lluvia helada fuerte'], 71: ['🌨️', 'Nieve débil'], 73: ['🌨️', 'Nieve'], 75: ['❄️', 'Nieve fuerte'], 77: ['🌨️', 'Granos de nieve'], 80: ['🌦️', 'Chubascos débiles'], 81: ['🌧️', 'Chubascos'], 82: ['⛈️', 'Chubascos violentos'], 85: ['🌨️', 'Chubascos de nieve'], 86: ['🌨️', 'Chubascos de nieve fuertes'], 95: ['⛈️', 'Tormenta'], 96: ['⛈️', 'Tormenta con granizo'], 99: ['⛈️', 'Tormenta con granizo fuerte'] };
+  const wx = (c, night) => { const w = WMO[c] || ['🌡️', 'Tiempo']; return { e: night && w[2] ? w[2] : w[0], t: w[1] }; };
+  const DIR = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'], dir = d => DIR[Math.round(d / 45) % 8], DN = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+  const main = $('main'); let place = null, timer = 0, seq = 0;
+  const get = async url => { const c = new AbortController(), t = setTimeout(() => c.abort(), 15000); try { const r = await fetch(url, { signal: c.signal }); if (!r.ok) throw new Error('HTTP ' + r.status); return await r.json(); } finally { clearTimeout(t); } };
+  const pos = () => new Promise((res, rej) => { const la = parseFloat(Q.get('lat')), lo = parseFloat(Q.get('lon')), ok = Number.isFinite(la) && Number.isFinite(lo); if (navigator.geolocation) navigator.geolocation.getCurrentPosition(p => res([p.coords.latitude, p.coords.longitude]), () => ok ? res([la, lo]) : rej(new Error('No se pudo obtener tu posición: activa el GPS o busca una ciudad.')), { timeout: 8000, maximumAge: 120000 }); else if (ok) res([la, lo]); else rej(new Error('Sin GPS: busca una ciudad.')); });
+  async function show(p) {
+    place = p; ls.set('tq.place', JSON.stringify(p)); const my = ++seq; clearTimeout(timer);
+    try {
+      const j = await get(`https://api.open-meteo.com/v1/forecast?latitude=${p.lat.toFixed(4)}&longitude=${p.lon.toFixed(4)}&current=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m,is_day&hourly=temperature_2m,precipitation_probability,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset&timezone=auto&forecast_days=7`); if (my !== seq) return;
+      render(p, j); timer = setTimeout(() => show(place), 10 * 60000);
+    } catch (e) { if (my !== seq) return; main.innerHTML = `<div class="note err">No se pudo cargar el tiempo (${esc(e.name === 'AbortError' ? 'tarda demasiado' : e.message)}).</div><button class="pri" id="rt">Reintentar</button>`; $('rt').onclick = () => show(p); timer = setTimeout(() => show(p), 60000); }
+  }
+  function render(p, j) {
+    const c = j.current, w = wx(c.weather_code, !c.is_day), h = j.hourly, d = j.daily, now = c.time;
+    let i0 = h.time.findIndex(t => t >= now.slice(0, 13)); if (i0 < 0) i0 = 0;
+    const hrs = []; for (let i = i0; i < Math.min(i0 + 14, h.time.length); i++) hrs.push(i);
+    const rain = hrs.find(i => h.precipitation_probability[i] >= 55 && i > i0), hm = t => t.slice(11, 16);
+    main.innerHTML = `<div class="note" style="padding:0 2px 8px;color:var(--txt);font-size:20px;font-weight:600">${esc(p.name)}${p.sub ? ` <small style="color:var(--dim);font-weight:400">${esc(p.sub)}</small>` : ''}</div>
+      <div class="now"><div class="ic">${w.e}</div><div><div class="t">${Math.round(c.temperature_2m)}<small>°C</small></div></div><div><div class="d">${esc(w.t)}</div><div class="s">Sensación ${Math.round(c.apparent_temperature)}°C · actualizado ${hm(c.time)}</div></div></div>
+      ${rain ? `<div class="alert">🌧️ Lluvia probable sobre las ${hm(h.time[rain])} (${h.precipitation_probability[rain]} %)</div>` : ''}
+      <div class="kv"><div><b>${Math.round(c.wind_speed_10m)} km/h ${dir(c.wind_direction_10m)}</b><span>Viento</span></div><div><b>${c.relative_humidity_2m} %</b><span>Humedad</span></div><div><b>${c.precipitation} mm</b><span>Lluvia ahora</span></div><div><b>${hm(d.sunrise[0])} / ${hm(d.sunset[0])}</b><span>Sale / se pone el sol</span></div></div>
+      <h3>Próximas horas</h3><div class="hrs">${hrs.map(i => { const x = wx(h.weather_code[i], !h.is_day[i]); return `<div class="hr"><small>${hm(h.time[i])}</small><div class="e">${x.e}</div><b>${Math.round(h.temperature_2m[i])}°</b><small class="p">${h.precipitation_probability[i] ?? 0} %</small></div>`; }).join('')}</div>
+      <h3>7 días</h3>${d.time.map((t, i) => { const x = wx(d.weather_code[i]), dt = new Date(t + 'T12:00'); return `<div class="day"><span class="n">${i === 0 ? 'Hoy' : DN[dt.getDay()] + ' ' + dt.getDate()}</span><span class="e">${x.e}</span><span class="p">${d.precipitation_probability_max[i] ?? 0} %</span><span class="m">${Math.round(d.temperature_2m_max[i])}° <i>/ ${Math.round(d.temperature_2m_min[i])}°</i></span></div>`; }).join('')}
+      <div class="note" style="font-size:13px">Datos: Open-Meteo.com</div>`;
+  }
+  async function here() { main.innerHTML = '<div class="note">Buscando tu posición…</div>'; try { const p = await pos(); show({ name: 'Tu posición', sub: p[0].toFixed(2) + ', ' + p[1].toFixed(2), lat: p[0], lon: p[1], gps: true }); } catch (e) { main.innerHTML = `<div class="note err">${esc(e.message)}</div>`; } }
+  async function search() {
+    const q = $('q').value.trim(); if (q.length < 2) return; const s = $('sug'); s.hidden = false; s.innerHTML = '<div>Buscando…</div>';
+    try { const j = await get('https://geocoding-api.open-meteo.com/v1/search?count=6&language=es&name=' + encodeURIComponent(q)), r = j.results || []; if (!r.length) { s.innerHTML = '<div>Sin resultados</div>'; return; } s.innerHTML = r.map((x, i) => `<div data-i="${i}">${esc(x.name)}<small>${esc([x.admin1, x.country].filter(Boolean).join(', '))}</small></div>`).join(''); [...s.children].forEach(el => el.onclick = () => { const x = r[+el.dataset.i]; s.hidden = true; $('q').value = ''; show({ name: x.name, sub: [x.admin1, x.country].filter(Boolean).join(', '), lat: x.latitude, lon: x.longitude }); }); }
+    catch (e) { s.innerHTML = `<div class="err">No se pudo buscar (${esc(e.message)})</div>`; }
+  }
+  $('go').onclick = search; $('q').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); search(); e.target.blur(); } }); $('me').onclick = here;
+  document.addEventListener('pointerdown', e => { if (!e.target.closest('#sug,header')) $('sug').hidden = true; });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && place) show(place); });
+  const la = parseFloat(Q.get('lat')), lo = parseFloat(Q.get('lon'));
+  if (Q.get('city')) { $('q').value = Q.get('city'); here(); search(); } else here();
+  window.__tq = { show, render, WMO };
+})();
+</script>
+</body>
+</html>

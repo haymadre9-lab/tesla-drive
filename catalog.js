@@ -14,34 +14,35 @@ const Cat = (() => {
     bloquea: ['🔴 Se abre fuera', 'El servicio no permite abrirse dentro de otra ventana: se abre en una pestaña.'],
   };
   const LIST = [
-    ['Lectura y consulta', [
+    ['Tus apps', [
+      { id: 'd3d', n: 'D3D Clone', e: '🛣️', t: 'propia', d: 'Visor 3D de conducción. Comparte con esta app el código de enlace (mismo origen) y los destinos van y vienen. Necesita WebGL.', a: { u: 'https://haymadre9-lab.github.io/hudMapa3D/', img: 'icons/d3d.png' } },
+      { id: 'launcher', n: 'Launcher', e: '🚀', t: 'propia', d: 'Tu launcher web (Teslalaunch).', a: { u: 'https://apkapp-driver.github.io/Teslalaunch/', img: 'icons/launcher.svg' } },
+    ]],
+    ['Lectura y tiempo', [
+      { id: 'tiempo', n: 'El tiempo', e: '⛅', t: 'propia', d: 'Tiempo ahora, próximas horas y 7 días en tu posición o en otra ciudad. Aviso de lluvia probable. Datos de Open-Meteo.', a: { u: 'mini/tiempo.html', k: 'tiempo' } },
       { id: 'wikipro', n: 'Wikipedia (lector)', e: '📚', t: 'propia', d: 'Buscar, leer, «cerca de ti» con tu GPS, al azar, letra grande y leer en voz alta. ES/EN.', a: { u: 'mini/wiki.html', k: 'wikipro' } },
     ]],
-    ['Tiempo y tráfico', [
-      { id: 'rain', n: 'Radar de lluvia', e: '🌧️', t: 'propia', d: 'Radar animado de precipitación (RainViewer) sobre mapa oscuro, centrado donde estás.', a: { u: 'mini/lluvia.html', k: 'rain' } },
-      { id: 'windy', n: 'Windy', e: '🌬️', t: 'embed', d: 'Viento, lluvia y temperatura. Embed oficial de Windy.', a: { u: 'https://www.windy.com', k: 'windy' } },
-      { id: 'wazemap', n: 'Waze · mapa de tráfico', e: '🚙', t: 'embed', d: 'Mapa en vivo de Waze (embed oficial). Para navegar usa el mapa de esta app.', a: { u: 'https://www.waze.com/live-map', k: 'wazemap' } },
+    ['Para el viaje (sin verificar)', [
+      { id: 'viajando', n: 'Viajando en Tesla', e: '🚗', t: 'probar', d: 'Navegador de Viajando en Tesla.', a: { u: 'https://www.viajandoentesla.es/navegador', img: 'icons/viajando.svg' } },
+      { id: 'codriver', n: 'CoDriver', e: '🧭', t: 'probar', d: 'CoDriver (app.codriver.io).', a: { u: 'https://app.codriver.io/?lang=en', img: 'icons/codriver.svg' } },
       { id: 'dgt', n: 'DGT · tráfico y cámaras', e: '🚧', t: 'probar', d: 'Incidencias, obras y cámaras de la DGT.', a: { u: 'https://infocar.dgt.es/etraffic/' } },
+      { id: 'abrp', n: 'A Better Route Planner', e: '⚡', t: 'probar', d: 'Planificador de rutas con paradas de carga para eléctricos.', a: { u: 'https://abetterrouteplanner.com/' } },
+      { id: 'plugshare', n: 'PlugShare', e: '🔌', t: 'probar', d: 'Mapa de cargadores con comentarios.', a: { u: 'https://www.plugshare.com/' } },
     ]],
     ['Música, podcasts y vídeo', [
-      { id: 'media', n: 'Reproductor por enlace', e: '🎶', t: 'embed', d: 'Pega un enlace de YouTube, Spotify, SoundCloud, Mixcloud, Apple Music/Podcasts, Deezer, Vimeo, Dailymotion o Twitch y se reproduce en la ventana.', a: { u: 'https://youtube.com', k: 'media' } },
-      { id: 'yt', n: 'YouTube (enlace)', e: '▶️', t: 'embed', d: 'Pega el enlace de un vídeo o lista.', a: { u: 'https://m.youtube.com', k: 'yt' } },
+      { id: 'media', n: 'Reproductor por enlace', e: '🎶', t: 'embed', d: 'Favoritos para tocar (se guardan en el móvil), recientes y enlaces enviados desde el móvil. YouTube, Spotify, SoundCloud, Mixcloud, Apple, Deezer, Vimeo, Dailymotion, Twitch.', a: { u: 'https://youtube.com', k: 'media' } },
       { id: 'radio', n: 'Radio Garden', e: '📻', t: 'probar', d: 'Radios de todo el mundo en un globo.', a: { u: 'https://radio.garden' } },
       { id: 'tunein', n: 'TuneIn', e: '🎙️', t: 'probar', d: 'Radios y podcasts.', a: { u: 'https://tunein.com/' } },
       { id: 'pocketcasts', n: 'Pocket Casts (web)', e: '🎧', t: 'probar', d: 'Tus podcasts (necesita cuenta).', a: { u: 'https://play.pocketcasts.com/' } },
     ]],
-    ['Coche eléctrico', [
-      { id: 'abrp', n: 'A Better Route Planner', e: '⚡', t: 'probar', d: 'Planificador de rutas con paradas de carga para eléctricos.', a: { u: 'https://abetterrouteplanner.com/' } },
-      { id: 'plugshare', n: 'PlugShare', e: '🔌', t: 'probar', d: 'Mapa de cargadores con comentarios.', a: { u: 'https://www.plugshare.com/' } },
-    ]],
     ['Juegos', [
       { id: 'lichess', n: 'Lichess TV (ajedrez)', e: '♟️', t: 'embed', d: 'Partidas de ajedrez en directo (embed oficial de Lichess TV).', a: { u: 'https://lichess.org/tv/frame?theme=brown&bg=dark', k: 'lichess' } },
-      { id: 'lichessweb', n: 'Lichess (jugar)', e: '♞', t: 'probar', d: 'Jugar al ajedrez; la web completa.', a: { u: 'https://lichess.org/' } },
     ]],
     ['Servicios que NO se pueden abrir dentro de una ventana', [
       { id: 'tg', n: 'Telegram Web', e: '✈️', t: 'bloquea', d: 'Telegram envía SAMEORIGIN: no se puede incrustar. Se abre en pestaña.', a: { u: 'https://web.telegram.org/k/', k: 'blocked' } },
     ]],
   ];
+
   const find = id => { for (const [, l] of LIST) { const x = l.find(y => y.id === id); if (x) return x; } };
   const have = id => { const x = find(id); return (S.apps || []).some(a => a.id === id || (x && x.a.k && x.a.k !== 'blocked' && a.k === x.a.k)); };
   const mk = x => Object.assign({ id: x.id, n: x.n, e: x.e }, x.a);
@@ -57,8 +58,15 @@ const Cat = (() => {
   /* Migración única: el lector de Wikipedia sustituye al sitio móvil (que puede no abrirse en ventana) y se añaden las apps nuevas */
   if (!S.appsV2) {
     const w = S.apps.find(a => a.id === 'wiki'); if (w && /wikipedia\.org/.test(w.u || '')) { w.u = 'mini/wiki.html'; w.k = 'wikipro'; w.n = 'Wikipedia'; }
-    ['rain', 'media', 'lichess'].forEach(id => { if (!have(id) && !(id === 'wikipro')) { const x = find(id); if (x) S.apps.push(mk(x)); } });
+    ['media', 'lichess'].forEach(id => { if (!have(id) && !(id === 'wikipro')) { const x = find(id); if (x) S.apps.push(mk(x)); } });
     S.appsV2 = 1; save();
+  }
+  /* Migración V3: se quitan las apps que ya no interesan y se añaden D3D Clone, El tiempo, Viajando en Tesla, Launcher y CoDriver */
+  if (!S.appsV3) {
+    const gone = ['maps', 'waze', 'nflx', 'yt', 'twitch', 'spot', 'wa', 'windy', 'rain', 'gmail', 'hud'];
+    S.apps = S.apps.filter(a => !gone.includes(a.id)); S.quick = (S.quick || []).filter(id => !gone.includes(id));
+    ['d3d', 'tiempo', 'viajando', 'launcher', 'codriver'].forEach(id => { if (!have(id)) { const x = find(id); if (x) { S.apps.push(mk(x)); S.quick.push(id); } } });
+    S.appsV3 = 1; save();
   }
   const _r = renderers.apps; renderers.apps = () => { _r(); const tb = $('#p-apps .toolbar'); if (tb && !$('#acat', tb)) { const b = el('<button class="btn sec" id="acat" type="button">🛍 Recomendadas</button>'); b.onclick = open; tb.insertBefore(b, $('#aadd', tb)); } };
   ACTIONS.catalog = ['Apps recomendadas', open];
@@ -95,8 +103,9 @@ const Media = (() => {
   /* «Compartir» desde otra app del móvil → LecoAuto (share_target del manifest) */
   function shared() {
     const q = new URLSearchParams(location.search), txt = [q.get('url'), q.get('text'), q.get('title')].filter(Boolean).join(' '); if (!txt) return;
-    const m = txt.match(/(https?:\/\/[^\s]+)/i), u = m && m[1]; try { history.replaceState(null, '', location.pathname); } catch { }
-    if (!u) return; if (!mediaEmbed(u)) return; // los enlaces de mapas/ubicaciones los gestiona el mapa
+    const m = txt.match(/(https?:\/\/[^\s]+)/i), u = m && m[1];
+    if (!u || !mediaEmbed(u)) return; // el resto de enlaces compartidos (PWAs, mapas…) los gestionan otros módulos: no se toca la dirección
+    try { history.replaceState(null, '', location.pathname); } catch { }
     dlg(`<h3>🎶 ${esc(nameOf(u))}</h3><div class="note">Enlace compartido. ¿Qué quieres hacer?</div><div class="f"><button class="btn" id="sh1" type="button">▶ Abrir aquí</button><button class="btn" id="sh2" type="button">📲 Enviar al coche</button><button class="btn sec" id="sh3" type="button">⭐ Guardar en favoritos (se sincroniza con el coche)</button></div><div class="acts"><button class="btn sec" id="shx" type="button">Cerrar</button></div>`, d => {
       $('#shx', d).onclick = closeDlg; $('#sh1', d).onclick = () => { closeDlg(); remember(u); const r = mediaEmbed(u); openFloat({ id: 'media-sh', n: r.n, e: '🎶', u: r.u, orig: u, smart: 1 }); };
       $('#sh2', d).onclick = () => { if (send(u)) closeDlg(); }; $('#sh3', d).onclick = () => { toast(fav(u) ? 'Guardado en favoritos' : 'Ya estaba en favoritos'); closeDlg(); };

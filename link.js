@@ -9,7 +9,8 @@ const Link = (() => {
   const BASE = 'https://ntfy.sh/', K = { code: 'leco.link.code', dev: 'leco.link.dev', last: 'leco.link.last' };
   const rd = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch { return d; } };
   const wr = (k, v) => { try { localStorage.setItem(k, v); } catch { } };
-  const L = { code: rd(K.code, ''), device: rd(K.dev, '') || (() => { const d = Math.random().toString(36).slice(2, 10); wr(K.dev, d); return d; })(), es: null, gen: 0, estado: '', onState: null };
+  const D3D_KEY = 'd3d.linkcode'; // D3D Clone (haymadre9-lab.github.io) comparte origen con esta app: el código se comparte solo
+  const L = { code: rd(K.code, '') || rd(D3D_KEY, ''), device: rd(K.dev, '') || (() => { const d = Math.random().toString(36).slice(2, 10); wr(K.dev, d); return d; })(), es: null, gen: 0, estado: '', onState: null };
   const topic = () => 'd3dclone-' + L.code.toLowerCase().replace(/[^a-z0-9]/g, '');
   const valid = () => L.code.replace(/[^a-zA-Z0-9]/g, '').length >= 6;
   const state = s => { L.estado = s; if (L.onState) L.onState(s); };
@@ -60,7 +61,7 @@ const Link = (() => {
       } catch { }
     };
   }
-  function setCode(c) { L.code = (c || '').trim(); wr(K.code, L.code); wr(K.last, String(Math.floor(Date.now() / 1000))); start(); }
+  function setCode(c) { L.code = (c || '').trim(); wr(K.code, L.code); if (L.code) wr(D3D_KEY, L.code); wr(K.last, String(Math.floor(Date.now() / 1000))); start(); }
 
   function dialog() {
     dlg(`<h3>Enlace con D3D Clone y Autoboard-nav</h3><div class="note">El destino que elijas aquí aparecerá en las otras apps con el <b>mismo código</b>, y el que elijas allí arrancará la ruta aquí. Sirve en la PWA y en el APK. Solo viaja el destino (nombre y coordenadas).</div>
