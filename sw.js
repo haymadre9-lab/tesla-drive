@@ -1,5 +1,5 @@
 // Service worker: cachea el cascarón para abrir sin conexión. Clima/mapa siempre van a la red.
-const CACHE = 'lecoauto-v34';
+const CACHE = 'lecoauto-v35';
 const SHELL = ['./', './index.html', './style.css', './app.js', './nav.js', './poi.js', './dash.js', './edit.js', './free.js', './sync.js', './maps.js', './screen.js', './speedo.js', './stream.js', './tpl.js', './advisor.js', './placeinfo.js', './road.js', './scene.js', './search.js', './link.js', './catalog.js', './mini/wiki.html', './mini/tiempo.html', './icons/d3d.png', './icons/launcher.svg', './icons/viajando.svg', './icons/codriver.svg', './data.js', './data/senales.json', './data/radares.json', './mapx.js', './vendor/maplibre-gl.js', './vendor/maplibre-gl.css', './ai.js', './vendor/leaflet.js', './vendor/leaflet.css', './manifest.json', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', e => e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())));
 self.addEventListener('activate', e => e.waitUntil(

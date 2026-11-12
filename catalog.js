@@ -31,6 +31,7 @@ const Cat = (() => {
       { id: 'plugshare', n: 'PlugShare', e: '🔌', t: 'probar', d: 'Mapa de cargadores con comentarios.', a: { u: 'https://www.plugshare.com/' } },
     ]],
     ['Música, podcasts y vídeo', [
+      { id: 'yt', n: 'YouTube', e: '▶️', t: 'bloquea', d: 'YouTube TV (youtube.com/tv): YouTube no permite abrirse dentro de una ventana, así que se abre directamente en pestaña, sin pegar enlaces.', a: { u: 'https://www.youtube.com/tv', mode: 'tab' } },
       { id: 'media', n: 'Reproductor por enlace', e: '🎶', t: 'embed', d: 'Favoritos para tocar (se guardan en el móvil), recientes y enlaces enviados desde el móvil. YouTube, Spotify, SoundCloud, Mixcloud, Apple, Deezer, Vimeo, Dailymotion, Twitch.', a: { u: 'https://youtube.com', k: 'media' } },
       { id: 'radio', n: 'Radio Garden', e: '📻', t: 'probar', d: 'Radios de todo el mundo en un globo.', a: { u: 'https://radio.garden' } },
       { id: 'tunein', n: 'TuneIn', e: '🎙️', t: 'probar', d: 'Radios y podcasts.', a: { u: 'https://tunein.com/' } },
@@ -57,7 +58,7 @@ const Cat = (() => {
     dlg(`<h3>Apps recomendadas</h3><div class="note">Cada una indica cómo funciona. <b>Abrir</b> la prueba al momento; <b>Añadir</b> la deja en tu pantalla de Apps.</div><div class="cat-l">${LIST.map(([h, l]) => `<div class="cat-h">${esc(h)}</div>${l.map(row).join('')}`).join('')}</div><div class="acts"><button class="btn sec" id="cx" type="button">Cerrar</button></div>`, d => {
       $('#cx', d).onclick = closeDlg;
       $$('[data-a]', d).forEach(b => b.onclick = () => { if (add(b.dataset.a)) { b.textContent = '✓ Añadida'; b.disabled = true; b.classList.add('sec'); toast('Añadida a Apps'); } });
-      $$('[data-o]', d).forEach(b => b.onclick = () => { const x = find(b.dataset.o); closeDlg(); openApp(mk(x), x.t === 'bloquea' ? 'float' : undefined); });
+      $$('[data-o]', d).forEach(b => b.onclick = () => { const x = find(b.dataset.o); closeDlg(); openApp(mk(x), x.a.mode || (x.t === 'bloquea' ? 'float' : undefined)); });
     });
   }
   /* Migración única: el lector de Wikipedia sustituye al sitio móvil (que puede no abrirse en ventana) y se añaden las apps nuevas */
@@ -66,11 +67,13 @@ const Cat = (() => {
     ['media', 'lichess'].forEach(id => { if (!have(id) && !(id === 'wikipro')) { const x = find(id); if (x) S.apps.push(mk(x)); } });
     S.appsV2 = 1; save();
   }
+  /* Migración V5: YouTube vuelve a Apps con su dirección principal (se abre en pestaña) */
+  if (!S.appsV5) { if (!have('yt')) { const x = find('yt'); if (x) { S.apps.unshift(mk(x)); S.quick = ['yt', ...(S.quick || []).filter(i => i !== 'yt')]; } } S.appsV5 = 1; save(); }
   /* Migración V4: juegos web (se añaden a Apps una sola vez) */
   if (!S.appsV4) { ['g2048', 'hextris', 'clumsy'].forEach(id => { if (!have(id)) { const x = find(id); if (x) S.apps.push(mk(x)); } }); S.appsV4 = 1; save(); }
   /* Migración V3: se quitan las apps que ya no interesan y se añaden D3D Clone, El tiempo, Viajando en Tesla, Launcher y CoDriver */
   if (!S.appsV3) {
-    const gone = ['maps', 'waze', 'nflx', 'yt', 'twitch', 'spot', 'wa', 'windy', 'rain', 'gmail', 'hud'];
+    const gone = ['maps', 'waze', 'nflx', 'twitch', 'spot', 'wa', 'windy', 'rain', 'gmail', 'hud'];
     S.apps = S.apps.filter(a => !gone.includes(a.id)); S.quick = (S.quick || []).filter(id => !gone.includes(id));
     ['d3d', 'tiempo', 'viajando', 'launcher', 'codriver'].forEach(id => { if (!have(id)) { const x = find(id); if (x) { S.apps.push(mk(x)); S.quick.push(id); } } });
     S.appsV3 = 1; save();
