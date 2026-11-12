@@ -31,15 +31,16 @@ const Cat = (() => {
       { id: 'plugshare', n: 'PlugShare', e: '🔌', t: 'probar', d: 'Mapa de cargadores con comentarios.', a: { u: 'https://www.plugshare.com/' } },
     ]],
     ['Música, podcasts y vídeo', [
-      { id: 'yt', n: 'YouTube', e: '▶️', t: 'bloquea', d: 'YouTube TV (youtube.com/tv): YouTube no permite abrirse dentro de una ventana, así que se abre directamente en pestaña, sin pegar enlaces.', a: { u: 'https://www.youtube.com/tv', mode: 'tab' } },
+      { id: 'yt', n: 'YouTube', e: '▶️', t: 'embed', d: 'Se abre dentro de la ventana con el enlace ya escrito: solo pulsa Aceptar. Los enlaces de vídeo (youtu.be/…) se reproducen; otros enlaces se abren fuera.', a: { u: 'https://m.youtube.com', k: 'yt' } },
       { id: 'media', n: 'Reproductor por enlace', e: '🎶', t: 'embed', d: 'Favoritos para tocar (se guardan en el móvil), recientes y enlaces enviados desde el móvil. YouTube, Spotify, SoundCloud, Mixcloud, Apple, Deezer, Vimeo, Dailymotion, Twitch.', a: { u: 'https://youtube.com', k: 'media' } },
       { id: 'radio', n: 'Radio Garden', e: '📻', t: 'probar', d: 'Radios de todo el mundo en un globo.', a: { u: 'https://radio.garden' } },
       { id: 'tunein', n: 'TuneIn', e: '🎙️', t: 'probar', d: 'Radios y podcasts.', a: { u: 'https://tunein.com/' } },
       { id: 'pocketcasts', n: 'Pocket Casts (web)', e: '🎧', t: 'probar', d: 'Tus podcasts (necesita cuenta).', a: { u: 'https://play.pocketcasts.com/' } },
     ]],
     ['Juegos', [
-      { id: 'g2048', n: '2048', e: '🔢', t: 'ghp', d: 'Desliza para unir fichas. El original de Gabriele Cirulli (alojado en GitHub Pages).', a: { u: 'https://gabrielecirulli.github.io/2048/' } },
-      { id: 'hextris', n: 'Hextris', e: '⬢', t: 'ghp', d: 'Tetris hexagonal: gira el hexágono para casar colores. Código abierto.', a: { u: 'https://hextris.github.io/hextris/' } },
+      { id: 'g2048', n: '2048', e: '🔢', t: 'propia', d: 'Nuestra versión, hecha para pantalla horizontal: desliza sobre el tablero o usa las flechas grandes. Récord guardado.', a: { u: 'mini/games/2048.html', k: 'own', mode: 'full' } },
+      { id: 'tetris', n: 'Tetris', e: '🧱', t: 'propia', d: 'Horizontal, con botones grandes (girar, mover, caída rápida, pausa), pieza siguiente y niveles.', a: { u: 'mini/games/tetris.html', k: 'own', mode: 'full' } },
+      { id: 'snake', n: 'Serpiente', e: '🐍', t: 'propia', d: 'Desliza o usa las flechas; se acelera al comer. Récord guardado.', a: { u: 'mini/games/snake.html', k: 'own', mode: 'full' } },
       { id: 'clumsy', n: 'Clumsy Bird', e: '🐦', t: 'ghp', d: 'Versión libre de Flappy Bird: un toque para aletear.', a: { u: 'https://ellisonleao.github.io/clumsy-bird/' } },
       { id: 'playables', n: 'YouTube Playables', e: '🎮', t: 'probar', d: 'Juegos de YouTube que funcionan solo con el navegador (Tesla los cita como válidos). Si no abre dentro, usa ↗.', a: { u: 'https://www.youtube.com/playables' } },
       { id: 'lichess', n: 'Lichess TV (ajedrez)', e: '♟️', t: 'embed', d: 'Partidas de ajedrez en directo (embed oficial de Lichess TV).', a: { u: 'https://lichess.org/tv/frame?theme=brown&bg=dark', k: 'lichess' } },
@@ -50,7 +51,7 @@ const Cat = (() => {
   ];
 
   const find = id => { for (const [, l] of LIST) { const x = l.find(y => y.id === id); if (x) return x; } };
-  const have = id => { const x = find(id); return (S.apps || []).some(a => a.id === id || (x && x.a.k && x.a.k !== 'blocked' && a.k === x.a.k)); };
+  const have = id => { const x = find(id); return (S.apps || []).some(a => a.id === id || (x && x.a.k && x.a.k !== 'blocked' && x.a.k !== 'own' && a.k === x.a.k)); };
   const mk = x => Object.assign({ id: x.id, n: x.n, e: x.e }, x.a);
   function add(id) { const x = find(id); if (!x || have(id)) return false; S.apps.push(mk(x)); save(); if (typeof renderers !== 'undefined' && renderers.apps && page === 'apps') renderers.apps(); bus.emit('apps'); return true; }
   function open() {
@@ -66,6 +67,13 @@ const Cat = (() => {
     const w = S.apps.find(a => a.id === 'wiki'); if (w && /wikipedia\.org/.test(w.u || '')) { w.u = 'mini/wiki.html'; w.k = 'wikipro'; w.n = 'Wikipedia'; }
     ['media', 'lichess'].forEach(id => { if (!have(id) && !(id === 'wikipro')) { const x = find(id); if (x) S.apps.push(mk(x)); } });
     S.appsV2 = 1; save();
+  }
+  /* Migración V6: juegos propios en horizontal (sustituyen a 2048 y Hextris externos) y YouTube con enlace ya escrito */
+  if (!S.appsV6) {
+    S.apps = S.apps.filter(a => a.id !== 'hextris');
+    S.apps.forEach(a => { if (a.id === 'g2048') { a.u = 'mini/games/2048.html'; a.k = 'own'; a.mode = 'full'; } if (a.id === 'yt') { a.u = 'https://m.youtube.com'; a.k = 'yt'; delete a.mode; } });
+    ['g2048', 'tetris', 'snake'].forEach(id => { if (!S.apps.some(a => a.id === id)) { const x = find(id); if (x) S.apps.push(mk(x)); } });
+    S.appsV6 = 1; save();
   }
   /* Migración V5: YouTube vuelve a Apps con su dirección principal (se abre en pestaña) */
   if (!S.appsV5) { if (!have('yt')) { const x = find('yt'); if (x) { S.apps.unshift(mk(x)); S.quick = ['yt', ...(S.quick || []).filter(i => i !== 'yt')]; } } S.appsV5 = 1; save(); }

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0b0f17">
+<title>Serpiente</title>
+<style>
+:root{--bg:#0b0f17;--card:#151b27;--txt:#eef2f8;--dim:#93a0b4;--acc:#3e9bff}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+#app{display:flex;height:100%;align-items:center;justify-content:center;gap:4vmin;padding:2vmin}
+#wrap{position:relative;flex:none}canvas{display:block;background:#0e141f;border-radius:2vmin;border:2px solid #243247}
+#side{display:flex;flex-direction:column;gap:2.4vmin;width:min(30vw,260px)}
+.box{background:var(--card);border-radius:2vmin;padding:1.6vmin 2.4vmin;text-align:center}.box small{display:block;color:var(--dim);font-size:clamp(11px,2.6vmin,16px);text-transform:uppercase;letter-spacing:.08em}.box b{font-size:clamp(24px,7vmin,52px);font-variant-numeric:tabular-nums}
+.row{display:flex;gap:2vmin}.row .box{flex:1}
+button{font:inherit;font-weight:700;font-size:clamp(14px,3.4vmin,22px);color:#fff;background:var(--acc);border:0;border-radius:2vmin;padding:2vmin;cursor:pointer;touch-action:manipulation}button.s{background:#243247}button:active{filter:brightness(1.35)}
+#pad{display:grid;grid-template-columns:repeat(3,1fr);gap:1.4vmin}#pad button{padding:1.4vmin;display:grid;place-items:center;min-height:11vmin;background:#243247}#pad svg{width:5vmin;height:5vmin}
+#msg{position:absolute;inset:0;border-radius:2vmin;background:rgba(11,15,23,.82);display:none;flex-direction:column;align-items:center;justify-content:center;gap:2vmin;font-size:clamp(22px,6vmin,44px);font-weight:800;text-align:center}#msg.on{display:flex}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="wrap"><canvas id="cv"></canvas><div id="msg"><div id="mt">Toca para empezar</div><button id="go">Jugar</button></div></div>
+  <div id="side">
+    <div class="row"><div class="box"><small>Puntos</small><b id="sc">0</b></div><div class="box"><small>Récord</small><b id="bs">0</b></div></div>
+    <button id="pause" class="s">Pausa</button>
+    <div id="pad"><span></span><button data-d="u" aria-label="Arriba"></button><span></span><button data-d="l" aria-label="Izquierda"></button><button data-d="d" aria-label="Abajo"></button><button data-d="r" aria-label="Derecha"></button></div>
+  </div>
+</div>
+<script>
+'use strict';
+(() => {
+  const $ = id => document.getElementById(id), cv = $('cv'), cx = cv.getContext('2d');
+  const ls = { get: (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch { } } };
+  let cell = 24, W = 24, H = 14, snake, dir, nd, food, score, best = +ls.get('snake.best', 0), timer = 0, running = false, dead = false, speed = 150;
+  const ARW = { u: 'M12 5l-7 8h4v6h6v-6h4z', d: 'M12 19l7-8h-4V5H9v6H5z', l: 'M5 12l8-7v4h6v6h-6v4z', r: 'M19 12l-8 7v-4H5V9h6V5z' };
+  document.querySelectorAll('#pad button').forEach(b => { b.innerHTML = `<svg viewBox="0 0 24 24"><path d="${ARW[b.dataset.d]}" fill="currentColor"/></svg>`; b.onclick = () => turn(b.dataset.d); });
+  const V = { u: [0, -1], d: [0, 1], l: [-1, 0], r: [1, 0] };
+  function size() { const sideW = Math.min(innerWidth * .30, 260) + innerWidth * .04 + innerWidth * .04, availW = innerWidth - sideW - 24, availH = innerHeight - 24; cell = Math.max(12, Math.floor(Math.min(availW / 24, availH / 14))); W = Math.floor(availW / cell); H = Math.floor(availH / cell); W = Math.max(12, Math.min(W, 40)); H = Math.max(8, Math.min(H, 24)); cv.width = W * cell; cv.height = H * cell; }
+  function placeFood() { let p; do { p = [Math.floor(Math.random() * W), Math.floor(Math.random() * H)]; } while (snake.some(s => s[0] === p[0] && s[1] === p[1])); food = p; }
+  function reset() { size(); const y = Math.floor(H / 2), x = Math.floor(W / 3); snake = [[x, y], [x - 1, y], [x - 2, y]]; dir = 'r'; nd = 'r'; score = 0; speed = 150; dead = false; placeFood(); draw(); $('sc').textContent = 0; $('bs').textContent = best; }
+  function turn(d) { const o = { u: 'd', d: 'u', l: 'r', r: 'l' }; if (d !== o[dir]) nd = d; if (!running && !dead) start(); }
+  function start() { if (dead) reset(); running = true; $('msg').classList.remove('on'); $('pause').textContent = 'Pausa'; clearInterval(timer); timer = setInterval(step, speed); }
+  function pause() { running = false; clearInterval(timer); $('pause').textContent = 'Seguir'; }
+  function step() {
+    dir = nd; const [dx, dy] = V[dir], h = [snake[0][0] + dx, snake[0][1] + dy];
+    if (h[0] < 0 || h[1] < 0 || h[0] >= W || h[1] >= H || snake.some(s => s[0] === h[0] && s[1] === h[1])) return end();
+    snake.unshift(h); if (h[0] === food[0] && h[1] === food[1]) { score++; $('sc').textContent = score; if (score > best) { best = score; ls.set('snake.best', best); $('bs').textContent = best; } if (score % 4 === 0 && speed > 70) { speed -= 8; clearInterval(timer); timer = setInterval(step, speed); } placeFood(); } else snake.pop();
+    draw();
+  }
+  function end() { running = false; dead = true; clearInterval(timer); $('mt').textContent = 'Fin · ' + score + ' puntos'; $('go').textContent = 'Otra vez'; $('msg').classList.add('on'); draw(); }
+  function draw() {
+    cx.fillStyle = '#0e141f'; cx.fillRect(0, 0, cv.width, cv.height); cx.fillStyle = 'rgba(255,255,255,.03)'; for (let x = 0; x < W; x++) for (let y = 0; y < H; y++) if ((x + y) % 2) cx.fillRect(x * cell, y * cell, cell, cell);
+    if (food) { cx.fillStyle = '#ff5b5b'; cx.beginPath(); cx.arc(food[0] * cell + cell / 2, food[1] * cell + cell / 2, cell * .36, 0, 7); cx.fill(); }
+    snake.forEach((s, i) => { cx.fillStyle = i === 0 ? '#7cf0a8' : '#39d98a'; const r = Math.max(2, cell * .22); cx.beginPath(); cx.roundRect ? cx.roundRect(s[0] * cell + 1, s[1] * cell + 1, cell - 2, cell - 2, r) : cx.rect(s[0] * cell + 1, s[1] * cell + 1, cell - 2, cell - 2); cx.fill(); });
+  }
+  $('go').onclick = () => { if (dead) reset(); start(); }; $('pause').onclick = () => running ? pause() : start();
+  addEventListener('keydown', e => { const m = { ArrowLeft: 'l', ArrowRight: 'r', ArrowUp: 'u', ArrowDown: 'd' }[e.key]; if (m) { e.preventDefault(); turn(m); } if (e.key === ' ') { e.preventDefault(); running ? pause() : start(); } });
+  let t0 = null; const sw = (x, y) => { if (!t0) return; const dx = x - t0.x, dy = y - t0.y; t0 = null; if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return; turn(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'r' : 'l') : (dy > 0 ? 'd' : 'u')); };
+  document.addEventListener('touchstart', e => { if (!e.target.closest('button')) t0 = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }, { passive: true }); document.addEventListener('touchend', e => sw(e.changedTouches[0].clientX, e.changedTouches[0].clientY), { passive: true });
+  addEventListener('resize', () => { if (!running) reset(); });
+  reset(); $('msg').classList.add('on'); window.__s = { step, turn, get snake() { return snake; }, set food(f) { food = f; }, get food() { return food; }, get score() { return score; }, get dead() { return dead; }, start, W: () => W, H: () => H };
+})();
+</script>
+</body>
+</html>
