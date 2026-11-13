@@ -88,7 +88,7 @@ const Nav = (() => {
       <div class="navhdr"><button class="nlay nnotes" id="nnt" type="button" title="Notas de voz del móvil"><svg viewBox="0 0 24 24" width="20" height="20"><path d="M6 3h9l4 4v13a1 1 0 01-1 1H6a1 1 0 01-1-1V4a1 1 0 011-1z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M14.5 3v4.5H19M8 12h8M8 16h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button><button class="nlay" id="nsm" title="Estilo del mapa y funciones"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 3l9 5-9 5-9-5z" fill="currentColor"/><path d="M3 12.5l9 5 9-5M3 16.5l9 5 9-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></button><button class="nsrch" id="nsq" type="button" title="Buscar destino"><svg viewBox="0 0 24 24" width="22" height="22"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M15.5 15.5L21 21" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/></svg></button><button class="nmore" id="nmore" type="button" title="Ajustes de la app (mantén pulsado: funciones del mapa)"><svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="5" r="2.3" fill="currentColor"/><circle cx="12" cy="12" r="2.3" fill="currentColor"/><circle cx="12" cy="19" r="2.3" fill="currentColor"/></svg></button></div>
       <div class="navmenu" id="nmenu" hidden><div class="nm-t">Estilo del mapa</div><div class="nm-st" id="nmst"><button type="button" data-s="auto" title="Auto"><svg viewBox="0 0 24 24" width="24" height="24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M12 3.5a8.5 8.5 0 010 17z" fill="currentColor"/></svg><span>Auto</span></button><button type="button" data-s="light" title="Día"><svg viewBox="0 0 24 24" width="24" height="24"><circle cx="12" cy="12" r="4.4" fill="currentColor"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg><span>Día</span></button><button type="button" data-s="dark" title="Noche"><svg viewBox="0 0 24 24" width="24" height="24"><path d="M20 14.5A8.5 8.5 0 019.5 4 8.5 8.5 0 1020 14.5z" fill="currentColor"/></svg><span>Noche</span></button><button type="button" data-s="sat" title="Satélite"><svg viewBox="0 0 24 24" width="24" height="24"><rect x="9.5" y="9.5" width="5" height="5" rx="1" transform="rotate(45 12 12)" fill="currentColor"/><path d="M4.5 8.5l4-4 3 3-4 4zM12.5 16.5l4-4 3 3-4 4z" fill="currentColor"/><path d="M5 19a8 8 0 008-8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Satélite</span></button><button type="button" id="nm3d" title="Vista 3D / 2D"><svg viewBox="0 0 24 24" width="24" height="24"><path d="M12 2.8l8 4.3v9.8l-8 4.3-8-4.3V7.1z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M4 7.1l8 4.4 8-4.4M12 11.5v9.7" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><span>3D</span></button></div><div class="nm-t">Funciones del mapa</div><div id="nmbox"></div><button class="btn" id="nmsave" type="button">📍 Guardar mi ubicación</button><button class="btn sec" id="nmplaces" type="button">⭐ Mis lugares…</button><button class="btn sec" id="nmset" type="button">Más ajustes del mapa…</button></div>
       <div class="navtools" id="ntools"><button id="nzi" title="Acercar">＋</button><button id="nzo" title="Alejar">－</button><button id="n3d" title="Cambiar entre vista 3D inclinada y mapa 2D">3D</button><button id="ncmp" title="Norte arriba"><i>▲</i></button></div>
-      <div class="navguide" id="nguide" hidden><div class="ni" id="nicon">⬆</div><div class="nt"><b id="ndist">—</b><span id="ntext"></span></div></div>
+      <div class="navjv" id="njv" hidden></div><div class="navguide" id="nguide" hidden><div class="ni" id="nicon">⬆</div><div class="nt"><b id="ndist">—</b><span id="ntext"></span></div></div>
       <div class="navbar" id="nbar" hidden><span class="nb-s"></span><div class="nb-i"><div><b id="nrem">—</b><small>restante</small></div><div><b id="neta">—</b><small>llegada</small></div><div><b id="nspd">0</b><small id="nspu">km/h</small></div></div>
         <div class="nb-b"><button class="btn sec" id="nmute" aria-label="Voz"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 9v6h4l5 4V5L8 9z" fill="currentColor"/><path d="M16 9a4 4 0 010 6M18.5 6.5a8 8 0 010 11" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></button><button class="btn sec" id="nctr" aria-label="Centrar"><svg viewBox="0 0 24 24" width="22" height="22"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="12" r="2.6" fill="currentColor"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button><button class="btn sec" id="nstops" aria-label="Paradas"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0113 0c0 5.4-6.5 11-6.5 11z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M12 7.5v5M9.5 10h5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button><button class="btn sec" id="nfav" aria-label="Guardar destino"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 3l2.7 5.8 6.3.8-4.6 4.4 1.2 6.3L12 17.2 6.4 20.3l1.2-6.3L3 9.6l6.3-.8z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg></button><button class="btn bad" id="nstop"><svg viewBox="0 0 24 24" width="20" height="20"><path d="M5 5L19 19M19 5L5 19" stroke="#fff" stroke-width="3.6" stroke-linecap="round"/></svg> Terminar</button></div></div>
       <button class="btn sec navsim" id="nsim" hidden>🧪 Simular ruta</button>
@@ -286,7 +286,7 @@ const Nav = (() => {
   function stop() {
     saveRoute(null); N.active = false; clearInterval(N.simT); N.sim = false; N.sum = null; bus.emit('nav'); try { speechSynthesis.cancel(); } catch { }
     N.coords = []; N.stops = []; N.ri = 0; drawRoute(); drawStops(); if (N.dm) { N.dm.remove(); N.dm = null; }
-    N.el.classList.remove('guiding'); ['nguide', 'nbar', 'nsim'].forEach(i => $('#' + i, N.el).hidden = true); $('#nsim', N.el).textContent = '🧪 Simular ruta';
+    N.el.classList.remove('guiding'); ['nguide', 'nbar', 'nsim', 'njv'].forEach(i => $('#' + i, N.el).hidden = true); $('#nsim', N.el).textContent = '🧪 Simular ruta';
   }
   /* ── Paradas ── */
   const mins = x => Math.max(1, Math.round(x / 60)) + ' min';
@@ -406,13 +406,43 @@ const Nav = (() => {
   }
 
   /* ── Guía ── */
+  /* ── Vista de cruce: dibujo de la vía con la flecha de giro + carriles y cartel azul de salidas (si OSM/OSRM tienen datos) ── */
+  const LANE_ANG = { uturn: 180, 'sharp left': -135, left: -90, 'slight left': -45, straight: 0, 'slight right': 45, right: 90, 'sharp right': 135 };
+  const laneSvg = ind => `<svg viewBox="0 0 48 40" width="38" height="32" overflow="visible">${(ind.length ? ind : ['none']).filter(i => LANE_ANG[i] != null).map(i => `<g transform="rotate(${LANE_ANG[i]} 24 34)"><path d="M24 34V18" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" fill="none"/><path d="M16 21l8-14 8 14z" fill="currentColor"/></g>`).join('')}</svg>`;
+  function jvDir(m) { // dirección del giro (-1.5 = cerrado a la izquierda … +1.5 = cerrado a la derecha)
+    if (/roundabout|rotary/.test(m.type)) { const e = +m.exit || 1; return e === 1 ? 1 : e === 2 ? 0 : e === 3 ? -1 : 2.2; }
+    return { 'sharp left': -1.5, left: -1, 'slight left': -.5, straight: 0, 'slight right': .5, right: 1, 'sharp right': 1.5, uturn: 2.2 }[m.modifier] ?? 0;
+  }
+  function roadSvg(dir, col) {
+    const u = dir > 2, str = Math.abs(dir) < .1, ex = u ? 50 : 80 + dir * 36, ey = u ? 86 : str ? 56 : 66;
+    const path = u ? 'M96 118V84Q96 62 72 62Q50 62 50 86' : str ? `M80 118V${ey}` : `M80 118V98Q80 76 ${ex} ${ey}`, rot = u ? 180 : str ? 0 : Math.round(Math.atan2(ex - 80, 76 - ey) * 180 / Math.PI), hx = ex, hy = ey;
+    return `<svg viewBox="0 0 160 120" class="jroad-svg"><defs><linearGradient id="jsk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7dbcff"/><stop offset="1" stop-color="#e6f3ff"/></linearGradient></defs>
+      <rect width="160" height="46" fill="url(#jsk)"/><polygon points="0,46 160,46 160,120 0,120" fill="#3f8a3f"/><polygon points="0,46 72,46 28,120 0,120" fill="#2f6f35"/><polygon points="88,46 160,46 160,120 132,120" fill="#2f6f35"/>
+      <polygon points="72,46 88,46 134,120 26,120" fill="#4a4f57"/><path d="M80 48V120" stroke="#fff" stroke-width="2.4" stroke-dasharray="7 7" opacity=".85"/><path d="M73.5 46L28 120M86.5 46L132 120" stroke="#fff" stroke-width="1.6" opacity=".7"/>
+      <path d="${path}" fill="none" stroke="#fff" stroke-width="15" stroke-linecap="round" stroke-linejoin="round" opacity=".92"/><path d="${path}" fill="none" stroke="${col}" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+      <g transform="translate(${hx} ${hy}) rotate(${rot})"><polygon points="-15,3 15,3 0,-20" fill="#fff"/><polygon points="-10,1 10,1 0,-14" fill="${col}"/></g></svg>`;
+  }
+  function junction(nx, cur, dN) {
+    const el = $('#njv', N.el); if (!el) return; const m = nx.maneuver, t = m.type;
+    const lanes = (() => { const it = (cur && cur.intersections) || []; for (let i = it.length - 1; i >= 0; i--) if (it[i].lanes && it[i].lanes.length) return it[i].lanes; return null; })();
+    const dest = nx.destinations || '', ex = nx.exits || '';
+    const show = S.junction !== false && dN <= 650 && !/^(depart|arrive|notification|new name)$/.test(t) && !((m.modifier === 'straight' || !m.modifier) && t !== 'roundabout' && t !== 'rotary' && !lanes && !dest);
+    if (!show) { if (!el.hidden) { el.hidden = true; el.dataset.k = ''; } return; }
+    const key = N.idx + '|' + t + '|' + (m.modifier || '') + '|' + (S.accent || '');
+    if (el.dataset.k !== key) {
+      el.dataset.k = key; const col = '#ff3d9a';
+      const sign = lanes || dest || ex ? `<div class="jsign">${lanes ? `<div class="jlanes">${lanes.map(l => `<span class="ln ${l.valid ? 'v' : ''}">${laneSvg(l.indications || [])}</span>`).join('')}</div>` : ''}${dest || ex ? `<div class="jdest">${ex ? `<span class="jex">${esc(ex)}</span>` : ''}${esc(dest.split(',').slice(0, 3).join(' · '))}</div>` : ''}</div>` : '';
+      el.innerHTML = `<div class="jroad">${roadSvg(jvDir(m), col)}<b class="jd"></b></div>${sign}`; el.hidden = false;
+    }
+    const d = $('.jd', el); if (d) d.textContent = fmtD(dN);
+  }
   function update(p) {
     const st = N.steps, last = st.length - 1; if (!st.length) return;
     const onR = N.sn && N.cum && N.stepAt && N.cum.length > N.ri + 1, prog = onR ? N.cum[N.ri] + N.rf * (N.cum[N.ri + 1] - N.cum[N.ri]) : 0, tot = N.cum ? N.cum[N.cum.length - 1] : 0;
     while (N.idx < last && (dist(p, loc(st[N.idx + 1])) < 35 || (onR && prog >= N.cum[N.stepAt[N.idx + 1]] - 5))) { N.idx++; const sp = st[N.idx].stop; if (sp && !sp.done) { sp.done = true; say('Parada: ' + sp.name); toast('📍 Parada: ' + sp.name, 3500); drawStops(); saveRoute(N.dest); } }
     if (N.idx >= last || (onR && tot - prog < 25 && N.stops.every(x => x.done))) { arrive(); return; }
     const nx = st[N.idx + 1], dN = onR ? Math.max(0, N.cum[N.stepAt[N.idx + 1]] - prog) : dist(p, loc(nx));
-    $('#nicon', N.el).innerHTML = manTile(nx); $('#ndist', N.el).textContent = fmtD(dN); $('#ntext', N.el).textContent = instr(nx); N.sum = { icon: icon(nx), dist: fmtD(dN), text: instr(nx) };
+    junction(nx, st[N.idx], dN); $('#nicon', N.el).innerHTML = manTile(nx); $('#ndist', N.el).textContent = fmtD(dN); $('#ntext', N.el).textContent = instr(nx); N.sum = { icon: icon(nx), dist: fmtD(dN), text: instr(nx) };
     if (dN < 650 && !nx.v1 && st[N.idx].distance > 250) { nx.v1 = true; say(`En ${Math.round(dN / 50) * 50} metros, ${instr(nx).toLowerCase()}`); }
     if (dN < 140 && !nx.v2) { nx.v2 = true; say(instr(nx)); }
     let rem = dN, dur = 0; for (let j = N.idx + 1; j <= last; j++) { rem += st[j].distance; dur += st[j].duration; }
