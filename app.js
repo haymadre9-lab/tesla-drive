@@ -139,7 +139,7 @@ const onGeo = p => {
     if (GPS.last && c.accuracy < 60) { const d = hav(GPS.last, c); if (d > 4 && d < 500) { S.trip += d; } }
     if (!GPS.last || c.accuracy < 60) GPS.last = { latitude: c.latitude, longitude: c.longitude };
     S.maxSpeed = Math.max(S.maxSpeed, GPS.speed); S.lastPos = [c.latitude, c.longitude];
-    setGpsDot('on'); bus.emit('pos', c); renderSpeedUI(); saveSoon();
+    setGpsDot(c.accuracy > 300 ? 'wait' : 'on'); { const d = $('#stGps'); if (d) d.title = 'GPS ±' + Math.round(c.accuracy || 0) + ' m'; } bus.emit('pos', c); renderSpeedUI(); saveSoon();
 };
 const GEO_OPTS = { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 };
 function startGPS() {
@@ -148,6 +148,11 @@ function startGPS() {
   if (gpsWatch != null) try { navigator.geolocation.clearWatch(gpsWatch); } catch { }
   gpsWatch = navigator.geolocation.watchPosition(onGeo, () => setGpsDot('off'), GEO_OPTS);
 }
+/* Si el GPS deja de enviar posiciones (el navegador del coche lo duerme al cambiar de app), se avisa con el punto amarillo y se reactiva solo */
+GPS.age = () => GPS.t ? Date.now() - GPS.t : Infinity;
+setInterval(() => { if (document.hidden || !navigator.geolocation || Nav.state.sim || !GPS.t) return; const age = GPS.age(); if (age > 15000 && GPS.status === 'on') setGpsDot('wait'); if (age > 25000) { startGPS(); refreshGPS(); } }, 8000);
+/* Tocar el punto del GPS dice qué posición se está usando (útil para saber si el coche está enviando datos buenos) */
+{ const g = $('#stGps'); if (g) { g.style.cursor = 'pointer'; g.style.boxSizing = 'content-box'; g.style.padding = '12px'; g.style.margin = '-12px'; g.onclick = () => { const c = GPS.pos; if (!c) return toast('Sin posición GPS todavía. Comprueba que la ubicación esté permitida para este navegador.', 5000); const s = Math.round(GPS.age() / 1000); toast(`GPS: ±${Math.round(c.accuracy || 0)} m · última posición hace ${s < 90 ? s + ' s' : Math.round(s / 60) + ' min'} · ${c.latitude.toFixed(4)}, ${c.longitude.toFixed(4)}`, 7000); refreshGPS(); }; } }
 /* Posición fresca al momento (al volver a la app el watch puede haberse quedado dormido) */
 function refreshGPS() { if (navigator.geolocation) navigator.geolocation.getCurrentPosition(onGeo, () => { }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }); }
 let sv; const saveSoon = () => { clearTimeout(sv); sv = setTimeout(save, 3000); };
