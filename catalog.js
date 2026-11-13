@@ -63,6 +63,8 @@ const Cat = (() => {
     ['media'].forEach(id => { if (!have(id) && !(id === 'wikipro')) { const x = find(id); if (x) S.apps.push(mk(x)); } });
     S.appsV2 = 1; save();
   }
+  /* Migración V11: Mirror Samsung (pantalla del móvil) */
+  if (!S.appsV11) { const x = { id: 'mirror', n: 'Mirror Samsung', u: 'http://100.99.9.10:9999', img: 'icons/mirror.svg', e: '📱', mode: 'tab' }; if (!S.apps.some(a => a.id === x.id)) { S.apps.push(x); S.quick = [...(S.quick || []), x.id]; } S.appsV11 = 1; save(); }
   /* Migración V10: se añaden AutoBoard HUD y Tvesla */
   if (!S.appsV10) { [{ id: 'autoboard', n: 'AutoBoard HUD', u: 'https://haymadre9-lab.github.io/AutoBoard-HUD/', e: '🧭' }, { id: 'tvesla', n: 'Tvesla', u: 'https://tvesla.es', e: '📺', mode: 'tab' }].forEach(x => { if (!S.apps.some(a => a.id === x.id)) { S.apps.push(x); S.quick = [...(S.quick || []), x.id]; } }); S.appsV10 = 1; save(); }
   /* Migración V9: se quitan TuneIn, Telegram y PlugShare */
