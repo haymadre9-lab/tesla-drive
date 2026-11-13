@@ -33,7 +33,6 @@ const Cat = (() => {
       { id: 'yt', n: 'YouTube', e: '▶️', t: 'embed', d: 'Se abre dentro de la ventana con el enlace ya escrito: solo pulsa Aceptar. Los enlaces de vídeo (youtu.be/…) se reproducen; otros enlaces se abren fuera.', a: { u: 'https://m.youtube.com', k: 'yt' } },
       { id: 'media', n: 'Reproductor por enlace', e: '🎶', t: 'embed', d: 'Favoritos para tocar (se guardan en el móvil), recientes y enlaces enviados desde el móvil. YouTube, Spotify, SoundCloud, Mixcloud, Apple, Deezer, Vimeo, Dailymotion, Twitch.', a: { u: 'https://youtube.com', k: 'media' } },
       { id: 'radio', n: 'Radio Garden', e: '📻', t: 'probar', d: 'Radios de todo el mundo en un globo.', a: { u: 'https://radio.garden' } },
-      { id: 'tunein', n: 'TuneIn', e: '🎙️', t: 'probar', d: 'Radios y podcasts.', a: { u: 'https://tunein.com/' } },
       { id: 'pocketcasts', n: 'Pocket Casts (web)', e: '🎧', t: 'probar', d: 'Tus podcasts (necesita cuenta).', a: { u: 'https://play.pocketcasts.com/' } },
     ]],
     ['Juegos', [
@@ -42,9 +41,7 @@ const Cat = (() => {
       { id: 'clumsy', n: 'Clumsy Bird', e: '🐦', t: 'ghp', d: 'Versión libre de Flappy Bird: un toque para aletear.', a: { u: 'https://ellisonleao.github.io/clumsy-bird/' } },
     ]],
     ['Servicios que NO se pueden abrir dentro de una ventana', [
-      { id: 'plugshare', n: 'PlugShare', e: '🔌', t: 'bloquea', d: 'No se puede abrir dentro de una ventana (comprobado en tu coche). Se abre en pestaña con un toque.', a: { u: 'https://www.plugshare.com/', mode: 'tab' } },
       { id: 'playables', n: 'YouTube Playables', e: '🎮', t: 'bloquea', d: 'No se puede abrir dentro de una ventana (comprobado en tu coche). Se abre en pestaña con un toque.', a: { u: 'https://www.youtube.com/playables', mode: 'tab' } },
-      { id: 'tg', n: 'Telegram Web', e: '✈️', t: 'bloquea', d: 'Telegram envía SAMEORIGIN: no se puede incrustar. Se abre en pestaña.', a: { u: 'https://web.telegram.org/k/', k: 'blocked' } },
     ]],
   ];
 
@@ -66,6 +63,8 @@ const Cat = (() => {
     ['media'].forEach(id => { if (!have(id) && !(id === 'wikipro')) { const x = find(id); if (x) S.apps.push(mk(x)); } });
     S.appsV2 = 1; save();
   }
+  /* Migración V9: se quitan TuneIn, Telegram y PlugShare */
+  if (!S.appsV9) { const gone9 = ['tunein', 'tg', 'plugshare']; S.apps = S.apps.filter(a => !gone9.includes(a.id)); S.quick = (S.quick || []).filter(id => !gone9.includes(id)); S.appsV9 = 1; save(); }
   /* Migración V8: se quitan Ajedrez y 2048 */
   if (!S.appsV8) { const gone = ['lichess', 'g2048']; S.apps = S.apps.filter(a => !gone.includes(a.id)); S.quick = (S.quick || []).filter(id => !gone.includes(id)); S.appsV8 = 1; save(); }
   /* Migración V7: ajedrez ampliable a pantalla completa; PlugShare y Playables se abren fuera */
