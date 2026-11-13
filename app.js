@@ -20,6 +20,8 @@ const DEF_APPS = [
   { id: 'viajando', n: 'Viajando en Tesla', u: 'https://www.viajandoentesla.es/navegador', img: 'icons/viajando.svg', e: '🚗' },
   { id: 'launcher', n: 'Launcher', u: 'https://apkapp-driver.github.io/Teslalaunch/', img: 'icons/launcher.svg', e: '🚀' },
   { id: 'codriver', n: 'CoDriver', u: 'https://app.codriver.io/?lang=en', img: 'icons/codriver.svg', e: '🧭' },
+  { id: 'autoboard', n: 'AutoBoard HUD', u: 'https://haymadre9-lab.github.io/AutoBoard-HUD/', e: '🧭' },
+  { id: 'tvesla', n: 'Tvesla', u: 'https://tvesla.es', e: '📺', mode: 'tab' },
 ];
 const DEF = {
   theme: 'auto-time', accent: '#3e9bff', radius: 22, colw: 300, rows: 2, rhd: false,
