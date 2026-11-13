@@ -71,6 +71,7 @@ const Search = (() => {
     const f = S.favs || {}, rec = S.navRecent || [], p = here();
     const item = (ico, t, s, attr, extra) => `<div class="sxi" ${attr}><span class="sxe">${ico}</span><div><b>${esc(t)}</b>${s ? `<small>${esc(s)}</small>` : ''}</div>${extra || ''}</div>`;
     list.innerHTML = (rec.length ? '<div class="sxh">Últimas rutas</div>' + rec.map((r, i) => item('🕘', r.name, [r.sub, ago(r.t)].filter(Boolean).join(' · '), `data-r="${i}"`, (p ? `<em>${fmt(dist(p, [r.lat, r.lon]))}</em>` : '') + `<button type="button" class="sxdel" data-del="${i}" aria-label="Quitar de la lista"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M5 5L19 19M19 5L5 19" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></button>`)).join('') : '') +
+      ((S.places || []).length ? '<div class="sxh">Mis lugares</div>' + S.places.map((x, i) => item('⭐', x.name, 'Mi lugar', `data-pl="${i}"`, (p ? `<em>${fmt(dist(p, [x.lat, x.lon]))}</em>` : '') + `<button type="button" class="sxdel" data-ple="${i}" aria-label="Editar">✎</button>`)).join('') : '') +
       '<div class="sxh">Sitios guardados</div>' +
       item('🏠', 'Casa', f.home ? f.home.name : 'Sin definir: termina una ruta y pulsa ⭐', f.home ? 'data-fav="home"' : 'data-none="1"') + item('💼', 'Trabajo', f.work ? f.work.name : 'Sin definir', f.work ? 'data-fav="work"' : 'data-none="1"') +
       `<div class="sxh">Buscar cerca</div><div class="sxc">${CATS.map((c, i) => `<button type="button" class="chip" data-c="${i}">${c[0]} ${c[1]}</button>`).join('')}</div>` +
@@ -78,6 +79,7 @@ const Search = (() => {
       '<div class="note" style="padding:12px 16px">Escribe una dirección, un lugar o “lat,lon”: los resultados aparecen mientras escribes, los más cercanos primero.</div>';
     $$('[data-act]', list).forEach(d => d.onclick = () => { close(); d.dataset.act === 'map' ? Nav.switchMap() : Nav.openPhone(); });
     $$('[data-del]', list).forEach(b => b.onclick = e => { e.stopPropagation(); S.navRecent.splice(+b.dataset.del, 1); save(); home(); });
+    $$('[data-pl]', list).forEach(d => d.onclick = () => { const x = S.places[+d.dataset.pl]; pick({ name: x.name, lat: x.lat, lon: x.lon, sub: 'Mi lugar' }); }); $$('[data-ple]', list).forEach(b => b.onclick = e => { e.stopPropagation(); const x = S.places[+b.dataset.ple]; close(); Nav.editPlace('place', x.id); });
     $$('[data-fav]', list).forEach(d => d.onclick = () => pick(f[d.dataset.fav])); $$('[data-r]', list).forEach(d => d.onclick = () => pick(rec[+d.dataset.r]));
     $$('[data-c]', list).forEach(b => b.onclick = () => { const c = CATS[+b.dataset.c]; inp.value = c[2]; run(c[2], true, true); });
   }
@@ -120,6 +122,7 @@ const Search = (() => {
 /* Ajuste: motor del mapa (aquí porque CATS/OPT ya existen) */
 OPT.mapEngine = [['', 'Automático (3D si el dispositivo lo admite)'], ['leaflet', 'Solo 2D clásico (más ligero)']];
 CATS.mapa[1].unshift({ k: 'mapEngine', l: 'Motor del mapa', d: 'Si el mapa 3D va lento en la pantalla del coche, elige 2D clásico. Requiere recargar la página', type: 'select' });
+ACTIONS.saveplace = ['Mapa: guardar mi ubicación', () => Nav.savePlace()]; ACTIONS.myplaces = ['Mapa: mis lugares', () => Nav.placesDlg()];
 ACTIONS.map3d = ['Mapa: vista 3D / 2D', () => Nav.toggle3d()];
 CATS.mapa[1].push({ t: 'btn', get l() { return 'Clave de TomTom (opcional): ' + (Search.ttKey() ? 'configurada' : 'sin clave'); }, f: () => Search.ttDlg() });
 ACTIONS.mapstyle = ['Mapa: cambiar estilo (auto, satélite, día, noche)', () => Nav.cycleStyle()]; ACTIONS.mapday = ['Mapa: modo día', () => Nav.setStyle('light')]; ACTIONS.mapnight = ['Mapa: modo noche', () => Nav.setStyle('dark')]; ACTIONS.mapsat = ['Mapa: satélite', () => Nav.setStyle('sat')];

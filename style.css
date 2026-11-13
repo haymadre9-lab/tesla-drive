@@ -596,3 +596,6 @@ html[data-theme=light] .navmenu{background:#fff;color:#111826;border-color:rgba(
 #stGps{position:relative;} #stGps::after{content:'';position:absolute;inset:-14px;}
 
 #nsq{touch-action:none;transition:transform .12s;} #nsq.gohome{background:var(--acc) !important;color:#fff;} #nsq.gohome::after{content:'🏠';position:absolute;top:100%;left:50%;transform:translateX(-50%);font-size:22px;}
+
+/* Mis lugares */
+.plr{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(128,138,155,.2);cursor:pointer;} .plr:active{background:rgba(128,138,155,.15);} .plr .ple{flex:none;font-size:24px;width:34px;text-align:center;} .plr .plt{flex:1;min-width:0;} .plr .plt b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;} .plr .plt small{color:var(--dim);}
