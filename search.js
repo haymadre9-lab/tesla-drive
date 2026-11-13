@@ -57,12 +57,14 @@ const Search = (() => {
     const vv = window.visualViewport, fit = () => { const h = vv ? vv.height : innerHeight, t = vv ? vv.offsetTop : 0; el.style.setProperty('--sxh', h + 'px'); el.style.setProperty('--sxt', t + 'px'); };
     if (vv) { vv.addEventListener('resize', fit); vv.addEventListener('scroll', fit); } addEventListener('resize', fit); fit();
   }
-  function open(q) {
+  let cb = null; // si no es null, el siguiente lugar elegido no inicia ruta: se entrega a esta función (null = cancelado)
+  function open(q, onPick) {
+    cb = typeof onPick === 'function' ? onPick : null;
     if (!el) build(); el.hidden = false; document.body.classList.add('searching'); last = '';
     inp.value = q || ''; if (q && q.trim().length > 1) run(q, true); else home();
     setTimeout(() => { inp.focus(); inp.select(); }, 60);
   }
-  function close() { if (!el) return; el.hidden = true; document.body.classList.remove('searching'); seq++; inp.blur(); }
+  function close() { if (!el) return; if (cb && !el.hidden) { const f = cb; cb = null; setTimeout(() => f(null), 0); } el.hidden = true; document.body.classList.remove('searching'); seq++; inp.blur(); }
   const ago = t => { const m = Math.round((Date.now() - t) / 60000); return !t ? '' : m < 2 ? 'ahora' : m < 60 ? `hace ${m} min` : m < 1440 ? `hace ${Math.round(m / 60)} h` : m < 2880 ? 'ayer' : `hace ${Math.round(m / 1440)} días`; };
   const norm = x => String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   function home() {
@@ -86,8 +88,9 @@ const Search = (() => {
     if (p && near !== false) rs.sort((a, b) => a.d - b.d); // por cercanía (lo más próximo primero)
     const nq = norm(q), mine = nq.length > 1 ? (S.navRecent || []).filter(r => norm(r.name + ' ' + (r.sub || '')).includes(nq)).slice(0, 3).map(r => ({ name: r.name, sub: [r.sub, 'ruta anterior'].filter(Boolean).join(' · '), lat: r.lat, lon: r.lon, ico: '🕘', d: p ? dist(p, [r.lat, r.lon]) : null, recent: true })) : [];
     rs = [...mine, ...rs.filter(x => !mine.some(m => Math.abs(m.lat - x.lat) < .0006 && Math.abs(m.lon - x.lon) < .0006))];
-    list.innerHTML = rs.map((r, i) => `<div class="sxi" data-i="${i}"><span class="sxe">${r.ico}</span><div><b>${esc(r.name)}</b><small>${esc(r.sub || '')}</small></div>${r.d != null ? `<em>${fmt(r.d)}</em>` : ''}</div>`).join('');
+    list.innerHTML = rs.map((r, i) => `<div class="sxi" data-i="${i}"><span class="sxe">${r.ico}</span><div><b>${esc(r.name)}</b><small>${esc(r.sub || '')}</small></div>${r.d != null ? `<em>${fmt(r.d)}</em>` : ''}${Nav.state.active && !cb ? `<button type="button" class="sxadd" data-add="${i}">＋ Parada</button>` : ''}</div>`).join('');
     $$('.sxi', list).forEach(d => d.onclick = () => pick(rs[+d.dataset.i]));
+    $$('[data-add]', list).forEach(b => b.onclick = e => { e.stopPropagation(); const r = rs[+b.dataset.add]; close(); Nav.addStop({ name: r.name, lat: r.lat, lon: r.lon }); });
   }
   async function run(q, full, near) {
     q = (q || '').trim(); if (!q) return home(); const my = ++seq; last = q;
@@ -106,7 +109,7 @@ const Search = (() => {
     show(rs, true, q);
   }
   function pick(d) {
-    if (!d) return; close();
+    if (!d) return; if (cb) { const f = cb; cb = null; close(); f(d); return; } close();
     const go2 = () => Nav.routeTo({ name: d.name, lat: d.lat, lon: d.lon, sub: d.recent || !d.sub ? (d.sub || '').replace(' · ruta anterior', '').replace('ruta anterior', '') : d.sub });
     if (Nav.state.mx && document.querySelector('.navwrap')) go2(); else { go('map'); setTimeout(go2, 700); }
   }

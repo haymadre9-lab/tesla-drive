@@ -18,6 +18,22 @@ const Info = (() => {
   const osmLink = x => /^(node|way|relation)\d+$/.test(x.id) ? `https://www.openstreetmap.org/${x.id.replace(/(\d+)$/, '/$1')}` : `https://www.openstreetmap.org/?mlat=${x.lat}&mlon=${x.lon}#map=18/${x.lat}/${x.lon}`;
 
   function imgOf(x, w = 240) { const t = x.tags || {}; return /^https:/i.test(t.image || '') ? t.image : t.wikimedia_commons && /^File:/i.test(t.wikimedia_commons) ? 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(t.wikimedia_commons.replace(/^File:/i, '')) + '?width=' + w : x.img || ''; }
+  /* Insignia que se entiende de un vistazo (sin leer): parking = P verde si es gratis, azul si es de pago, gris si no se sabe;
+     cargador = potencia (verde ≥ 100 kW, ámbar 40–99, gris menos o sin dato); gasolinera = 24 h en verde */
+  function powerKw(t) { let m = 0; Object.keys(t).forEach(k => { if (/(^charging_station:output$|^socket:.*:output$)/.test(k)) { const n = parseFloat(String(t[k]).replace(',', '.')); if (n > m) m = n; } }); return m; }
+  function badge(x) {
+    const t = x.tags || {}, k = x.kind, is = v => k === v || (v === 'park' && t.amenity === 'parking') || (v === 'charge' && t.amenity === 'charging_station') || (v === 'fuel' && t.amenity === 'fuel');
+    if (is('park')) { const c = t.fee === 'no' ? 'free' : t.fee === 'yes' ? 'paid' : 'unk', lab = c === 'free' ? 'Gratis' : c === 'paid' ? 'De pago' : 'Sin datos'; return `<span class="bdg ${c}" title="${lab}"><b>P</b><small>${lab}</small></span>`; }
+    if (is('charge')) { const kw = powerKw(t), c = kw >= 100 ? 'free' : kw >= 40 ? 'mid' : 'unk'; return `<span class="bdg ${c}" title="Potencia máxima"><b>${kw ? Math.round(kw) : '⚡'}</b><small>${kw ? 'kW' : 'sin dato'}</small></span>`; }
+    if (is('fuel')) { const h24 = /^24\/7$/i.test(String(t.opening_hours || '').trim()); return `<span class="bdg ${h24 ? 'free' : 'mid'}" title="Gasolinera"><b>⛽</b><small>${h24 ? '24 h' : ''}</small></span>`; }
+    return '';
+  }
+  /* Fotos cercanas de Wikimedia Commons (solo si el sitio no trae foto propia): se buscan en un radio de 50 m al abrir la ficha */
+  async function nearPhotos(x) {
+    if (x.near) return x.near; const u = `https://commons.wikimedia.org/w/api.php?action=query&generator=geosearch&ggscoord=${x.lat}|${x.lon}&ggsradius=50&ggslimit=6&ggsnamespace=6&prop=imageinfo&iiprop=url|mime&iiurlwidth=520&format=json&origin=*`;
+    try { const j = await (await fetch(u)).json(); x.near = Object.values((j.query && j.query.pages) || {}).map(pg => pg.imageinfo && pg.imageinfo[0]).filter(i => i && /^image\/(jpeg|png)$/.test(i.mime) && i.thumburl).slice(0, 3).map(i => i.thumburl); } catch { x.near = []; }
+    return x.near;
+  }
   function html(x) {
     const t = x.tags, k = x.kind, phone = x.phone || t['contact:mobile'] || '', web = x.web, email = t.email || t['contact:email'];
     const addr = addrOf(x), out = [];
@@ -77,9 +93,6 @@ const Info = (() => {
       ]));
     }
     if (!['eat', 'cafe', 'charge', 'park', 'fuel'].includes(k)) out.push(sec('ℹ️ Datos', [row('Marca', t.brand), row('Operador', t.operator), row('Estrellas', t.stars), row('Habitaciones', t.rooms), row('Descripción', t.description || t['description:es']), row('Acceso silla de ruedas', t.wheelchair && yn(t.wheelchair)), row('Entrada', t.fee && yn(t.fee)), row('Wi‑Fi', t.internet_access && yn(t.internet_access))]));
-    // 4) Foto
-    const img = imgOf(x, 520);
-    if (img) out.push(`<div class="dsec wide"><h5>📷 Foto</h5><img class="dimg" src="${esc(img)}" alt="" loading="lazy" onerror="this.closest('.dsec').remove()"></div>`);
     // 5) Qué falta por saber
     const need = { eat: [['horario', t.opening_hours], ['teléfono', phone], ['web', web], ['tipo de cocina', t.cuisine], ['accesibilidad', t.wheelchair]], cafe: [['horario', t.opening_hours], ['teléfono', phone], ['web', web], ['accesibilidad', t.wheelchair]], charge: [['horario', t.opening_hours], ['potencia', t['charging_station:output'] || Object.keys(t).some(s => /^socket:.*:output$/.test(s)) || ''], ['enchufes', Object.keys(SOCK).some(s => t[s])], ['tarifa', t.fee || t.charge], ['acceso', t.access]], park: [['tarifa', t.fee || t.charge], ['plazas', t.capacity], ['horario', t.opening_hours], ['altura máxima', t.maxheight]], fuel: [['horario', t.opening_hours], ['combustibles', Object.keys(t).some(s => /^fuel:/.test(s))], ['marca', t.brand]] }[k] || [['horario', t.opening_hours], ['teléfono', phone], ['web', web]];
     const miss = need.filter(([, v]) => !v).map(([n]) => n);
@@ -88,7 +101,9 @@ const Info = (() => {
     // 6) Todos los datos
     const keys = Object.keys(t).sort();
     out.push(`<details class="dsec wide draw"><summary>Ver todos los datos del sitio (${keys.length})</summary><div class="raw">${keys.map(k2 => `<div><code>${esc(k2)}</code> = ${esc(t[k2])}</div>`).join('')}</div></details>`);
-    return `<div class="dgrid2">${out.join('')}</div>`;
+    const img = imgOf(x, 520), bd = badge(x);
+    const hero = `<div class="dhero wide">${bd ? `<div class="dbig">${bd}</div>` : ''}<div class="dph">${img ? `<img class="dimg" src="${esc(img)}" alt="" loading="lazy" onerror="this.remove()">` : ''}</div><div class="dcap"></div></div>`;
+    return `<div class="dgrid2">${hero}${out.join('')}</div>`;
   }
 
   /* Dirección bajo demanda (si OSM no la trae) y resumen con IA */
@@ -100,6 +115,7 @@ const Info = (() => {
         const v = $('.addr-v', el); if (v) v.outerHTML = x.addr ? esc(x.addr) : '<i>sin dirección registrada</i>';
       }).catch(() => { const v = $('.addr-v', el); if (v) v.outerHTML = '<i>no se pudo cargar la dirección</i>'; });
     }
+    if (!imgOf(x) && !x.nearDone) { x.nearDone = true; nearPhotos(x).then(ph => { const box = $('.dph', el), cap = $('.dcap', el); if (!ph.length || !box || box.querySelector('img')) return; box.innerHTML = ph.map(u => `<img class="dimg" src="${esc(u)}" alt="" loading="lazy" onerror="this.remove()">`).join(''); if (cap) cap.textContent = 'Fotos cercanas de Wikimedia Commons: pueden no ser de este sitio exacto.'; }); }
     const b = $('[data-aisum]', el);
     if (b) b.onclick = async () => {
       b.disabled = true; b.textContent = 'Pensando…'; const box = $('.ai-sum', el);
@@ -108,5 +124,5 @@ const Info = (() => {
       b.disabled = false; b.textContent = '✨ Resumen con IA';
     };
   }
-  return { html, bind, addrOf, imgOf };
+  return { html, bind, addrOf, imgOf, badge };
 })();

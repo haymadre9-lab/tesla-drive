@@ -576,3 +576,16 @@ html[data-theme=light] .navmenu{background:#fff;color:#111826;border-color:rgba(
 .adv-l .adv-res{flex:none;overflow:visible;position:relative;padding:14px;} .adv-x{position:absolute;top:8px;right:8px;width:42px;height:42px;border-radius:50%;background:#e0141b;color:#fff;border:2px solid #fff;box-shadow:0 0 0 2px #e0141b,0 4px 12px rgba(0,0,0,.5);display:grid;place-items:center;padding:0;z-index:3;cursor:pointer;} .adv-x svg{pointer-events:none;display:block;} .adv-resc .adv-reco{margin-right:50px;} .adv-resc > .note:first-of-type{padding-right:50px;}
 .adv-xb{position:sticky;top:0;height:0;z-index:5;} .adv-xb .adv-x{top:6px;right:0;}
 .adv-l .adv-row{flex-wrap:wrap;} .adv-l .adv-it .at{flex:1 1 55%;min-width:0;} .adv-l .adv-it .at b{white-space:normal;} .adv-l .adv-it .ab{flex:1 1 100%;justify-content:flex-end;}
+
+/* Paradas */
+.poi.stopm{background:#fff;color:#111;border:3px solid var(--acc);font:800 16px/1 system-ui,sans-serif;display:grid;place-items:center;}
+.stp{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid rgba(128,138,155,.2);} .stp .stn{flex:none;width:30px;height:30px;border-radius:50%;background:var(--acc);color:#fff;display:grid;place-items:center;font-size:15px;} .stp.fin .stn{background:none;font-size:20px;} .stp .stt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;}
+.stb{width:44px;height:44px;border-radius:10px;border:0;background:rgba(128,138,155,.22);color:inherit;display:grid;place-items:center;flex:none;} .stb:disabled{opacity:.3;} .stb:active{background:rgba(128,138,155,.45);} .stb .gi{width:18px;height:18px;}
+.sxadd{margin-left:8px;flex:none;border:2px solid var(--acc);background:transparent;color:inherit;border-radius:999px;padding:8px 12px;font-weight:700;font-size:14px;}
+
+/* Insignias de un vistazo (parking: P verde gratis / azul de pago / gris sin datos; cargador: kW; gasolinera: 24 h) */
+.bdg{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;min-width:52px;height:52px;padding:2px 6px;border-radius:12px;border:3px solid #fff;color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.4);line-height:1;gap:2px;} .bdg b{font:800 26px/1 system-ui,sans-serif;} .bdg small{font:700 10px/1 system-ui,sans-serif;color:#fff;opacity:.95;white-space:nowrap;}
+.bdg.free{background:#1a9a45;} .bdg.paid{background:#1769e0;} .bdg.mid{background:#d98a00;} .bdg.unk{background:#6b7785;}
+.adv-it .ai.bw{width:auto;display:flex;align-items:center;justify-content:center;font-size:inherit;} .adv-row .ai.ph + .ai.bw{margin-left:-6px;}
+.dhero{display:flex;flex-direction:column;gap:8px;grid-column:1/-1;} .dhero .dbig{display:flex;} .dhero .dbig .bdg{min-width:84px;height:84px;border-radius:18px;} .dhero .dbig .bdg b{font-size:44px;} .dhero .dbig .bdg small{font-size:14px;}
+.dph{display:flex;gap:8px;overflow-x:auto;} .dph .dimg{flex:1 0 auto;max-width:100%;height:190px;width:auto;object-fit:cover;border-radius:12px;} .dph:empty{display:none;} .dcap{font-size:12px;color:var(--dim);} .dcap:empty{display:none;}
