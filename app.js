@@ -20,7 +20,6 @@ const DEF_APPS = [
   { id: 'viajando', n: 'Viajando en Tesla', u: 'https://www.viajandoentesla.es/navegador', img: 'icons/viajando.svg', e: '🚗' },
   { id: 'launcher', n: 'Launcher', u: 'https://apkapp-driver.github.io/Teslalaunch/', img: 'icons/launcher.svg', e: '🚀' },
   { id: 'codriver', n: 'CoDriver', u: 'https://app.codriver.io/?lang=en', img: 'icons/codriver.svg', e: '🧭' },
-  { id: 'lichess', n: 'Ajedrez · Lichess TV', u: 'mini/games/ajedrez.html', e: '♟️', k: 'own', mode: 'full' },
 ];
 const DEF = {
   theme: 'auto-time', accent: '#3e9bff', radius: 22, colw: 300, rows: 2, rhd: false,
@@ -64,6 +63,20 @@ function isDark() {
     case 'system': return matchMedia('(prefers-color-scheme: dark)').matches;
     case 'light-sensor': if (ambientDark !== null) return ambientDark; // si no hay sensor, cae a hora
     default: { const h = new Date().getHours(); return h < 6 || h >= 19; }
+  }
+}
+/* Día/noche del MAPA: sigue al sol (con tu posición) y no depende del aspecto del dashboard (las escenas Tesla fuerzan la interfaz oscura) */
+function sunDark(lat, lon, d) {
+  const rad = Math.PI / 180, n = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 864e5), g = 2 * Math.PI / 365 * (n - 1 + (d.getUTCHours() - 12) / 24);
+  const decl = .006918 - .399912 * Math.cos(g) + .070257 * Math.sin(g) - .006758 * Math.cos(2 * g) + .000907 * Math.sin(2 * g) - .002697 * Math.cos(3 * g) + .00148 * Math.sin(3 * g);
+  const eqt = 229.18 * (.000075 + .001868 * Math.cos(g) - .032077 * Math.sin(g) - .014615 * Math.cos(2 * g) - .040849 * Math.sin(2 * g)), tst = d.getUTCHours() * 60 + d.getUTCMinutes() + eqt + 4 * lon, ha = (tst / 4 - 180) * rad, la = lat * rad;
+  return Math.asin(Math.sin(la) * Math.sin(decl) + Math.cos(la) * Math.cos(decl) * Math.cos(ha)) / rad < -2;
+}
+function mapDark() {
+  switch (S.theme) {
+    case 'dark': return true; case 'light': return false; case 'system': return matchMedia('(prefers-color-scheme: dark)').matches;
+    case 'light-sensor': if (ambientDark !== null) return ambientDark; // eslint-disable-next-line no-fallthrough
+    default: { const p = (typeof GPS !== 'undefined' && GPS.pos) ? [GPS.pos.latitude, GPS.pos.longitude] : S.lastPos; if (p) return sunDark(p[0], p[1], new Date()); const h = new Date().getHours(); return h < 7 || h >= 20; }
   }
 }
 function applyTheme() {
@@ -152,7 +165,7 @@ function startGPS() {
 GPS.age = () => GPS.t ? Date.now() - GPS.t : Infinity;
 setInterval(() => { if (document.hidden || !navigator.geolocation || Nav.state.sim || !GPS.t) return; const age = GPS.age(); if (age > 15000 && GPS.status === 'on') setGpsDot('wait'); if (age > 25000) { startGPS(); refreshGPS(); } }, 8000);
 /* Tocar el punto del GPS dice qué posición se está usando (útil para saber si el coche está enviando datos buenos) */
-{ const g = $('#stGps'); if (g) { g.style.cursor = 'pointer'; g.style.boxSizing = 'content-box'; g.style.padding = '12px'; g.style.margin = '-12px'; g.onclick = () => { const c = GPS.pos; if (!c) return toast('Sin posición GPS todavía. Comprueba que la ubicación esté permitida para este navegador.', 5000); const s = Math.round(GPS.age() / 1000); toast(`GPS: ±${Math.round(c.accuracy || 0)} m · última posición hace ${s < 90 ? s + ' s' : Math.round(s / 60) + ' min'} · ${c.latitude.toFixed(4)}, ${c.longitude.toFixed(4)}`, 7000); refreshGPS(); }; } }
+{ const g = $('#stGps'); if (g) { g.style.cursor = 'pointer'; g.onclick = () => { const c = GPS.pos; if (!c) return toast('Sin posición GPS todavía. Comprueba que la ubicación esté permitida para este navegador.', 5000); const s = Math.round(GPS.age() / 1000); toast(`GPS: ±${Math.round(c.accuracy || 0)} m · última posición hace ${s < 90 ? s + ' s' : Math.round(s / 60) + ' min'} · ${c.latitude.toFixed(4)}, ${c.longitude.toFixed(4)}`, 7000); refreshGPS(); }; } }
 /* Posición fresca al momento (al volver a la app el watch puede haberse quedado dormido) */
 function refreshGPS() { if (navigator.geolocation) navigator.geolocation.getCurrentPosition(onGeo, () => { }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }); }
 let sv; const saveSoon = () => { clearTimeout(sv); sv = setTimeout(save, 3000); };
@@ -369,7 +382,7 @@ async function openApp(a, mode = (a.mode && a.mode !== 'default' ? a.mode : S.op
 }
 /* Cada servicio tiene su versión incrustable oficial (los sitios normales prohíben el iframe). */
 const myPos = () => GPS.pos ? [GPS.pos.latitude, GPS.pos.longitude] : S.lastPos || (S.city && [S.city.lat, S.city.lon]) || [40.4168, -3.7038];
-const YT_DEFAULT = 'https://share.google/59pnNBgXOUBLdbM3p'; // dirección que el usuario quiere por defecto (no se puede pegar en el navegador del coche)
+const YT_DEFAULT = ''; // dirección que el usuario quiere por defecto (no se puede pegar en el navegador del coche)
 function ytEmbed(t) {
   const id = (t.match(/(?:v=|youtu\.be\/|shorts\/|embed\/)([\w-]{11})/) || [])[1], list = (t.match(/[?&]list=([\w-]+)/) || [])[1];
   if (id) return `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0${list ? '&list=' + list : ''}`;
@@ -487,7 +500,11 @@ function openFloat(a, full = false) {
   });
   $('.hd', w).ondblclick = e => { if (!e.target.closest('button')) fitFloat(w, true); };
 }
-function appHtml(a, x) { return `<div class="app" data-id="${esc(a.id)}"><div class="ico">${esc(a.e || '🌐')}</div><span>${esc(a.n)}</span>${x ? '<button class="x" data-del>✕</button>' : ''}</div>`; }
+/* Iconos con color: cada app tiene su degradado (los de la tabla son «de marca»; el resto sale de su nombre, siempre el mismo) */
+const APP_COL = { tiempo: ['#1d7cf2', '#5ad1ff'], yt: ['#ff3030', '#b30000'], wiki: ['#f2f2f2', '#c8cdd4'], radio: ['#ff8a1f', '#ff3d6e'], media: ['#8a4dff', '#ff4d9a'], tetris: ['#00bfff', '#6a35ff'], snake: ['#2bd16a', '#0b7a3a'], plugshare: ['#19b36b', '#0b7a52'], playables: ['#ff6a3d', '#e11d74'], hextris: ['#f5a524', '#e5484d'], clumsy: ['#ffcf33', '#ff8a00'] };
+const APP_PAL = [['#3e9bff', '#2e5bff'], ['#ff7a45', '#ff3d6e'], ['#22c55e', '#0e9f6e'], ['#a855f7', '#6d28d9'], ['#06b6d4', '#2563eb'], ['#f59e0b', '#ef4444'], ['#ec4899', '#8b5cf6'], ['#14b8a6', '#0ea5e9']];
+const appGrad = a => { let c = a.c ? [a.c, a.c] : APP_COL[a.id]; if (!c) { let h = 0; String(a.id || a.n).split('').forEach(ch => { h = (h * 31 + ch.charCodeAt(0)) >>> 0; }); c = APP_PAL[h % APP_PAL.length]; } return `linear-gradient(135deg,${c[0]},${c[1]})`; };
+function appHtml(a, x) { return `<div class="app" data-id="${esc(a.id)}"><div class="ico ${a.img ? '' : 'col'}" ${a.img ? '' : `style="background:${appGrad(a)}"`}>${esc(a.e || '🌐')}</div><span>${esc(a.n)}</span>${x ? '<button class="x" data-del>✕</button>' : ''}</div>`; }
 function widgetApps(el) {
   const q = S.quick.map(appById).filter(Boolean);
   el.innerHTML = `<h4>Accesos rápidos</h4><div class="appsrow ${el.dataset.edit ? 'editing' : ''}">${q.map(a => appHtml(a)).join('')}<div class="app" data-more><div class="ico">⋯</div><span>Todas</span></div></div>`;

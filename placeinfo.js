@@ -21,9 +21,14 @@ const Info = (() => {
   /* Insignia que se entiende de un vistazo (sin leer): parking = P verde si es gratis, azul si es de pago, gris si no se sabe;
      cargador = potencia (verde ≥ 100 kW, ámbar 40–99, gris menos o sin dato); gasolinera = 24 h en verde */
   function powerKw(t) { let m = 0; Object.keys(t).forEach(k => { if (/(^charging_station:output$|^socket:.*:output$)/.test(k)) { const n = parseFloat(String(t[k]).replace(',', '.')); if (n > m) m = n; } }); return m; }
+  function feeOf(t) { // tarifa: etiqueta fee, o las específicas del parking (parking:lane:both:fee…), o si hay precio/condiciones
+    if (t.fee === 'yes' || t.fee === 'no') return t.fee; let y = false, n = false;
+    Object.keys(t).forEach(k => { if (/^parking[:a-z_]*:fee$/.test(k)) { if (t[k] === 'yes') y = true; else if (t[k] === 'no') n = true; } });
+    if (y || t.charge || t['fee:conditional'] || t['charge:conditional']) return 'yes'; return n ? 'no' : null;
+  }
   function badge(x) {
     const t = x.tags || {}, k = x.kind, is = v => k === v || (v === 'park' && t.amenity === 'parking') || (v === 'charge' && t.amenity === 'charging_station') || (v === 'fuel' && t.amenity === 'fuel');
-    if (is('park')) { const c = t.fee === 'no' ? 'free' : t.fee === 'yes' ? 'paid' : 'unk', lab = c === 'free' ? 'Gratis' : c === 'paid' ? 'De pago' : 'Sin datos'; return `<span class="bdg ${c}" title="${lab}"><b>P</b><small>${lab}</small></span>`; }
+    if (is('park')) { const fee = feeOf(t), c = fee === 'no' ? 'free' : fee === 'yes' ? 'paid' : 'unk', street = /street_side|lane/.test(t.parking || ''), lab = c === 'free' ? 'Gratis' : c === 'paid' ? 'De pago' : street ? 'Calle' : 'Sin datos'; return `<span class="bdg ${c}" title="${lab}"><b>P</b><small>${lab}</small></span>`; }
     if (is('charge')) { const kw = powerKw(t), c = kw >= 100 ? 'free' : kw >= 40 ? 'mid' : 'unk'; return `<span class="bdg ${c}" title="Potencia máxima"><b>${kw ? Math.round(kw) : '⚡'}</b><small>${kw ? 'kW' : 'sin dato'}</small></span>`; }
     if (is('fuel')) { const h24 = /^24\/7$/i.test(String(t.opening_hours || '').trim()); return `<span class="bdg ${h24 ? 'free' : 'mid'}" title="Gasolinera"><b>⛽</b><small>${h24 ? '24 h' : ''}</small></span>`; }
     return '';
@@ -80,7 +85,7 @@ const Info = (() => {
     }
     if (k === 'park' || t.amenity === 'parking') {
       out.push(sec('🅿️ Parking', [
-        row('Tarifa', t.fee === 'no' ? 'Gratuito' : [t.fee === 'yes' ? 'De pago' : '', t.charge].filter(Boolean).join(' · ') || 'Sin datos de tarifa'),
+        row('Tarifa', feeOf(t) === 'no' ? 'Gratuito' : [feeOf(t) === 'yes' ? 'De pago' : '', t.charge].filter(Boolean).join(' · ') || 'Sin datos de tarifa'),
         row('Plazas', t.capacity), row('Plazas movilidad reducida', t['capacity:disabled']), row('Plazas con carga eléctrica', t['capacity:charging']),
         row('Tipo', t.parking && ({ underground: 'Subterráneo', 'multi-storey': 'Varias plantas', surface: 'En superficie', street_side: 'En la calle', lane: 'En la calle', rooftop: 'En azotea' }[t.parking] || yn(t.parking))),
         row('Altura máxima', t.maxheight), row('Estancia máxima', t.maxstay), row('Cubierto', t.covered && yn(t.covered)), row('Superficie', t.surface && yn(t.surface)), row('Vigilado', t.supervised && yn(t.supervised)), row('Iluminado', t.lit && yn(t.lit)), row('Acceso', t.access && yn(t.access)), row('Operador', t.operator), row('Park & Ride', t.park_ride && yn(t.park_ride)),
@@ -124,5 +129,5 @@ const Info = (() => {
       b.disabled = false; b.textContent = '✨ Resumen con IA';
     };
   }
-  return { html, bind, addrOf, imgOf, badge };
+  return { html, bind, addrOf, imgOf, badge, feeOf };
 })();

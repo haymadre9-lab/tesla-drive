@@ -7,7 +7,7 @@ const MapX = (() => {
   const glOK = () => {
     try { if (typeof maplibregl === 'undefined' || S.mapEngine === 'leaflet') return false; const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch { return false; }
   };
-  const DARK = () => typeof isDark === 'function' && isDark();
+  const DARK = () => typeof mapDark === 'function' ? mapDark() : (typeof isDark === 'function' && isDark());
   const GLYPHS = 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf', VECTOR = 'https://tiles.openfreemap.org/planet';
   const CARTO = k => ['a', 'b', 'c', 'd'].map(s => `https://${s}.basemaps.cartocdn.com/${k}/{z}/{x}/{y}.png`);
   const TILE = { osm: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png', '© OpenStreetMap'], sat: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', 'Imágenes © Esri, Maxar, Earthstar Geographics'], road: ['https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', ''], place: ['https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', ''] };
