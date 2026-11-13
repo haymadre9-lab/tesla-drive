@@ -9,7 +9,7 @@ const Adv = (() => {
   const rad = x => x * Math.PI / 180;
   const dist = (a, b) => { const R = 6371000, dLa = rad(b[0] - a[0]), dLo = rad(b[1] - a[1]), x = Math.sin(dLa / 2) ** 2 + Math.cos(rad(a[0])) * Math.cos(rad(b[0])) * Math.sin(dLo / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); };
   const fd = m => m >= 1000 ? (m / 1000).toFixed(m >= 10000 ? 0 : 1) + ' km' : Math.round(m / 10) * 10 + ' m';
-  const ref = () => A.loc ? { p: [A.loc.lat, A.loc.lon], label: A.loc.name } : (p => p ? { p, label: GPS.pos ? 'Tu posición (GPS)' : S.lastPos ? 'Última posición conocida' : (S.city ? S.city.name : 'Ciudad elegida') } : null)(pos());
+  const ref = () => A.loc ? { p: [A.loc.lat, A.loc.lon], label: A.loc.name } : (p => p ? { p, label: GPS.pos ? (GPS.age && GPS.age() > 60000 ? 'Posición GPS de hace ' + Math.round(GPS.age() / 60000) + ' min' : 'Tu posición (GPS)') : S.lastPos ? 'Última posición conocida' : (S.city ? S.city.name : 'Ciudad elegida') } : null)(pos());
   const pos = () => GPS.pos ? [GPS.pos.latitude, GPS.pos.longitude] : S.lastPos || (S.city ? [S.city.lat, S.city.lon] : null);
   const hm = m => { m = Math.round(m) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
   const DAYN = ['domingos', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábados'];
@@ -126,7 +126,8 @@ const Adv = (() => {
     const R = ref(); A.errLog = []; A.note = '';
     if (!R) { A.err = 'No sé dónde estás: activa la ubicación del navegador o elige un lugar.'; A.res = []; return refresh(); }
     const p = R.p; A.loading = true; A.err = ''; A.res = null; A.pick = null; A.expand = null; refresh();
-    let items = [], log = [];
+    let items = [], log = [], warn = '';
+    if (!A.loc && GPS.pos) { const ac = GPS.pos.accuracy || 0, ag = GPS.age ? GPS.age() : 0; if (ag > 120000) { warn = `⚠️ El GPS no da posición nueva desde hace ${Math.round(ag / 60000)} min: puede que busque lejos de donde estás. `; refreshGPS(); } else if (ac > 1000) warn = `⚠️ La posición del GPS es muy imprecisa (±${ac >= 2000 ? Math.round(ac / 1000) + ' km' : Math.round(ac) + ' m'}). `; }
     try {
       let els = [];
       for (const r of [800, 2500, 7000, 15000]) {
@@ -139,7 +140,7 @@ const Adv = (() => {
       try { items = await nominatim(p, cat ? NOMQ[cat] + (cui ? ' ' + cui.split('|')[0] : '') : nameQ); if (items.length) A.note = 'Datos de respaldo: hay menos detalle de horarios y características.'; } catch (e) { log.push('nominatim.openstreetmap.org: ' + (e.message || 'error')); }
     }
     const seen = new Set(); items = items.filter(x => { const k = (x.tags.name || '') + x.lat.toFixed(4) + x.lon.toFixed(4); if (seen.has(k)) return false; seen.add(k); return true; });
-    items.forEach(x => { x.d = dist(p, [x.lat, x.lon]); }); items.sort((a, b) => a.d - b.d); items = items.slice(0, 10);
+    items.forEach(x => { x.d = dist(p, [x.lat, x.lon]); }); const far = items.length; items = items.filter(x => x.d <= 100000); if (far && !items.length) log.push('Todos los resultados estaban a más de 100 km'); items.sort((a, b) => a.d - b.d); items = items.slice(0, 10);
     if (items.length) {
       try { // tiempos reales de conducción
         const co = [p, ...items.map(x => [x.lat, x.lon])].map(c => `${c[1]},${c[0]}`).join(';'), r = await fetch(`https://router.project-osrm.org/table/v1/driving/${co}?sources=0&annotations=duration`), t = await r.json();
@@ -148,8 +149,8 @@ const Adv = (() => {
       items.forEach(x => { if (x.min == null) { x.min = Math.max(1, Math.round(x.d * 1.4 / 500)); x.est = 1; } describe(x, cat, cui); });
       items.sort((a, b) => b.score - a.score);
     }
-    A.res = items; A.cat = cat; A.pick = items[0] || null; A.errLog = log; loadImages(items);
-    if (!items.length) A.err = log.length ? 'No pude obtener datos ahora mismo (los servidores de mapas no respondieron).' : 'No encontré nada cerca. Prueba con otra búsqueda o cambia el lugar.';
+    A.res = items; A.cat = cat; A.pick = items[0] || null; A.errLog = log; A.note = (warn + (A.note || '')).trim(); loadImages(items);
+    if (!items.length) A.err = (warn || '') + (log.length && !log.some(l => /100 km/.test(l)) ? 'No pude obtener datos ahora mismo (los servidores de mapas no respondieron).' : 'No encontré nada cerca. Prueba con otra búsqueda o cambia el lugar.');
     A.loading = false; A.last = [cat, cui, nameQ]; refresh();
   }
   /* Elegir el lugar de referencia (por si no hay GPS, o para planificar otra zona) */

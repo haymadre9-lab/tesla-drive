@@ -175,7 +175,7 @@ const Nav = (() => {
     if (!best || best.d > 35) return null;
     const A = c[best.i], B = c[best.i + 1], pt = [A[0] + (B[0] - A[0]) * best.t, A[1] + (B[1] - A[1]) * best.t]; N.ri = best.i;
     let j = best.i + 1; while (j < c.length - 1 && dist(pt, c[j]) < 12) j++;
-    return { pt, d: best.d, brg: bearingOf(pt, c[j]) };
+    N.rf = best.t; return { pt, d: best.d, brg: bearingOf(pt, c[j]) };
   }
   function setMode(d3) {
     S.map3d = !!d3; save(); markMenu(); const b = $('#n3d', N.el); if (b) { b.textContent = is3d() ? '3D' : '2D'; b.classList.toggle('on', is3d()); }
@@ -263,8 +263,13 @@ const Nav = (() => {
     const r = await fetchRoute(o, d, stops);
     if (!r.rt) { toast(r.none ? 'No hay ruta por carretera hasta ese lugar' : 'No se pudo calcular la ruta (' + (r.errs || []).join(' · ') + '). Reintenta en unos segundos.', 5000); return false; }
     const rt = r.rt;
-    N.tzUser = false; N.route = rt; N.coords = rt.geometry.coordinates.map(c => [c[1], c[0]]); N.stops = stops; N.ri = 0; N.steps = rt.legs.flatMap((l, i) => l.steps.map((st, j) => { if (i < rt.legs.length - 1 && j === l.steps.length - 1) st.stop = stops[i]; return st; })); N.idx = 0; N.dest = d; N.off = 0; N.active = true; N.follow = true;
+    N.tzUser = false; N.route = rt; N.coords = rt.geometry.coordinates.map(c => [c[1], c[0]]); N.stops = stops; N.ri = 0; N.rf = 0; N.sn = false; N.steps = rt.legs.flatMap((l, i) => l.steps.map((st, j) => { if (i < rt.legs.length - 1 && j === l.steps.length - 1) st.stop = stops[i]; return st; })); N.idx = 0; N.dest = d; N.off = 0; N.active = true; N.follow = true;
     N.steps.forEach(s => { s.v1 = s.v2 = false; });
+    { // metros acumulados a lo largo de la línea y posición de cada maniobra sobre ella: el avance se mide por la ruta, no por «estar a menos de 35 m de la maniobra» (a 100+ km/h el GPS puede saltársela)
+      const c = N.coords, cum = [0]; for (let i = 1; i < c.length; i++) cum[i] = cum[i - 1] + dist(c[i - 1], c[i]); N.cum = cum;
+      const k = Math.cos(rad(c[0][0])), d2 = (a, b) => { const x = (a[1] - b[1]) * k, y = a[0] - b[0]; return x * x + y * y; }; let pi = 0;
+      N.stepAt = N.steps.map(st => { const L = loc(st); let b = pi, bd = Infinity; for (let i = pi; i < c.length; i++) { const d = d2(L, c[i]); if (d < bd) { bd = d; b = i; } else if (bd < 1e-8 && d > bd + 1e-5) break; } pi = b; return b; });
+    }
     drawRoute(); if (N.dm) N.dm.remove(); N.dm = N.mx.marker([d.lat, d.lon], '<div class="poi" style="border-color:var(--acc);font-size:21px">🏁</div>', [36, 36]); drawStops();
     if (!quiet) { saveRoute(d); if (!d.link && typeof Link !== 'undefined') Link.publish(d); N.mx.focus(N.fx, 0); N.mx.fit(N.coords); setTimeout(() => { N.follow = true; }, 4000); S.navRecent = [{ name: d.name, lat: d.lat, lon: d.lon, sub: d.sub || '', t: Date.now() }, ...(S.navRecent || []).filter(x => x.name !== d.name && dist([x.lat, x.lon], [d.lat, d.lon]) > 60)].slice(0, 15); save(); chips(); if (typeof Adv !== 'undefined') Adv.logTrip(d); say('Ruta calculada. ' + fmtD(rt.distance) + ' hasta ' + d.name); }
     $('#nguide', N.el).hidden = false; $('#nbar', N.el).hidden = false; N.el.classList.add('guiding'); $('#nsim', N.el).hidden = false; update(o);
@@ -342,14 +347,16 @@ const Nav = (() => {
   /* ── Guía ── */
   function update(p) {
     const st = N.steps, last = st.length - 1; if (!st.length) return;
-    while (N.idx < last && dist(p, loc(st[N.idx + 1])) < 35) { N.idx++; const sp = st[N.idx].stop; if (sp && !sp.done) { sp.done = true; say('Parada: ' + sp.name); toast('📍 Parada: ' + sp.name, 3500); drawStops(); saveRoute(N.dest); } }
-    if (N.idx >= last) { arrive(); return; }
-    const nx = st[N.idx + 1], dN = dist(p, loc(nx));
+    const onR = N.sn && N.cum && N.stepAt && N.cum.length > N.ri + 1, prog = onR ? N.cum[N.ri] + N.rf * (N.cum[N.ri + 1] - N.cum[N.ri]) : 0, tot = N.cum ? N.cum[N.cum.length - 1] : 0;
+    while (N.idx < last && (dist(p, loc(st[N.idx + 1])) < 35 || (onR && prog >= N.cum[N.stepAt[N.idx + 1]] - 5))) { N.idx++; const sp = st[N.idx].stop; if (sp && !sp.done) { sp.done = true; say('Parada: ' + sp.name); toast('📍 Parada: ' + sp.name, 3500); drawStops(); saveRoute(N.dest); } }
+    if (N.idx >= last || (onR && tot - prog < 25 && N.stops.every(x => x.done))) { arrive(); return; }
+    const nx = st[N.idx + 1], dN = onR ? Math.max(0, N.cum[N.stepAt[N.idx + 1]] - prog) : dist(p, loc(nx));
     $('#nicon', N.el).innerHTML = manTile(nx); $('#ndist', N.el).textContent = fmtD(dN); $('#ntext', N.el).textContent = instr(nx); N.sum = { icon: icon(nx), dist: fmtD(dN), text: instr(nx) };
     if (dN < 650 && !nx.v1 && st[N.idx].distance > 250) { nx.v1 = true; say(`En ${Math.round(dN / 50) * 50} metros, ${instr(nx).toLowerCase()}`); }
     if (dN < 140 && !nx.v2) { nx.v2 = true; say(instr(nx)); }
     let rem = dN, dur = 0; for (let j = N.idx + 1; j <= last; j++) { rem += st[j].distance; dur += st[j].duration; }
     const cur = st[N.idx]; dur += cur.duration ? dN / (cur.distance / cur.duration || 10) : 0;
+    if (onR) { rem = Math.max(0, tot - prog); dur = N.route && N.route.distance ? rem * (N.route.duration / N.route.distance) : dur; }
     $('#nrem', N.el).textContent = fmtD(rem); const eta = new Date(Date.now() + dur * 1000); $('#neta', N.el).textContent = `${pad2(eta.getHours())}:${pad2(eta.getMinutes())}`; Object.assign(N.sum, { etaMs: eta.getTime(), rem: fmtD(rem), eta: `${pad2(eta.getHours())}:${pad2(eta.getMinutes())}` }); bus.emit('nav');
     const v = Math.round(spdConv(GPS.speed)); $('#nspd', N.el).textContent = v; $('#nspu', N.el).textContent = spdUnit();
     // fuera de ruta
@@ -365,7 +372,7 @@ const Nav = (() => {
     if (!N.mx) return; if (S.navRoute && !N.active && !N.restoring && Date.now() - (N.restoreT || 0) > 20000) maybeRestore();
     const p = [c.latitude, c.longitude], prev = N.pos; N.pos = p; const sp = c.speed || 0, kmh = sp * 3.6;
     let h = c.heading != null && !isNaN(c.heading) && kmh > 6 ? c.heading : null;
-    const sn = N.active && N.coords.length ? snapRoute(p) : null, q = sn ? sn.pt : p; if (sn && kmh > 3) h = sn.brg;
+    const sn = N.active && N.coords.length ? snapRoute(p) : null, q = sn ? sn.pt : p; N.sn = !!sn; if (sn && kmh > 3) h = sn.brg;
     if (h == null) { // sin rumbo del GPS: se calcula desde un punto de referencia a ≥ 10 m (se mueve con el coche)
       if (!N.anchor) N.anchor = p; else { const da = dist(N.anchor, p); if (da >= 10 && (c.speed == null || sp > .8)) { h = (Math.atan2(rad(p[1] - N.anchor[1]) * Math.cos(rad(N.anchor[0])), rad(p[0] - N.anchor[0])) * 180 / Math.PI + 360) % 360; N.anchor = p; } else if (da > 60) N.anchor = p; }
     } else N.anchor = p;
