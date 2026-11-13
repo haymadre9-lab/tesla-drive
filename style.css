@@ -599,3 +599,13 @@ html[data-theme=light] .navmenu{background:#fff;color:#111826;border-color:rgba(
 
 /* Mis lugares */
 .plr{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(128,138,155,.2);cursor:pointer;} .plr:active{background:rgba(128,138,155,.15);} .plr .ple{flex:none;font-size:24px;width:34px;text-align:center;} .plr .plt{flex:1;min-width:0;} .plr .plt b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;} .plr .plt small{color:var(--dim);}
+
+/* Vista de cruce */
+.navjv{position:absolute;z-index:499;top:84px;left:12px;display:flex;gap:8px;align-items:stretch;padding:6px;border-radius:16px;background:rgba(8,12,20,.62);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 8px 24px rgba(0,0,0,.45);pointer-events:none;max-width:calc(100% - 24px);} .navjv[hidden]{display:none;}
+.jroad{position:relative;width:150px;height:112px;border-radius:11px;overflow:hidden;flex:none;} .jroad-svg{width:100%;height:100%;display:block;} .jroad .jd{position:absolute;left:6px;bottom:5px;background:rgba(0,0,0,.6);color:#fff;border-radius:8px;padding:2px 8px;font:800 15px/1.3 system-ui,sans-serif;}
+.jsign{background:#0b5fd0;border:3px solid #fff;border-radius:11px;color:#fff;padding:6px 8px;min-width:96px;max-width:210px;display:flex;flex-direction:column;justify-content:center;gap:5px;} .jlanes{display:flex;gap:2px;justify-content:center;} .jlanes .ln{opacity:.32;color:#fff;display:block;} .jlanes .ln.v{opacity:1;} .jlanes .ln svg{display:block;}
+.jdest{font:700 14px/1.2 system-ui,sans-serif;text-align:center;} .jex{display:inline-block;background:#fff;color:#0b5fd0;border-radius:4px;padding:0 5px;margin-right:5px;font-weight:800;}
+@media (max-width:760px),(max-aspect-ratio:1/1){ .navjv{top:auto;bottom:150px;left:8px;} .jroad{width:120px;height:90px;} }
+.fwin.flat .navjv{top:84px;}
+
+.navwrap.emb .navjv{left:auto;right:12px;}
