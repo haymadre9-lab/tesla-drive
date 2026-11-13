@@ -394,6 +394,18 @@ const Nav = (() => {
         r.onclick = e => { if (e.target.closest('[data-ed]')) { closeDlg(); editPlace(k, id); return; } closeDlg(); routeTo({ name: obj.name, lat: obj.lat, lon: obj.lon, sub: 'Mi lugar' }); }; });
     });
   }
+  /* Ejemplo para ver cómo queda la vista de cruce sin tener que conducir: 3 casos que van rotando */
+  const L = (ind, v) => ({ indications: ind, valid: v });
+  const DEMOS = [
+    { nx: { maneuver: { type: 'off ramp', modifier: 'slight right' }, exits: '4R', destinations: 'Aeropuerto, Centro ciudad' }, cur: { intersections: [{ lanes: [L(['left'], false), L(['straight'], false), L(['straight', 'right'], true), L(['right'], true)] }] }, d: 480 },
+    { nx: { maneuver: { type: 'turn', modifier: 'left' }, destinations: '' }, cur: { intersections: [{ lanes: [L(['left'], true), L(['straight'], false), L(['straight'], false)] }] }, d: 230 },
+    { nx: { maneuver: { type: 'roundabout', modifier: 'straight', exit: 2 }, destinations: 'Estación, Hospital' }, cur: { intersections: [] }, d: 120 },
+  ];
+  function demoJunction() {
+    go('map'); clearInterval(N.jvT); let i = 0;
+    const show = () => { if (!N.el || !N.el.isConnected) return; const x = DEMOS[i % DEMOS.length]; junction(x.nx, x.cur, x.d, true); i++; };
+    setTimeout(() => { show(); N.jvT = setInterval(() => { if (i >= DEMOS.length * 2) { clearInterval(N.jvT); const e = $('#njv', N.el); if (e && !N.active) { e.hidden = true; e.dataset.k = ''; } return; } show(); }, 4500); }, 600);
+  }
   function goHome() {
     const h = S.favs && S.favs.home; if (!h) return toast('Casa sin definir: haz una ruta a tu casa y pulsa ⭐ → «Casa»', 5000);
     toast('🏠 Ruta a casa…', 2000); routeTo({ name: h.name, lat: h.lat, lon: h.lon, sub: h.sub || '' });
@@ -422,13 +434,13 @@ const Nav = (() => {
       <path d="${path}" fill="none" stroke="#fff" stroke-width="15" stroke-linecap="round" stroke-linejoin="round" opacity=".92"/><path d="${path}" fill="none" stroke="${col}" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
       <g transform="translate(${hx} ${hy}) rotate(${rot})"><polygon points="-15,3 15,3 0,-20" fill="#fff"/><polygon points="-10,1 10,1 0,-14" fill="${col}"/></g></svg>`;
   }
-  function junction(nx, cur, dN) {
+  function junction(nx, cur, dN, force) {
     const el = $('#njv', N.el); if (!el) return; const m = nx.maneuver, t = m.type;
     const lanes = (() => { const it = (cur && cur.intersections) || []; for (let i = it.length - 1; i >= 0; i--) if (it[i].lanes && it[i].lanes.length) return it[i].lanes; return null; })();
     const dest = nx.destinations || '', ex = nx.exits || '';
-    const show = S.junction !== false && dN <= 650 && !/^(depart|arrive|notification|new name)$/.test(t) && !((m.modifier === 'straight' || !m.modifier) && t !== 'roundabout' && t !== 'rotary' && !lanes && !dest);
+    const show = force || S.junction !== false && dN <= 650 && !/^(depart|arrive|notification|new name)$/.test(t) && !((m.modifier === 'straight' || !m.modifier) && t !== 'roundabout' && t !== 'rotary' && !lanes && !dest);
     if (!show) { if (!el.hidden) { el.hidden = true; el.dataset.k = ''; } return; }
-    const key = N.idx + '|' + t + '|' + (m.modifier || '') + '|' + (S.accent || '');
+    const key = (force ? 'demo' : '') + N.idx + '|' + t + '|' + (m.modifier || '') + '|' + (m.exit || '') + '|' + (nx.destinations || '') + '|' + (S.accent || '');
     if (el.dataset.k !== key) {
       el.dataset.k = key; const col = '#ff3d9a';
       const sign = lanes || dest || ex ? `<div class="jsign">${lanes ? `<div class="jlanes">${lanes.map(l => `<span class="ln ${l.valid ? 'v' : ''}">${laneSvg(l.indications || [])}</span>`).join('')}</div>` : ''}${dest || ex ? `<div class="jdest">${ex ? `<span class="jex">${esc(ex)}</span>` : ''}${esc(dest.split(',').slice(0, 3).join(' · '))}</div>` : ''}</div>` : '';
@@ -492,5 +504,5 @@ const Nav = (() => {
     }, 1000);
   }
   function prefill(q) { go('map'); setTimeout(() => openSearch(q), 150); }
-  return { setStyle, cycleStyle: () => { const cur = (N.opt && N.opt.mapstyle) || S.mapStyle || 'auto'; setStyle(STYLE_CYCLE[(STYLE_CYCLE.indexOf(cur) + 1) % STYLE_CYCLE.length]); }, resume, refreshMan: () => { if (N.active && N.pos) update(N.pos); }, manSvg, applyStyle: () => applyStyle(), openPhone: () => navDlg(appById('maps') || { n: 'GPS', e: '🧭', k: 'gmaps' }), switchMap: () => Maps.switchFrom(N.el), setMode, toggle3d: () => { if (!N.mx) return; if (!N.mx.can3d) return toast('Este navegador no admite el mapa 3D'); setMode(!is3d()); toast(is3d() ? 'Vista 3D' : 'Vista 2D'); }, render, mount: el => render(el, true), onPos, prefill, routeTo, search, addStop, stopsDlg, goHome, savePlace, editPlace, placesDlg, state: N, instr, distToLine: distToRoute, summary: () => N.sum };
+  return { setStyle, cycleStyle: () => { const cur = (N.opt && N.opt.mapstyle) || S.mapStyle || 'auto'; setStyle(STYLE_CYCLE[(STYLE_CYCLE.indexOf(cur) + 1) % STYLE_CYCLE.length]); }, resume, refreshMan: () => { if (N.active && N.pos) update(N.pos); }, manSvg, applyStyle: () => applyStyle(), openPhone: () => navDlg(appById('maps') || { n: 'GPS', e: '🧭', k: 'gmaps' }), switchMap: () => Maps.switchFrom(N.el), setMode, toggle3d: () => { if (!N.mx) return; if (!N.mx.can3d) return toast('Este navegador no admite el mapa 3D'); setMode(!is3d()); toast(is3d() ? 'Vista 3D' : 'Vista 2D'); }, render, mount: el => render(el, true), onPos, prefill, routeTo, search, addStop, stopsDlg, goHome, demoJunction, savePlace, editPlace, placesDlg, state: N, instr, distToLine: distToRoute, summary: () => N.sum };
 })();
