@@ -186,7 +186,13 @@ const Nav = (() => {
     if (!N.el) {
       N.el = build();
       N.el.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; });
-      $('#nsq', N.el).onclick = () => { $('#nmenu', N.el).hidden = true; openSearch(); };
+      { const b = $('#nsq', N.el); let sx = 0, sy = 0, drag = false, moved = false; b.title = 'Buscar · arrastra hacia abajo para ir a casa'; // arrastrar la lupa hacia abajo = ruta a casa
+        const reset = () => { drag = false; b.style.transform = ''; b.classList.remove('gohome'); };
+        b.onpointerdown = e => { sx = e.clientX; sy = e.clientY; drag = true; moved = false; try { b.setPointerCapture(e.pointerId); } catch { } };
+        b.onpointermove = e => { if (!drag) return; const dy = e.clientY - sy, dx = e.clientX - sx; if (!moved && dy > 10 && dy > Math.abs(dx)) moved = true; if (moved) { b.style.transform = `translateY(${Math.min(90, Math.max(0, dy))}px)`; b.classList.toggle('gohome', dy > 60); } };
+        b.onpointerup = e => { if (!drag) return; const dy = e.clientY - sy, was = moved; reset(); if (was) { N.swallow = true; setTimeout(() => { N.swallow = false; }, 350); if (dy > 60) goHome(); } };
+        b.onpointercancel = reset;
+        b.onclick = () => { if (N.swallow) return; $('#nmenu', N.el).hidden = true; openSearch(); }; }
       $$('#nmst [data-s]', N.el).forEach(b => b.onclick = () => setStyle(b.dataset.s)); $('#nm3d', N.el).onclick = () => { if (!N.mx.can3d) return toast('Este navegador no admite el mapa 3D (sin WebGL): se usa el mapa 2D', 3500); setMode(!is3d()); markMenu(); toast(is3d() ? 'Vista 3D' : 'Vista 2D'); }; $('#nsm', N.el).onclick = MENU_OPEN; $('#nnt', N.el).onclick = () => { if (typeof Notes !== 'undefined') Notes.dialog(); else toast('Notas no disponibles'); }; if (typeof Notes !== 'undefined') Notes.refreshBtn();
       { const mb = $('#nmore', N.el); let lt = 0, long = false; // toque = ajustes de la app · mantener pulsado = funciones rápidas del mapa (capas, estilo, reportar)
         mb.onpointerdown = () => { long = false; clearTimeout(lt); lt = setTimeout(() => { long = true; MENU_OPEN(); navigator.vibrate?.(20); }, 550); };
@@ -338,6 +344,10 @@ const Nav = (() => {
       $('#sto', d).onclick = async () => { closeDlg(); const ok = await routeTo(N.dest, true, D); if (ok) { saveRoute(N.dest); N.mx.fit(N.coords); toast(D.length ? `Ruta con ${D.length} parada${D.length > 1 ? 's' : ''}` : 'Ruta sin paradas', 3000); } };
     });
   }
+  function goHome() {
+    const h = S.favs && S.favs.home; if (!h) return toast('Casa sin definir: haz una ruta a tu casa y pulsa ⭐ → «Casa»', 5000);
+    toast('🏠 Ruta a casa…', 2000); routeTo({ name: h.name, lat: h.lat, lon: h.lon, sub: h.sub || '' });
+  }
   function saveFav() {
     if (!N.dest) return;
     dlg(`<h3>Guardar “${esc(N.dest.name)}”</h3><div class="f"><button class="btn" id="f1">🏠 Casa</button><button class="btn" id="f2">💼 Trabajo</button></div><div class="acts"><button class="btn sec" id="c">Cancelar</button></div>`, d => {
@@ -402,5 +412,5 @@ const Nav = (() => {
     }, 1000);
   }
   function prefill(q) { go('map'); setTimeout(() => openSearch(q), 150); }
-  return { setStyle, cycleStyle: () => { const cur = (N.opt && N.opt.mapstyle) || S.mapStyle || 'auto'; setStyle(STYLE_CYCLE[(STYLE_CYCLE.indexOf(cur) + 1) % STYLE_CYCLE.length]); }, resume, refreshMan: () => { if (N.active && N.pos) update(N.pos); }, manSvg, applyStyle: () => applyStyle(), openPhone: () => navDlg(appById('maps') || { n: 'GPS', e: '🧭', k: 'gmaps' }), switchMap: () => Maps.switchFrom(N.el), setMode, toggle3d: () => { if (!N.mx) return; if (!N.mx.can3d) return toast('Este navegador no admite el mapa 3D'); setMode(!is3d()); toast(is3d() ? 'Vista 3D' : 'Vista 2D'); }, render, mount: el => render(el, true), onPos, prefill, routeTo, search, addStop, stopsDlg, state: N, instr, distToLine: distToRoute, summary: () => N.sum };
+  return { setStyle, cycleStyle: () => { const cur = (N.opt && N.opt.mapstyle) || S.mapStyle || 'auto'; setStyle(STYLE_CYCLE[(STYLE_CYCLE.indexOf(cur) + 1) % STYLE_CYCLE.length]); }, resume, refreshMan: () => { if (N.active && N.pos) update(N.pos); }, manSvg, applyStyle: () => applyStyle(), openPhone: () => navDlg(appById('maps') || { n: 'GPS', e: '🧭', k: 'gmaps' }), switchMap: () => Maps.switchFrom(N.el), setMode, toggle3d: () => { if (!N.mx) return; if (!N.mx.can3d) return toast('Este navegador no admite el mapa 3D'); setMode(!is3d()); toast(is3d() ? 'Vista 3D' : 'Vista 2D'); }, render, mount: el => render(el, true), onPos, prefill, routeTo, search, addStop, stopsDlg, goHome, state: N, instr, distToLine: distToRoute, summary: () => N.sum };
 })();

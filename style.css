@@ -594,3 +594,5 @@ html[data-theme=light] .navmenu{background:#fff;color:#111826;border-color:rgba(
 .app .ico.col{border:0;color:#fff;box-shadow:0 4px 12px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.25);text-shadow:0 1px 3px rgba(0,0,0,.35);}
 
 #stGps{position:relative;} #stGps::after{content:'';position:absolute;inset:-14px;}
+
+#nsq{touch-action:none;transition:transform .12s;} #nsq.gohome{background:var(--acc) !important;color:#fff;} #nsq.gohome::after{content:'🏠';position:absolute;top:100%;left:50%;transform:translateX(-50%);font-size:22px;}
