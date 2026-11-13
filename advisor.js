@@ -101,20 +101,18 @@ const Adv = (() => {
   const eRe = s => s.replace(/[.*+?^${}()|[\]\\"]/g, '\\$&');
 
   const MIRRORS = ['https://overpass-api.de/api/interpreter', 'https://overpass.private.coffee/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://overpass.openstreetmap.fr/api/interpreter'];
-  async function ovpx(q) { // Overpass responde 200 con «remark» cuando se agota el tiempo: se trata como fallo y se prueba el siguiente servidor
-    const log = [];
-    for (const u of MIRRORS) {
-      const host = u.split('/')[2];
+  async function ovpx(q) { // varios servidores Overpass «escalonados»: el 1.º sale ya, el 2.º a los 2,5 s, etc.; gana el primero que responde bien
+    const log = [], ctl = MIRRORS.map(() => new AbortController()); let done = false;
+    const ORD = MIRRORS.slice().sort((x, y) => (x === ovpx.best ? -1 : 0) - (y === ovpx.best ? -1 : 0)); // el servidor que funcionó la última vez va primero
+    const one = (u, i) => (async () => {
+      const host = u.split('/')[2]; if (i) await new Promise(r => setTimeout(r, i * 2500)); if (done) throw new Error('cancelado');
+      const t = setTimeout(() => ctl[i].abort(), 14000);
       try {
-        const c = new AbortController(), t = setTimeout(() => c.abort(), 15000), r = await fetch(u, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, signal: c.signal }); clearTimeout(t);
-        if (!r.ok) { log.push(host + ': HTTP ' + r.status); continue; }
-        const j = await r.json();
-        if (j.remark && /timed out|out of memory|runtime error|too many|rate/i.test(j.remark)) { log.push(host + ': ' + j.remark.slice(0, 70)); continue; }
-        if (!Array.isArray(j.elements)) { log.push(host + ': respuesta inesperada'); continue; }
-        return j;
-      } catch (e) { log.push(host + ': ' + (e.name === 'AbortError' ? 'sin respuesta en 15 s' : 'error de red')); }
-    }
-    const e = new Error('overpass'); e.log = log; throw e;
+        const r = await fetch(u, { method: 'POST', body: 'data=' + encodeURIComponent(q), headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, signal: ctl[i].signal }); if (!r.ok) throw new Error('HTTP ' + r.status);
+        const j = await r.json(); if (j.remark && /timed out|out of memory|runtime error|too many|rate/i.test(j.remark)) throw new Error(j.remark.slice(0, 70)); if (!Array.isArray(j.elements)) throw new Error('respuesta inesperada'); ovpx.best = u; return j;
+      } catch (e) { if (!done) log.push(host + ': ' + (e.name === 'AbortError' ? 'sin respuesta en 14 s' : e.message)); throw e; } finally { clearTimeout(t); }
+    })();
+    try { const j = await Promise.any(ORD.map(one)); done = true; ctl.forEach(c => c.abort()); return j; } catch { done = true; const e = new Error('overpass'); e.log = log; throw e; }
   }
   const NOMQ = { eat: 'restaurante', cafe: 'cafetería', charge: 'cargador eléctrico', park: 'parking', fuel: 'gasolinera', shop: 'supermercado', pharm: 'farmacia', hotel: 'hotel', wc: 'aseos públicos', wash: 'lavadero de coches', sight: 'lugar de interés turístico' };
   async function nominatim(p, term) { // respaldo: menos detalle, pero suele responder
@@ -130,7 +128,7 @@ const Adv = (() => {
     if (!A.loc && GPS.pos) { const ac = GPS.pos.accuracy || 0, ag = GPS.age ? GPS.age() : 0; if (ag > 120000) { warn = `⚠️ El GPS no da posición nueva desde hace ${Math.round(ag / 60000)} min: puede que busque lejos de donde estás. `; refreshGPS(); } else if (ac > 1000) warn = `⚠️ La posición del GPS es muy imprecisa (±${ac >= 2000 ? Math.round(ac / 1000) + ' km' : Math.round(ac) + ' m'}). `; }
     try {
       let els = [];
-      for (const r of [800, 2500, 7000, 15000]) {
+      for (const r of [2500, 8000, 20000]) {
         const a = `(around:${r},${p[0]},${p[1]})`, body = cat ? CATS[cat].sel.map(s => `nwr${s}${cui ? `["cuisine"~"${cui}",i]` : ''}${a};`).join('') : `nwr["name"~"${eRe(nameQ)}",i]${a};`;
         els = (await ovpx(`[out:json][timeout:25];(${body});out center tags 90;`)).elements || []; if (els.length >= 6) break;
       }
@@ -143,7 +141,7 @@ const Adv = (() => {
     items.forEach(x => { x.d = dist(p, [x.lat, x.lon]); }); const far = items.length; items = items.filter(x => x.d <= 100000); if (far && !items.length) log.push('Todos los resultados estaban a más de 100 km'); items.sort((a, b) => a.d - b.d); items = items.slice(0, 10);
     if (items.length) {
       try { // tiempos reales de conducción
-        const co = [p, ...items.map(x => [x.lat, x.lon])].map(c => `${c[1]},${c[0]}`).join(';'), r = await fetch(`https://router.project-osrm.org/table/v1/driving/${co}?sources=0&annotations=duration`), t = await r.json();
+        const co = [p, ...items.map(x => [x.lat, x.lon])].map(c => `${c[1]},${c[0]}`).join(';'), ac = new AbortController(), tm = setTimeout(() => ac.abort(), 5000), r = await fetch(`https://router.project-osrm.org/table/v1/driving/${co}?sources=0&annotations=duration`, { signal: ac.signal }), t = await r.json(); clearTimeout(tm);
         items.forEach((x, i) => { const sec = t.durations && t.durations[0] && t.durations[0][i + 1]; x.min = sec != null ? Math.max(1, Math.round(sec / 60)) : null; });
       } catch { }
       items.forEach(x => { if (x.min == null) { x.min = Math.max(1, Math.round(x.d * 1.4 / 500)); x.est = 1; } describe(x, cat, cui); });
@@ -191,8 +189,8 @@ const Adv = (() => {
       if (t.fee === 'no') info.push('Gratis'); else if (t.fee === 'yes') info.push('De pago'); x.tesla = /tesla/i.test((t.operator || '') + (t.brand || '') + (t.name || '')); if (x.tesla) sc += .5; if (+t.capacity >= 8) sc += 1; if (parseInt(out) >= 100) sc += 1;
     }
     if (kind === 'park') {
-      info.push(t.fee === 'no' ? 'Gratuito' : t.fee === 'yes' ? 'De pago' : 'Tarifa sin datos'); if (t.capacity) info.push(t.capacity + ' plazas'); if (t.parking) info.push({ underground: 'Subterráneo', 'multi-storey': 'Varias plantas', surface: 'En superficie', street_side: 'En la calle', lane: 'En la calle' }[t.parking] || t.parking);
-      if (t.maxstay) info.push('Máx. ' + t.maxstay); if (t['capacity:disabled']) info.push('♿ ' + t['capacity:disabled']); if (t.fee === 'no') sc += 1.5; if (+t.capacity >= 50) sc += .5; if (/underground|multi/.test(t.parking || '')) sc += .3;
+      const fee = typeof Info !== 'undefined' ? Info.feeOf(t) : t.fee; info.push(fee === 'no' ? 'Gratuito' : fee === 'yes' ? 'De pago' : 'Tarifa sin datos'); if (/street_side|lane/.test(t.parking || '')) info.push('En la calle'); if (t.capacity) info.push(t.capacity + ' plazas'); if (t.parking) info.push({ underground: 'Subterráneo', 'multi-storey': 'Varias plantas', surface: 'En superficie', street_side: 'En la calle', lane: 'En la calle' }[t.parking] || t.parking);
+      if (t.maxstay) info.push('Máx. ' + t.maxstay); if (t['capacity:disabled']) info.push('♿ ' + t['capacity:disabled']); if (fee === 'no') sc += 1.5; if (+t.capacity >= 50) sc += .5; if (/underground|multi/.test(t.parking || '')) sc += .3;
     }
     if (kind === 'fuel') { [['fuel:diesel', 'Diésel'], ['fuel:octane_95', 'Gasolina 95'], ['fuel:octane_98', 'Gasolina 98'], ['fuel:lpg', 'GLP']].forEach(([k, l]) => { if (t[k] === 'yes') info.push(l); }); }
     x.info = info.filter(Boolean); x.score = sc;

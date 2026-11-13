@@ -158,7 +158,8 @@ const Ed = (() => {
 
   /* Reemplaza el pintado del icono de app para admitir imagen y colores */
   appHtml = function (a, x) { // eslint-disable-line no-func-assign
-    return `<div class="app" data-id="${esc(a.id)}"><div class="ico" style="${colorStyle(a)}">${iconHtml(a)}</div><span>${esc(a.n)}</span>${x ? '<button class="x" data-del>✕</button>' : ''}</div>`;
+    const auto = !a.bg && !a.img && typeof appGrad === 'function';
+    return `<div class="app" data-id="${esc(a.id)}"><div class="ico${auto ? ' col' : ''}" style="${auto ? 'background:' + appGrad(a) + ';' : ''}${colorStyle(a)}">${iconHtml(a)}</div><span>${esc(a.n)}</span>${x ? '<button class="x" data-del>✕</button>' : ''}</div>`;
   };
 
   /* Panel de Ajustes para la barra lateral */

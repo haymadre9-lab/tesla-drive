@@ -114,10 +114,11 @@ const Nav = (() => {
   function applyStyle(opt) {
     if (!N.mx) return; if (opt) N.opt = opt;
     const o = N.opt || {}, st = o.mapstyle || S.mapStyle || 'auto', cfg = iconCfg(), ic = cfg.k + cfg.c + cfg.z;
-    N.mx.style(st); N.el.dataset.ms = st; N.el.dataset.eng = N.mx.kind;
+    N.mx.style(st); N.el.dataset.ms = st; if (typeof mapDark === 'function') N.lastDark = mapDark(); N.el.dataset.eng = N.mx.kind;
     if (ic !== N.iconKey) { const p = N.pos || myPos(); if (N.me) N.me.remove(); N.me = mkMe(cfg, p); N.iconKey = ic; }
     drawRoute();
   }
+  setInterval(() => { if (N.mx && ((N.opt && N.opt.mapstyle) || S.mapStyle || 'auto') === 'auto' && typeof mapDark === 'function' && mapDark() !== N.lastDark) { N.lastDark = mapDark(); applyStyle(); } }, 120000); // al amanecer / anochecer el mapa automático cambia solo
   const MENU_OPEN = () => { const m = $('#nmenu', N.el); m.hidden = !m.hidden; if (!m.hidden) { $('#nmbox', N.el).append($('#nlay', N.el)); markMenu(); } };
   function setStyle(k) { S.mapStyle = k; if (N.opt) delete N.opt.mapstyle; save(); applyStyle(); markMenu(); toast('Mapa: ' + STYLE_NAME[k]); }
   function markMenu() { if (!N.el) return; { const bx = $('#nmbox', N.el), t = bx && bx.previousElementSibling; if (t) t.hidden = N.el.classList.contains('nolayers'); } const cur = (N.opt && N.opt.mapstyle) || S.mapStyle || 'auto'; $$('#nmst [data-s]', N.el).forEach(b => b.classList.toggle('on', b.dataset.s === cur)); const b3 = $('#nm3d', N.el); if (b3) { b3.classList.toggle('on', is3d()); $('span', b3).textContent = N.mx && N.mx.can3d ? (is3d() ? '3D' : '2D') : '2D'; } }

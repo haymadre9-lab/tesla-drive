@@ -43,7 +43,7 @@ const Win = (() => {
   const rgba = (hex, a) => { const n = parseInt((hex || '#000000').slice(1), 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${(a ?? 100) / 100})`; };
   let rk = null; // formato/orientación con el que se dibujó el lienzo
   function renderFree(D) {
-    ensureFree(D); const pr = prof(), host = $('#p-home'); rk = pr;
+    ensureFree(D); D.win.forEach(w => { if (w.wid === 'navmap' || w.mapSlot) w.z = 1; else if (!w.z || w.z < 2) w.z = 2; }); const pr = prof(), host = $('#p-home'); rk = pr;
     host.innerHTML = '<div class="free"></div>'; root = $('.free', host); if (typeof Canvas !== 'undefined') Canvas.fit(root);
     D.win.forEach(w => mk(w, pr));
     document.body.classList.toggle('layedit', editing); bar();

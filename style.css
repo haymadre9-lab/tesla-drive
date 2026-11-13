@@ -589,3 +589,8 @@ html[data-theme=light] .navmenu{background:#fff;color:#111826;border-color:rgba(
 .adv-it .ai.bw{width:auto;display:flex;align-items:center;justify-content:center;font-size:inherit;} .adv-row .ai.ph + .ai.bw{margin-left:-6px;}
 .dhero{display:flex;flex-direction:column;gap:8px;grid-column:1/-1;} .dhero .dbig{display:flex;} .dhero .dbig .bdg{min-width:84px;height:84px;border-radius:18px;} .dhero .dbig .bdg b{font-size:44px;} .dhero .dbig .bdg small{font-size:14px;}
 .dph{display:flex;gap:8px;overflow-x:auto;} .dph .dimg{flex:1 0 auto;max-width:100%;height:190px;width:auto;object-fit:cover;border-radius:12px;} .dph:empty{display:none;} .dcap{font-size:12px;color:var(--dim);} .dcap:empty{display:none;}
+
+/* Iconos de apps con color */
+.app .ico.col{border:0;color:#fff;box-shadow:0 4px 12px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.25);text-shadow:0 1px 3px rgba(0,0,0,.35);}
+
+#stGps{position:relative;} #stGps::after{content:'';position:absolute;inset:-14px;}

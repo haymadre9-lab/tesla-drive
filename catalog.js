@@ -37,11 +37,9 @@ const Cat = (() => {
       { id: 'pocketcasts', n: 'Pocket Casts (web)', e: '🎧', t: 'probar', d: 'Tus podcasts (necesita cuenta).', a: { u: 'https://play.pocketcasts.com/' } },
     ]],
     ['Juegos', [
-      { id: 'g2048', n: '2048', e: '🔢', t: 'propia', d: 'Nuestra versión, hecha para pantalla horizontal: desliza sobre el tablero o usa las flechas grandes. Récord guardado.', a: { u: 'mini/games/2048.html', k: 'own', mode: 'full' } },
       { id: 'tetris', n: 'Tetris', e: '🧱', t: 'propia', d: 'Horizontal, con botones grandes (girar, mover, caída rápida, pausa), pieza siguiente y niveles.', a: { u: 'mini/games/tetris.html', k: 'own', mode: 'full' } },
       { id: 'snake', n: 'Serpiente', e: '🐍', t: 'propia', d: 'Desliza o usa las flechas; se acelera al comer. Récord guardado.', a: { u: 'mini/games/snake.html', k: 'own', mode: 'full' } },
       { id: 'clumsy', n: 'Clumsy Bird', e: '🐦', t: 'ghp', d: 'Versión libre de Flappy Bird: un toque para aletear.', a: { u: 'https://ellisonleao.github.io/clumsy-bird/' } },
-      { id: 'lichess', n: 'Ajedrez · Lichess TV', e: '♟️', t: 'propia', d: 'Partidas en directo de Lichess TV (embed oficial) ampliadas a la pantalla, con botones + y − para ajustar el tamaño.', a: { u: 'mini/games/ajedrez.html', k: 'own', mode: 'full' } },
     ]],
     ['Servicios que NO se pueden abrir dentro de una ventana', [
       { id: 'plugshare', n: 'PlugShare', e: '🔌', t: 'bloquea', d: 'No se puede abrir dentro de una ventana (comprobado en tu coche). Se abre en pestaña con un toque.', a: { u: 'https://www.plugshare.com/', mode: 'tab' } },
@@ -65,9 +63,11 @@ const Cat = (() => {
   /* Migración única: el lector de Wikipedia sustituye al sitio móvil (que puede no abrirse en ventana) y se añaden las apps nuevas */
   if (!S.appsV2) {
     const w = S.apps.find(a => a.id === 'wiki'); if (w && /wikipedia\.org/.test(w.u || '')) { w.u = 'mini/wiki.html'; w.k = 'wikipro'; w.n = 'Wikipedia'; }
-    ['media', 'lichess'].forEach(id => { if (!have(id) && !(id === 'wikipro')) { const x = find(id); if (x) S.apps.push(mk(x)); } });
+    ['media'].forEach(id => { if (!have(id) && !(id === 'wikipro')) { const x = find(id); if (x) S.apps.push(mk(x)); } });
     S.appsV2 = 1; save();
   }
+  /* Migración V8: se quitan Ajedrez y 2048 */
+  if (!S.appsV8) { const gone = ['lichess', 'g2048']; S.apps = S.apps.filter(a => !gone.includes(a.id)); S.quick = (S.quick || []).filter(id => !gone.includes(id)); S.appsV8 = 1; save(); }
   /* Migración V7: ajedrez ampliable a pantalla completa; PlugShare y Playables se abren fuera */
   if (!S.appsV7) {
     S.apps.forEach(a => { if (a.id === 'lichess') { a.n = 'Ajedrez · Lichess TV'; a.u = 'mini/games/ajedrez.html'; a.k = 'own'; a.mode = 'full'; } if (a.id === 'plugshare' || a.id === 'playables') a.mode = 'tab'; });
@@ -109,7 +109,23 @@ const Media = (() => {
   const remember = (u, n) => { S.mediaRecent = [{ u, n: (n || nameOf(u)).slice(0, 60) }, ...Rc().filter(x => x.u !== u)].slice(0, 8); save(); };
   /* Búsqueda en YouTube: usa la API oficial con TU clave (gratis, ~100 búsquedas al día). La clave vive solo en este dispositivo (localStorage «leco.yt»). */
   const ytKey = () => { try { return localStorage.getItem('leco.yt') || ''; } catch { return ''; } };
+  /* Sin clave: servidores públicos gratuitos de búsqueda (Piped / Invidious). Responde el primero que funcione; si ninguno está disponible, se avisa */
+  async function ytSearchFree(q) {
+    const ctl = new AbortController(), T = setTimeout(() => ctl.abort(), 9000), enc = encodeURIComponent(q), th = id => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
+    const get = async u => { const r = await fetch(u, { signal: ctl.signal }); if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); };
+    const tasks = [
+      ...['https://pipedapi.kavin.rocks', 'https://pipedapi.adminforge.de', 'https://api.piped.private.coffee'].map(b => get(`${b}/search?q=${enc}&filter=videos`).then(j => (j.items || []).filter(x => x.url && /[?&]v=/.test(x.url)).map(x => { const id = x.url.split('v=')[1].split('&')[0]; return { id, t: x.title, ch: x.uploaderName || '', th: th(id) }; }))),
+      ...['https://inv.nadeko.net', 'https://yewtu.be', 'https://invidious.nerdvpn.de'].map(b => get(`${b}/api/v1/search?q=${enc}&type=video`).then(j => (Array.isArray(j) ? j : []).filter(x => x.videoId).map(x => ({ id: x.videoId, t: x.title, ch: x.author || '', th: th(x.videoId) })))),
+    ];
+    try { const rs = await Promise.any(tasks.map(p => p.then(r => { if (!r.length) throw new Error('vacío'); return r; }))); ctl.abort(); return rs.slice(0, 12); }
+    catch { throw new Error('ningún servidor gratuito responde ahora; puedes poner tu propia clave en Ajustes → Mapa → «Clave de YouTube»'); }
+    finally { clearTimeout(T); }
+  }
   async function ytSearch(q) {
+    if (!ytKey()) return ytSearchFree(q);
+    try { return await ytSearchKey(q); } catch (e) { try { return await ytSearchFree(q); } catch { throw e; } }
+  }
+  async function ytSearchKey(q) {
     const c = new AbortController(), t = setTimeout(() => c.abort(), 12000);
     try {
       const r = await fetch('https://www.googleapis.com/youtube/v3/search?' + new URLSearchParams({ part: 'snippet', type: 'video', videoEmbeddable: 'true', maxResults: '12', regionCode: 'ES', relevanceLanguage: 'es', q, key: ytKey() }), { signal: c.signal }), j = await r.json();
@@ -138,14 +154,13 @@ const Media = (() => {
         const draw = () => { list.innerHTML = body(); $$('[data-f]', list).forEach(r => r.onclick = e => { if (e.target.closest('[data-df]')) return; const x = F()[+r.dataset.f]; remember(x.u); fin(x.u); }); $$('[data-r]', list).forEach(r => r.onclick = () => fin(Rc()[+r.dataset.r].u)); $$('[data-df]', list).forEach(b => b.onclick = e => { e.stopPropagation(); F().splice(+b.dataset.df, 1); save(); draw(); }); };
         draw(); const val = () => inp.value.trim(), okv = () => { const v = val(); if (!mediaEmbed(v)) { toast('No reconozco ese enlace (YouTube, Spotify, SoundCloud, Mixcloud, Apple, Deezer, Vimeo, Dailymotion, Twitch)', 4000); return null; } return v; };
         const showRes = async q => {
-          if (!ytKey()) { toast('Para buscar hace falta tu clave de YouTube (gratis): Ajustes → Mapa → «Clave de YouTube»', 5000); return; }
           list.innerHTML = '<div class="note">Buscando…</div>';
           try {
             const rs = await ytSearch(q); if (!rs.length) { list.innerHTML = '<div class="note">Sin resultados.</div><div class="mp-r" id="mpb"><span>◀</span><b>Volver a favoritos</b></div>'; $('#mpb', list).onclick = draw; return; }
             list.innerHTML = '<div class="mp-r" id="mpb"><span>◀</span><b>Volver a favoritos</b></div>' + rs.map((x, i) => `<div class="mp-r mp-v" data-v="${i}">${x.th ? `<img src="${esc(x.th)}" alt="" loading="lazy">` : '<span>🎬</span>'}<div><b>${esc(x.t)}</b><small>${esc(x.ch)}</small></div><button class="mp-x" data-sv="${i}" type="button" aria-label="Guardar en favoritos">★</button></div>`).join('');
             $('#mpb', list).onclick = draw; const link = x => 'https://www.youtube.com/watch?v=' + x.id;
             $$('[data-v]', list).forEach(r => r.onclick = e => { const x = rs[+r.dataset.v]; if (e.target.closest('[data-sv]')) { e.stopPropagation(); toast(fav(link(x), x.t) ? 'Guardado en favoritos' : 'Ya estaba en favoritos'); return; } remember(link(x), x.t); fin(link(x)); });
-          } catch (e) { list.innerHTML = `<div class="note">No se pudo buscar (${esc(e.name === 'AbortError' ? 'tarda demasiado' : e.message)}). Revisa la clave en Ajustes → Mapa.</div><div class="mp-r" id="mpb"><span>◀</span><b>Volver a favoritos</b></div>`; $('#mpb', list).onclick = draw; }
+          } catch (e) { list.innerHTML = `<div class="note">No se pudo buscar (${esc(e.name === 'AbortError' ? 'tarda demasiado' : e.message)}).</div><div class="mp-r" id="mpb"><span>◀</span><b>Volver a favoritos</b></div>`; $('#mpb', list).onclick = draw; }
         };
         const go1 = () => { const v = val(); if (!v) return; if (mediaEmbed(v)) { remember(v); fin(v); } else if (/^https?:\/\//i.test(v)) toast('No reconozco ese enlace (YouTube, Spotify, SoundCloud, Mixcloud, Apple, Deezer, Vimeo, Dailymotion, Twitch)', 4000); else showRes(v); };
         $('#mpg', d).onclick = () => { const v = okv(); if (v) { remember(v); fin(v); } }; $('#mpq', d).onclick = () => { const v = val(); if (v) showRes(v); }; inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); go1(); } });

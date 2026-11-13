@@ -25,7 +25,27 @@ const AI = (() => {
     if (st >= 500) return 'El servicio de IA no está disponible ahora mismo. Inténtalo en un rato.' + m;
     return 'No se pudo hablar con la IA (¿sin conexión?).' + m;
   }
+  /* Si el servicio dice que el modelo no existe o no tienes acceso (cambian de nombre / de cuenta), se pide la lista de modelos de TU cuenta y se usa uno válido */
+  async function listModels(c) {
+    if (c.provider === 'gemini') { const j = await (await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=100', { headers: { 'x-goog-api-key': c.key } })).json(); return (j.models || []).filter(m => (m.supportedGenerationMethods || []).includes('generateContent')).map(m => String(m.name).replace(/^models\//, '')); }
+    const j = await (await fetch(PROV[c.provider].base + '/models', { headers: { Authorization: 'Bearer ' + c.key } })).json(); return (j.data || []).map(m => m.id);
+  }
+  function pickModel(prov, ids, bad) {
+    const skip = /whisper|tts|guard|embed|image|audio|orpheus|playai|moderation|vision-preview|safeguard/i, ok = ids.filter(i => i !== bad && !skip.test(i));
+    const prefs = prov === 'groq' ? [/llama-3\.3-70b/, /llama-3\.1-8b-instant/, /llama/, /gpt-oss/, /qwen/] : prov === 'gemini' ? [/flash-lite/, /flash/, /pro/] : [/llama-3\.3-70b.*:free/, /:free$/];
+    for (const re of prefs) { const m = ok.find(i => re.test(i)); if (m) return m; } return ok[0] || null;
+  }
   async function call(system, user, opt = {}) {
+    try { return await call0(system, user, opt); } catch (e) {
+      if (!opt._h && e && (e.status === 404 || e.status === 400) && /model|exist|access|not found|invalid/i.test(String(e.msg || ''))) {
+        const c = get(); let ids = []; try { ids = await listModels(c); } catch { }
+        const m = PROV[c.provider] && pickModel(c.provider, ids, c.model || PROV[c.provider].model);
+        if (m) { put({ model: m }); toast('El modelo anterior no está disponible en tu cuenta: ahora uso «' + m + '»', 6000); return call0(system, user, Object.assign({}, opt, { _h: 1 })); }
+      }
+      throw e;
+    }
+  }
+  async function call0(system, user, opt = {}) {
     const c = get(), P = PROV[c.provider]; if (!P || !c.key) throw Object.assign(new Error('sin clave'), { msg: 'Falta la clave' });
     const model = c.model || P.model, ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 30000);
     try {
