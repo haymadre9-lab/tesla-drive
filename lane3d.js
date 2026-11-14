@@ -232,7 +232,7 @@
   Lane3D.prototype.renderSign = function (st) { this.sign.innerHTML = signHTML(st); };
 
   const STYLE = '.l3-wrap{position:relative;display:flex;flex-wrap:wrap;gap:8px;align-items:center;max-width:calc(100vw - 40px)}' +
-    '.l3-cv{display:block;width:240px;height:210px;max-width:100%;flex:none;border-radius:14px;background:#0f131a}' +
+    '.l3-cv{display:block;width:240px;height:150px;max-width:100%;flex:none;border-radius:14px;background:#0f131a}' +
     '.l3-sign{position:relative;width:240px;flex:none}' +
     '.l3sign{width:240px;flex:none}' +
     '#njv{transform:scale(var(--l3k,1));transform-origin:top left}' +
