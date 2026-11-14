@@ -200,6 +200,8 @@
   Lane3D.signHTML = signHTML;
   // Herramientas del panel: −/+ para el tamaño, ⠿ para mover. Se guardan con store.save (ajustes de la app).
   Lane3D.toolsHTML = '<div class="l3-tools"><button type="button" data-l3act="move" aria-label="Mover">⠿</button><button type="button" data-l3act="smaller" aria-label="Reducir">−</button><button type="button" data-l3act="bigger" aria-label="Aumentar">+</button><button type="button" data-l3act="reset" aria-label="Volver a la izquierda">⟲</button></div>';
+  // El panel vive dentro de una ventana del dashboard, y la pulsación larga de esa ventana abre el editor de
+  // ventanas (X y flechas). Por eso los toques del panel se interceptan en la fase de captura de la ventana.
   Lane3D.bindTools = function (panel, store) {
     const cfg = Object.assign({ k: 0.85, x: null, y: null }, store.load() || {});
     const apply = () => {
@@ -207,29 +209,41 @@
       if (cfg.x != null) { panel.style.left = cfg.x + 'px'; panel.style.top = cfg.y + 'px'; panel.style.bottom = 'auto'; }
       else { panel.style.left = ''; panel.style.top = ''; panel.style.bottom = ''; }
     };
+    panel._l3 = { cfg, store, apply };
     apply();
-    if (panel.dataset.l3tools) return; panel.dataset.l3tools = '1';
-    panel.addEventListener('click', e => {
-      const b = e.target.closest('[data-l3act]'); if (!b) return; const a = b.dataset.l3act;
-      if (a === 'reset') { cfg.x = null; cfg.y = null; apply(); store.save(cfg); return; }
-      if (a !== 'bigger' && a !== 'smaller') return;
-      cfg.k = a === 'bigger' ? Math.min(1.6, +(cfg.k + 0.1).toFixed(2)) : Math.max(0.6, +(cfg.k - 0.1).toFixed(2));
-      apply(); store.save(cfg);
-    });
-    panel.addEventListener('pointerdown', e => {
-      const g = e.target.closest('[data-l3act="move"]'); if (!g) return; e.preventDefault();
-      const pr = panel.parentElement, r0 = panel.getBoundingClientRect(), p0 = pr.getBoundingClientRect();
-      const sc = r0.width / (panel.offsetWidth || 1), ox = (e.clientX - r0.left) / sc, oy = (e.clientY - r0.top) / sc;
+    if (window.__l3guard) return; window.__l3guard = true;
+    const owner = t => (t && t.closest ? t.closest('#njv') : null);
+    window.addEventListener('pointerdown', e => {
+      const pn = owner(e.target); if (!pn || !pn._l3) return;
+      e.stopPropagation(); // ni pulsación larga ni selección del editor de ventanas
+      const g = e.target.closest('[data-l3act="move"]'); if (!g) return;
+      e.preventDefault();
+      const { cfg: c, store: st, apply: ap } = pn._l3;
+      const pr = pn.parentElement, r0 = pn.getBoundingClientRect(), p0 = pr.getBoundingClientRect();
+      const sc = r0.width / (pn.offsetWidth || 1), ox = (e.clientX - r0.left) / sc, oy = (e.clientY - r0.top) / sc;
       g.setPointerCapture(e.pointerId);
       const mv = ev => {
         let x = (ev.clientX - p0.left) / sc - ox, y = (ev.clientY - p0.top) / sc - oy;
-        x = Math.max(0, Math.min(x, pr.clientWidth - panel.offsetWidth)); y = Math.max(0, Math.min(y, pr.clientHeight - panel.offsetHeight));
-        cfg.x = Math.round(x); cfg.y = Math.round(y); apply();
+        x = Math.max(0, Math.min(x, pr.clientWidth - pn.offsetWidth)); y = Math.max(0, Math.min(y, pr.clientHeight - pn.offsetHeight));
+        c.x = Math.round(x); c.y = Math.round(y); ap();
       };
-      const up = () => { g.removeEventListener('pointermove', mv); g.removeEventListener('pointerup', up); store.save(cfg); };
+      const up = () => { g.removeEventListener('pointermove', mv); g.removeEventListener('pointerup', up); st.save(c); };
       g.addEventListener('pointermove', mv); g.addEventListener('pointerup', up);
-    });
+    }, true);
+    window.addEventListener('click', e => {
+      const pn = owner(e.target); if (!pn || !pn._l3) return;
+      e.stopPropagation();
+      const b = e.target.closest('[data-l3act]'); if (!b) return;
+      const { cfg: c, store: st, apply: ap } = pn._l3; const a = b.dataset.l3act;
+      if (a === 'reset') { c.x = null; c.y = null; ap(); st.save(c); return; }
+      if (a === 'bigger') c.k = Math.min(1.6, +(c.k + 0.1).toFixed(2));
+      else if (a === 'smaller') c.k = Math.max(0.6, +(c.k - 0.1).toFixed(2));
+      else return;
+      ap(); st.save(c);
+    }, true);
+    window.addEventListener('contextmenu', e => { if (owner(e.target)) e.preventDefault(); }, true);
   };
+
   Lane3D.prototype.setDistance = function (d) { if (this.last) { this.last.distance = d; this.renderSign(this.last); } };
   Lane3D.prototype.renderSign = function (st) { this.sign.innerHTML = signHTML(st); };
 
