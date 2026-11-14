@@ -197,6 +197,36 @@
       '<div class="l3-d">' + dist + '</div></div>';
   }
   Lane3D.signHTML = signHTML;
+  // Herramientas del panel: −/+ para el tamaño, ⠿ para mover. Se guardan con store.save (ajustes de la app).
+  Lane3D.toolsHTML = '<div class="l3-tools"><button type="button" data-l3act="move" aria-label="Mover">⠿</button><button type="button" data-l3act="smaller" aria-label="Reducir">−</button><button type="button" data-l3act="bigger" aria-label="Aumentar">+</button></div>';
+  Lane3D.bindTools = function (panel, store) {
+    const cfg = Object.assign({ k: 1, x: null, y: null }, store.load() || {});
+    const apply = () => {
+      panel.style.setProperty('--l3k', cfg.k);
+      if (cfg.x != null) { panel.style.left = cfg.x + 'px'; panel.style.top = cfg.y + 'px'; panel.style.bottom = 'auto'; }
+    };
+    apply();
+    if (panel.dataset.l3tools) return; panel.dataset.l3tools = '1';
+    panel.addEventListener('click', e => {
+      const b = e.target.closest('[data-l3act]'); if (!b) return; const a = b.dataset.l3act;
+      if (a !== 'bigger' && a !== 'smaller') return;
+      cfg.k = a === 'bigger' ? Math.min(1.6, +(cfg.k + 0.1).toFixed(2)) : Math.max(0.6, +(cfg.k - 0.1).toFixed(2));
+      apply(); store.save(cfg);
+    });
+    panel.addEventListener('pointerdown', e => {
+      const g = e.target.closest('[data-l3act="move"]'); if (!g) return; e.preventDefault();
+      const pr = panel.parentElement, r0 = panel.getBoundingClientRect(), p0 = pr.getBoundingClientRect();
+      const sc = r0.width / (panel.offsetWidth || 1), ox = (e.clientX - r0.left) / sc, oy = (e.clientY - r0.top) / sc;
+      g.setPointerCapture(e.pointerId);
+      const mv = ev => {
+        let x = (ev.clientX - p0.left) / sc - ox, y = (ev.clientY - p0.top) / sc - oy;
+        x = Math.max(0, Math.min(x, pr.clientWidth - panel.offsetWidth)); y = Math.max(0, Math.min(y, pr.clientHeight - panel.offsetHeight));
+        cfg.x = Math.round(x); cfg.y = Math.round(y); apply();
+      };
+      const up = () => { g.removeEventListener('pointermove', mv); g.removeEventListener('pointerup', up); store.save(cfg); };
+      g.addEventListener('pointermove', mv); g.addEventListener('pointerup', up);
+    });
+  };
   Lane3D.prototype.setDistance = function (d) { if (this.last) { this.last.distance = d; this.renderSign(this.last); } };
   Lane3D.prototype.renderSign = function (st) { this.sign.innerHTML = signHTML(st); };
 
@@ -204,6 +234,9 @@
     '.l3-cv{display:block;width:240px;height:210px;max-width:100%;flex:none;border-radius:14px;background:#0f131a}' +
     '.l3-sign{position:relative;width:240px;flex:none}' +
     '.l3sign{width:240px;flex:none}' +
+    '#njv{transform:scale(var(--l3k,1));transform-origin:top left}' +
+    '.l3-tools{position:absolute;top:-30px;left:0;display:flex;gap:4px}' +
+    '.l3-tools button{min-width:30px;height:26px;border:0;border-radius:8px;background:rgba(8,12,20,.8);color:#fff;font:700 14px system-ui;cursor:pointer;touch-action:none}' +
     '.l3-board{background:#1b6237;color:#fff;border:3px solid #fff;border-radius:12px;box-shadow:0 8px 20px rgba(0,0,0,.4),inset 0 0 0 2px rgba(255,255,255,.12);font-family:system-ui,-apple-system,sans-serif;overflow:hidden}' +
     '.l3-top{display:flex;align-items:center;gap:12px;padding:10px 14px}' +
     '.l3-top svg{width:36px;height:36px;flex:0 0 auto;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3))}' +
@@ -217,6 +250,7 @@
     '.l3-board.gen{background:#fff;color:#111;border-color:#111}' +
     '.l3-board.gen .l3-n{background:#111;color:#fff}' +
     '.l3-board.gen .l3-d{background:#e9ecf1;border-top-color:#111;color:#111}' +
+    '.l3-board{width:240px;height:150px;box-sizing:border-box;overflow:hidden}' +
     '.l3-board.d{border-radius:10px}' +
     '.l3-dtop{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;font-weight:700;font-size:14px}' +
     '.l3-dist{font-size:18px;font-variant-numeric:tabular-nums}' +
