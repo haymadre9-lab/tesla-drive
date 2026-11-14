@@ -75,7 +75,12 @@
       g.add(new t.Mesh(gg, new t.MeshBasicMaterial({ color, side: t.DoubleSide })));
     };
     // asfalto: arcén, carriles y carril elegido
-    ribbon(z => [-LANE * (n / 2) * cf(z) - 0.8, LANE * (n / 2) * cf(z) + 0.8], 0.005, 0x3a404b);
+    // arcén: en el lado de salida sigue el borde del carril de salida tras la separación (sin cuña)
+    ribbon(z => {
+      const near = -D * (LANE * (n / 2) * cf(z) + 0.8);
+      const far = z <= SALIDA_Z ? D * (LANE * (n / 2) * cf(z) + 0.8) : cen(sel, z) + D * (LANE * cf(z) / 2 + 0.8);
+      return near < far ? [near, far] : [far, near];
+    }, 0.005, 0x3a404b);
     ribbon(z => [cen(sel, z) - LANE * cf(z) / 2, cen(sel, z) + LANE * cf(z) / 2], 0.03, 0x6f7888);
     // líneas entre carriles (i = límites de carril) y borde de la salida
     for (let i = 0; i <= n; i++) strip(z => (i - sel + 0.5) * D * LANE * cf(z), -2, ZMAX, 0.08, 0xf2f4f8);
