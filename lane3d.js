@@ -199,17 +199,19 @@
   }
   Lane3D.signHTML = signHTML;
   // Herramientas del panel: −/+ para el tamaño, ⠿ para mover. Se guardan con store.save (ajustes de la app).
-  Lane3D.toolsHTML = '<div class="l3-tools"><button type="button" data-l3act="move" aria-label="Mover">⠿</button><button type="button" data-l3act="smaller" aria-label="Reducir">−</button><button type="button" data-l3act="bigger" aria-label="Aumentar">+</button></div>';
+  Lane3D.toolsHTML = '<div class="l3-tools"><button type="button" data-l3act="move" aria-label="Mover">⠿</button><button type="button" data-l3act="smaller" aria-label="Reducir">−</button><button type="button" data-l3act="bigger" aria-label="Aumentar">+</button><button type="button" data-l3act="reset" aria-label="Volver a la izquierda">⟲</button></div>';
   Lane3D.bindTools = function (panel, store) {
     const cfg = Object.assign({ k: 0.85, x: null, y: null }, store.load() || {});
     const apply = () => {
       panel.style.setProperty('--l3k', cfg.k);
       if (cfg.x != null) { panel.style.left = cfg.x + 'px'; panel.style.top = cfg.y + 'px'; panel.style.bottom = 'auto'; }
+      else { panel.style.left = ''; panel.style.top = ''; panel.style.bottom = ''; }
     };
     apply();
     if (panel.dataset.l3tools) return; panel.dataset.l3tools = '1';
     panel.addEventListener('click', e => {
       const b = e.target.closest('[data-l3act]'); if (!b) return; const a = b.dataset.l3act;
+      if (a === 'reset') { cfg.x = null; cfg.y = null; apply(); store.save(cfg); return; }
       if (a !== 'bigger' && a !== 'smaller') return;
       cfg.k = a === 'bigger' ? Math.min(1.6, +(cfg.k + 0.1).toFixed(2)) : Math.max(0.6, +(cfg.k - 0.1).toFixed(2));
       apply(); store.save(cfg);
