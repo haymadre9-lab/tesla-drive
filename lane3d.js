@@ -156,29 +156,115 @@
     if (this.ready) { this.build(); this.resize(); }
   };
 
-  Lane3D.prototype.setDistance = function (d) { if (this.last) { this.last.distance = d; this.renderSign(this.last); } };
-
-  Lane3D.prototype.renderSign = function (st) {
+  // Cartel de maniobra. Autopista: azul con letras blancas. Carretera general: blanco con letras negras.
+  const ESC = t => String(t == null ? '' : t).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c]);
+  const ANG = { straight: 0, 'slight right': 35, right: 90, 'sharp right': 135, uturn: 180, 'sharp left': -135, left: -90, 'slight left': -35 };
+  // Flecha de carril sin recuadro. La que se toma: blanca, más larga y más ancha. Las demás: grises y finas.
+  const laneArrow = (inds, on) => {
+    const k = (inds && inds[0]) || 'straight';
+    const W = on ? 2.8 : 1.8, R = on ? 10.5 : 8.5, H = on ? 6 : 4.2, T = on ? 7 : 5;
+    let d, head;
+    if (k === 'uturn') {
+      d = 'M8 22 V11 C8 3 18 3 18 11 L18 15';
+      head = 'M18 19 L' + (18 - H) + ' 10.5 L' + (18 + H) + ' 10.5 Z';
+    } else {
+      const a = ANG[k] || 0, r = a * Math.PI / 180;
+      const ex = 12 + R * Math.sin(r), ey = 12 - R * Math.cos(r);
+      let dx = ex - 12, dy = ey - 12; const L = Math.hypot(dx, dy) || 1; dx /= L; dy /= L;
+      const px = -dy, py = dx, tx = ex + dx * 1.5, ty = ey + dy * 1.5;
+      d = 'M12 22 Q12 12 ' + (ex - dx * 2).toFixed(2) + ' ' + (ey - dy * 2).toFixed(2);
+      head = 'M' + tx.toFixed(2) + ' ' + ty.toFixed(2) + ' L' + (tx - dx * T + px * H).toFixed(2) + ' ' + (ty - dy * T + py * H).toFixed(2) + ' L' + (tx - dx * T - px * H).toFixed(2) + ' ' + (ty - dy * T - py * H).toFixed(2) + ' Z';
+    }
+    return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + d + '" fill="none" stroke="currentColor" stroke-width="' + W + '" stroke-linecap="round" stroke-linejoin="round"/><path d="' + head + '" fill="currentColor"/></svg>';
+  };
+  // Cartel de maniobra. Autopista: azul con letras blancas. Carretera general: blanco con letras negras.
+  // Con carriles: flechas de carril (la que se coge en blanco, las demás en negro), distancia y nombre de la vía o pueblo.
+  function signHTML(st) {
     const left = st.side === 'left', dist = st.distance ? Math.round(st.distance / 10) * 10 + ' m' : '';
+    const cls = st.hw ? 'hw' : 'gen';
+    const name = st.dest || st.street || '';
+    if (st.lanes && st.lanes.length >= 2) {
+      const lanes = st.lanes.map(l => '<div class="l3-lane ' + (l.valid ? 'on' : 'off') + '">' + laneArrow(l.indications, !!l.valid) + '</div>').join('');
+      return '<div class="l3-board d ' + cls + '">' +
+        '<div class="l3-dtop"><span>' + (st.exit ? 'Salida ' + ESC(st.exit) : 'Salida') + '</span><span class="l3-dist">' + dist + '</span></div>' +
+        '<div class="l3-lanes">' + lanes + '</div>' +
+        (name ? '<div class="l3-dname">' + ESC(name) + '</div>' : '') + '</div>';
+    }
     const txt = st.side === 'straight' ? 'Continúa recto' : 'Sal ' + (left ? 'a la izquierda' : 'a la derecha');
     const arrow = left ? 'M46 6 L6 40 L46 74 L46 52 L72 52 L72 28 L46 28 Z' : 'M26 6 L66 40 L26 74 L26 52 L0 52 L0 28 L26 28 Z';
-    const num = st.exit ? '<div class="l3-n">' + String(st.exit).replace(/[<&]/g, '') + '</div>' : '';
-    this.sign.innerHTML = '<div class="l3-board">' +
-      '<div class="l3-top"><svg viewBox="0 0 78 80" aria-hidden="true"><path d="' + arrow + '" fill="#fff"/></svg>' + num + '<div class="l3-tx"><div class="l3-k">Salida</div><div class="l3-m">' + txt + '</div></div></div>' +
+    const num = st.exit ? '<div class="l3-n">' + ESC(st.exit) + '</div>' : '';
+    return '<div class="l3-board ' + cls + '">' +
+      '<div class="l3-top"><svg viewBox="0 0 78 80" aria-hidden="true"><path d="' + arrow + '" fill="currentColor"/></svg>' + num + '<div class="l3-tx"><div class="l3-k">Salida</div><div class="l3-m">' + txt + '</div>' + (name ? '<div class="l3-nm">' + ESC(name) + '</div>' : '') + '</div></div>' +
       '<div class="l3-d">' + dist + '</div></div>';
+  }
+  Lane3D.signHTML = signHTML;
+  // Herramientas del panel: −/+ para el tamaño, ⠿ para mover. Se guardan con store.save (ajustes de la app).
+  Lane3D.toolsHTML = '<div class="l3-tools"><button type="button" data-l3act="move" aria-label="Mover">⠿</button><button type="button" data-l3act="smaller" aria-label="Reducir">−</button><button type="button" data-l3act="bigger" aria-label="Aumentar">+</button></div>';
+  Lane3D.bindTools = function (panel, store) {
+    const cfg = Object.assign({ k: 1, x: null, y: null }, store.load() || {});
+    const apply = () => {
+      panel.style.setProperty('--l3k', cfg.k);
+      if (cfg.x != null) { panel.style.left = cfg.x + 'px'; panel.style.top = cfg.y + 'px'; panel.style.bottom = 'auto'; }
+    };
+    apply();
+    if (panel.dataset.l3tools) return; panel.dataset.l3tools = '1';
+    panel.addEventListener('click', e => {
+      const b = e.target.closest('[data-l3act]'); if (!b) return; const a = b.dataset.l3act;
+      if (a !== 'bigger' && a !== 'smaller') return;
+      cfg.k = a === 'bigger' ? Math.min(1.6, +(cfg.k + 0.1).toFixed(2)) : Math.max(0.6, +(cfg.k - 0.1).toFixed(2));
+      apply(); store.save(cfg);
+    });
+    panel.addEventListener('pointerdown', e => {
+      const g = e.target.closest('[data-l3act="move"]'); if (!g) return; e.preventDefault();
+      const pr = panel.parentElement, r0 = panel.getBoundingClientRect(), p0 = pr.getBoundingClientRect();
+      const sc = r0.width / (panel.offsetWidth || 1), ox = (e.clientX - r0.left) / sc, oy = (e.clientY - r0.top) / sc;
+      g.setPointerCapture(e.pointerId);
+      const mv = ev => {
+        let x = (ev.clientX - p0.left) / sc - ox, y = (ev.clientY - p0.top) / sc - oy;
+        x = Math.max(0, Math.min(x, pr.clientWidth - panel.offsetWidth)); y = Math.max(0, Math.min(y, pr.clientHeight - panel.offsetHeight));
+        cfg.x = Math.round(x); cfg.y = Math.round(y); apply();
+      };
+      const up = () => { g.removeEventListener('pointermove', mv); g.removeEventListener('pointerup', up); store.save(cfg); };
+      g.addEventListener('pointermove', mv); g.addEventListener('pointerup', up);
+    });
   };
+  Lane3D.prototype.setDistance = function (d) { if (this.last) { this.last.distance = d; this.renderSign(this.last); } };
+  Lane3D.prototype.renderSign = function (st) { this.sign.innerHTML = signHTML(st); };
 
-  const STYLE = '.l3-wrap{position:relative;border-radius:14px;overflow:hidden;background:#0f131a}' +
-    '.l3-cv{display:block;width:100%;aspect-ratio:4/4.6}' +
-    '.l3-sign{position:absolute;left:12px;right:12px;top:12px}' +
-    '.l3-board{background:linear-gradient(180deg,#2a8a50,#1b6237);color:#fff;border:3px solid #fff;border-radius:12px;box-shadow:0 8px 20px rgba(0,0,0,.4),inset 0 0 0 2px rgba(255,255,255,.12);font-family:system-ui,-apple-system,sans-serif;overflow:hidden}' +
+  const STYLE = '.l3-wrap{position:relative;display:flex;flex-wrap:wrap;gap:8px;align-items:center;max-width:calc(100vw - 40px)}' +
+    '.l3-cv{display:block;width:240px;height:150px;max-width:100%;flex:none;border-radius:14px;background:#0f131a}' +
+    '.l3-sign{position:relative;width:240px;flex:none}' +
+    '.l3sign{width:240px;flex:none}' +
+    '#njv{transform:scale(var(--l3k,1));transform-origin:top left}' +
+    '.l3-tools{position:absolute;top:-30px;left:0;display:flex;gap:4px}' +
+    '.l3-tools button{min-width:30px;height:26px;border:0;border-radius:8px;background:rgba(8,12,20,.8);color:#fff;font:700 14px system-ui;cursor:pointer;touch-action:none}' +
+    '.l3-board{background:#1b6237;color:#fff;border:3px solid #fff;border-radius:12px;box-shadow:0 8px 20px rgba(0,0,0,.4),inset 0 0 0 2px rgba(255,255,255,.12);font-family:system-ui,-apple-system,sans-serif;overflow:hidden}' +
     '.l3-top{display:flex;align-items:center;gap:12px;padding:10px 14px}' +
-    '.l3-top svg{width:46px;height:46px;flex:0 0 auto;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3))}' +
-    '.l3-n{min-width:40px;height:40px;padding:0 8px;box-sizing:border-box;border-radius:8px;background:#fff;color:#1b6237;font-weight:800;font-size:22px;display:flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums}' +
+    '.l3-top svg{width:36px;height:36px;flex:0 0 auto;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3))}' +
+    '.l3-n{min-width:34px;height:34px;font-size:18px;padding:0 8px;box-sizing:border-box;border-radius:8px;background:#fff;color:#1b6237;font-weight:800;display:flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums}' +
     '.l3-tx{min-width:0;flex:1}' +
     '.l3-k{font-size:11px;letter-spacing:.1em;text-transform:uppercase;opacity:.85}' +
-    '.l3-m{font-size:21px;font-weight:700;line-height:1.1;text-wrap:balance}' +
-    '.l3-d{background:rgba(0,0,0,.22);padding:6px 14px;font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;text-align:right;border-top:2px solid rgba(255,255,255,.35)}';
+    '.l3-m{font-size:16px;font-weight:700;line-height:1.1;text-wrap:balance}' +
+    '.l3-d{background:rgba(0,0,0,.22);padding:6px 14px;font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;text-align:right;border-top:2px solid rgba(255,255,255,.35)}' +
+    '.l3-board.hw{background:#0b5fd0;color:#fff;border-color:#fff}' +
+    '.l3-board.hw .l3-n{background:#fff;color:#0b5fd0}' +
+    '.l3-board.gen{background:#fff;color:#111;border-color:#111}' +
+    '.l3-board.gen .l3-n{background:#111;color:#fff}' +
+    '.l3-board.gen .l3-d{background:#e9ecf1;border-top-color:#111;color:#111}' +
+    '.l3-board{width:240px;height:150px;box-sizing:border-box;overflow:hidden}' +
+    '.l3-board.d{border-radius:10px}' +
+    '.l3-dtop{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;font-weight:700;font-size:14px}' +
+    '.l3-dist{font-size:18px;font-variant-numeric:tabular-nums}' +
+    '.l3-lanes{display:flex;gap:4px;padding:0 8px 8px}' +
+    '.l3-lane{flex:1;height:48px;display:flex;align-items:center;justify-content:center;box-sizing:border-box}' +
+    '.l3-lane svg{width:34px;height:40px}' +
+    '.l3-board.hw .l3-lane.on{color:#fff}' +
+    '.l3-board.hw .l3-lane.off{color:#8d9bb0}' +
+    '.l3-board.gen .l3-lane.on{color:#111}' +
+    '.l3-board.gen .l3-lane.off{color:#8a909b}' +
+    '.l3-dname{padding:6px 10px;background:rgba(0,0,0,.2);font-size:14px;font-weight:700;text-align:left}' +
+    '.l3-board.gen .l3-dname{background:#e9ecf1;color:#111;border-top:2px solid #111}' +
+    '.l3-nm{font-size:13px;font-weight:600;opacity:.9;margin-top:3px}';
   if (typeof document !== 'undefined' && !document.getElementById('l3-style')) {
     const s = document.createElement('style'); s.id = 'l3-style'; s.textContent = STYLE; document.head.appendChild(s);
   }

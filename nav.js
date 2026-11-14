@@ -279,6 +279,7 @@ const Nav = (() => {
       N.stepAt = N.steps.map(st => { const L = loc(st); let b = pi, bd = Infinity; for (let i = pi; i < c.length; i++) { const d = d2(L, c[i]); if (d < bd) { bd = d; b = i; } else if (bd < 1e-8 && d > bd + 1e-5) break; } pi = b; return b; });
     }
     drawRoute(); if (N.dm) N.dm.remove(); N.dm = N.mx.marker([d.lat, d.lon], '<div class="poi" style="border-color:var(--acc);font-size:21px">🏁</div>', [36, 36]); drawStops();
+    N.ttl = null; ttLanesFor([o, ...(stops || []).map(x => [x.lat, x.lon]), [d.lat, d.lon]]).then(res => { N.ttl = res; if (N.lastJ) { const e = $('#njv', N.el); if (e) { e.dataset.k = ''; junction(...N.lastJ); } } });
     if (!quiet) { saveRoute(d); if (!d.link && typeof Link !== 'undefined') Link.publish(d); N.mx.focus(N.fx, 0); N.mx.fit(N.coords); setTimeout(() => { N.follow = true; }, 4000); S.navRecent = [{ name: d.name, lat: d.lat, lon: d.lon, sub: d.sub || '', t: Date.now() }, ...(S.navRecent || []).filter(x => x.name !== d.name && dist([x.lat, x.lon], [d.lat, d.lon]) > 60)].slice(0, 15); save(); chips(); if (typeof Adv !== 'undefined') Adv.logTrip(d); say('Ruta calculada. ' + fmtD(rt.distance) + ' hasta ' + d.name); }
     $('#nguide', N.el).hidden = false; $('#nbar', N.el).hidden = false; N.el.classList.add('guiding'); $('#nsim', N.el).hidden = false; update(o);
     return true;
@@ -447,26 +448,53 @@ const Nav = (() => {
     try { const r = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: 'data=' + encodeURIComponent(q), signal: ac.signal }); const j = await r.json(); const w = (j.elements || [])[0]; return w && w.tags ? w.tags['turn:lanes'] : null; }
     catch (e) { return null; } finally { clearTimeout(tm); }
   }
+  /* Carriles de TomTom: ruta con sectionType=lanes (clave de Ajustes → Mapa, solo en este dispositivo) */
+  const TT_DIR = d => { const u = String(d || '').toUpperCase(); return /U_?TURN/.test(u) ? 'uturn' : u.toLowerCase().replace(/_/g, ' '); };
+  async function ttLanesFor(pts) {
+    let k = ''; try { k = localStorage.getItem('leco.tt') || ''; } catch (e) { }
+    if (!k) return null;
+    const url = 'https://api.tomtom.com/routing/1/calculateRoute/' + pts.map(p => p[0].toFixed(6) + ',' + p[1].toFixed(6)).join(':') + '/json?key=' + encodeURIComponent(k) + '&routeType=fastest&travelMode=car&sectionType=lanes';
+    const ac = new AbortController(), tm = setTimeout(() => ac.abort(), 9000);
+    try {
+      const j = await (await fetch(url, { signal: ac.signal })).json(); const rt = j.routes && j.routes[0]; if (!rt) return null;
+      const pl = rt.legs.flatMap(l => l.points);
+      return (rt.sections || []).filter(x => x.sectionType === 'LANES' && Array.isArray(x.lanes) && x.lanes.length >= 2).map(x => {
+        const p = pl[x.startPointIndex]; return p ? { ll: [p.latitude, p.longitude], lanes: x.lanes.map(l => ({ valid: !!l.follow, indications: (l.directions || []).map(TT_DIR) })) } : null;
+      }).filter(Boolean);
+    } catch (e) { return null; } finally { clearTimeout(tm); }
+  }
   function junction(nx, cur, dN, force) {
     N.lastJ = [nx, cur, dN, force];
     const el = $('#njv', N.el); if (!el) return; const m = nx.maneuver, t = m.type;
     let lanes = (() => { const it = (cur && cur.intersections) || []; for (let i = it.length - 1; i >= 0; i--) if (it[i].lanes && it[i].lanes.length) return it[i].lanes; return null; })();
+    if (N.ttl && nx.maneuver.location) { // TomTom primero: el tramo más cercano a la maniobra (170 m)
+      const L = [nx.maneuver.location[1], nx.maneuver.location[0]]; let best = null, bd = 170;
+      for (const e of N.ttl) { const dd = dist(L, e.ll); if (dd < bd) { bd = dd; best = e; } }
+      if (best) lanes = best.lanes;
+    }
     const osm = (() => { const mm = nx.maneuver; if (lanes || !mm.location || dN > 650 || S.junction === false) return null; const k = mm.location[1].toFixed(4) + ',' + mm.location[0].toFixed(4); N.olanes = N.olanes || {};
       if (!(k in N.olanes)) { N.olanes[k] = null; osmLanes(mm.location[1], mm.location[0]).then(tags => { N.olanes[k] = tags; if (tags && N.lastJ) junction(...N.lastJ); }); }
       return N.olanes[k] ? parseTurnLanes(N.olanes[k], mm) : null; })();
     if (osm) lanes = osm;
     const dest = nx.destinations || '', ex = nx.exits || '';
+    const hw = /autopista|autov[ií]a|\b(ap|a|as)-?\d/i.test(((cur && (cur.ref || cur.name)) || '') + ' ' + ((nx.ref || nx.name) || ''));
     const show = force || S.junction !== false && dN <= 650 && !/^(depart|arrive|notification|new name)$/.test(t) && !((m.modifier === 'straight' || !m.modifier) && t !== 'roundabout' && t !== 'rotary' && !lanes && !dest);
     if (!show) { if (!el.hidden) { el.hidden = true; el.dataset.k = ''; } return; }
     const key = (force ? 'demo' : '') + N.idx + '|' + t + '|' + (m.modifier || '') + '|' + (m.exit || '') + '|' + (nx.destinations || '') + '|' + (lanes ? 'L' + lanes.length + (lanes.some(l => l.valid) ? 'v' : '') : '') + '|' + (S.accent || '');
     if (window.Lane3D && lanes && lanes.length && !(N.l3 && N.l3.failed)) { // vista 3D solo con carriles reales (OSRM u OSM); sin datos no se muestra
       const dest3 = dest || ex ? `<div class="jdest">${ex ? `<span class="jex">${esc(ex)}</span>` : ''}${esc(dest.split(',').slice(0, 3).join(' · '))}</div>` : '';
       const side = jvDir(m) < -.1 ? 'left' : jvDir(m) > .1 ? 'right' : 'straight';
-      if (!N.l3 || !el.contains(N.l3.el)) { el.innerHTML = '<div class="l3host"></div><div class="l3dest"></div>'; N.l3 = new Lane3D($('.l3host', el), () => { const e2 = $('#njv', N.el); if (e2 && N.lastJ) { e2.dataset.k = ''; junction(...N.lastJ); } }); }
+      if (!N.l3 || !el.contains(N.l3.el)) { el.innerHTML = Lane3D.toolsHTML + '<div class="l3host"></div><div class="l3dest"></div>'; N.l3 = new Lane3D($('.l3host', el), () => { const e2 = $('#njv', N.el); if (e2 && N.lastJ) { e2.dataset.k = ''; junction(...N.lastJ); } }); }
       const dd = $('.l3dest', el); if (dd && el.dataset.k !== key) dd.innerHTML = dest3;
-      if (el.dataset.k !== key) { el.dataset.k = key; N.l3.update({ side, lanes: lanes || [], distance: dN, exit: m.exit || (ex.match(/\d+/) || [])[0] || '', scene: N.route && N.route.duration && N.route.distance / N.route.duration < 11 ? 'ciudad' : 'autopista', night: typeof mapDark === 'function' && mapDark() }); }
+      if (el.dataset.k !== key) { el.dataset.k = key; N.l3.update({ side, lanes: lanes || [], hw, dest: dest.split(',')[0], street: nx.name || '', distance: dN, exit: m.exit || (ex.match(/\d+/) || [])[0] || '', scene: N.route && N.route.duration && N.route.distance / N.route.duration < 11 ? 'ciudad' : 'autopista', night: typeof mapDark === 'function' && mapDark() }); }
       else N.l3.setDistance(dN);
-      el.hidden = false; return;
+      el.hidden = false; Lane3D.bindTools(el, { load: () => S.l3, save: v => { S.l3 = v; save(); } }); return;
+    }
+    if (window.Lane3D) { // sin carriles (o sin 3D): solo el cartel de maniobra; azul en autopista, blanco en carretera general
+      const dest3 = dest || ex ? `<div class="jdest">${ex ? `<span class="jex">${esc(ex)}</span>` : ''}${esc(dest.split(',').slice(0, 3).join(' · '))}</div>` : '';
+      const side = jvDir(m) < -.1 ? 'left' : jvDir(m) > .1 ? 'right' : 'straight';
+      el.innerHTML = Lane3D.toolsHTML + '<div class="l3sign">' + Lane3D.signHTML({ side, hw, distance: dN, lanes: lanes || null, dest: dest.split(',')[0], street: nx.name || '', exit: m.exit || (ex.match(/\d+/) || [])[0] || '' }) + '</div>' + dest3;
+      el.hidden = false; Lane3D.bindTools(el, { load: () => S.l3, save: v => { S.l3 = v; save(); } }); return;
     }
     if (el.dataset.k !== key) {
       el.dataset.k = key; const col = '#ff3d9a';
