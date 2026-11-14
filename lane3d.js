@@ -200,9 +200,9 @@
   Lane3D.prototype.setDistance = function (d) { if (this.last) { this.last.distance = d; this.renderSign(this.last); } };
   Lane3D.prototype.renderSign = function (st) { this.sign.innerHTML = signHTML(st); };
 
-  const STYLE = '.l3-wrap{position:relative;width:240px;height:210px;flex:none;border-radius:14px;overflow:hidden;background:#0f131a}' +
-    '.l3-cv{display:block;width:100%;height:100%}' +
-    '.l3-sign{position:absolute;left:12px;right:12px;top:12px}' +
+  const STYLE = '.l3-wrap{position:relative;display:flex;flex-wrap:wrap;gap:8px;align-items:center;max-width:calc(100vw - 40px)}' +
+    '.l3-cv{display:block;width:240px;height:210px;max-width:100%;flex:none;border-radius:14px;background:#0f131a}' +
+    '.l3-sign{position:relative;width:240px;flex:none}' +
     '.l3sign{width:240px;flex:none}' +
     '.l3-board{background:#1b6237;color:#fff;border:3px solid #fff;border-radius:12px;box-shadow:0 8px 20px rgba(0,0,0,.4),inset 0 0 0 2px rgba(255,255,255,.12);font-family:system-ui,-apple-system,sans-serif;overflow:hidden}' +
     '.l3-top{display:flex;align-items:center;gap:12px;padding:10px 14px}' +
