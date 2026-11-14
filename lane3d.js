@@ -168,16 +168,16 @@
       '<div class="l3-d">' + dist + '</div></div>';
   };
 
-  const STYLE = '.l3-wrap{position:relative;border-radius:14px;overflow:hidden;background:#0f131a}' +
-    '.l3-cv{display:block;width:100%;aspect-ratio:4/4.6}' +
+  const STYLE = '.l3-wrap{position:relative;width:240px;height:210px;flex:none;border-radius:14px;overflow:hidden;background:#0f131a}' +
+    '.l3-cv{display:block;width:100%;height:100%}' +
     '.l3-sign{position:absolute;left:12px;right:12px;top:12px}' +
     '.l3-board{background:linear-gradient(180deg,#2a8a50,#1b6237);color:#fff;border:3px solid #fff;border-radius:12px;box-shadow:0 8px 20px rgba(0,0,0,.4),inset 0 0 0 2px rgba(255,255,255,.12);font-family:system-ui,-apple-system,sans-serif;overflow:hidden}' +
     '.l3-top{display:flex;align-items:center;gap:12px;padding:10px 14px}' +
-    '.l3-top svg{width:46px;height:46px;flex:0 0 auto;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3))}' +
-    '.l3-n{min-width:40px;height:40px;padding:0 8px;box-sizing:border-box;border-radius:8px;background:#fff;color:#1b6237;font-weight:800;font-size:22px;display:flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums}' +
+    '.l3-top svg{width:36px;height:36px;flex:0 0 auto;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3))}' +
+    '.l3-n{min-width:34px;height:34px;font-size:18px;padding:0 8px;box-sizing:border-box;border-radius:8px;background:#fff;color:#1b6237;font-weight:800;display:flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums}' +
     '.l3-tx{min-width:0;flex:1}' +
     '.l3-k{font-size:11px;letter-spacing:.1em;text-transform:uppercase;opacity:.85}' +
-    '.l3-m{font-size:21px;font-weight:700;line-height:1.1;text-wrap:balance}' +
+    '.l3-m{font-size:16px;font-weight:700;line-height:1.1;text-wrap:balance}' +
     '.l3-d{background:rgba(0,0,0,.22);padding:6px 14px;font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;text-align:right;border-top:2px solid rgba(255,255,255,.35)}';
   if (typeof document !== 'undefined' && !document.getElementById('l3-style')) {
     const s = document.createElement('style'); s.id = 'l3-style'; s.textContent = STYLE; document.head.appendChild(s);
