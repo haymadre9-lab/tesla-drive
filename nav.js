@@ -459,10 +459,10 @@ const Nav = (() => {
     const show = force || S.junction !== false && dN <= 650 && !/^(depart|arrive|notification|new name)$/.test(t) && !((m.modifier === 'straight' || !m.modifier) && t !== 'roundabout' && t !== 'rotary' && !lanes && !dest);
     if (!show) { if (!el.hidden) { el.hidden = true; el.dataset.k = ''; } return; }
     const key = (force ? 'demo' : '') + N.idx + '|' + t + '|' + (m.modifier || '') + '|' + (m.exit || '') + '|' + (nx.destinations || '') + '|' + (lanes ? 'L' + lanes.length + (lanes.some(l => l.valid) ? 'v' : '') : '') + '|' + (S.accent || '');
-    if (window.Lane3D && lanes && lanes.length) { // vista 3D solo con carriles reales (OSRM u OSM); sin datos no se muestra
+    if (window.Lane3D && lanes && lanes.length && !(N.l3 && N.l3.failed)) { // vista 3D solo con carriles reales (OSRM u OSM); sin datos no se muestra
       const dest3 = dest || ex ? `<div class="jdest">${ex ? `<span class="jex">${esc(ex)}</span>` : ''}${esc(dest.split(',').slice(0, 3).join(' · '))}</div>` : '';
       const side = jvDir(m) < -.1 ? 'left' : jvDir(m) > .1 ? 'right' : 'straight';
-      if (!N.l3 || !el.contains(N.l3.el)) { el.innerHTML = '<div class="l3host"></div><div class="l3dest"></div>'; N.l3 = new Lane3D($('.l3host', el)); }
+      if (!N.l3 || !el.contains(N.l3.el)) { el.innerHTML = '<div class="l3host"></div><div class="l3dest"></div>'; N.l3 = new Lane3D($('.l3host', el), () => { const e2 = $('#njv', N.el); if (e2 && N.lastJ) { e2.dataset.k = ''; junction(...N.lastJ); } }); }
       const dd = $('.l3dest', el); if (dd && el.dataset.k !== key) dd.innerHTML = dest3;
       if (el.dataset.k !== key) { el.dataset.k = key; N.l3.update({ side, lanes: lanes || [], distance: dN, scene: 'autopista', night: false }); }
       else N.l3.setDistance(dN);

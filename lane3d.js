@@ -15,14 +15,14 @@
     return loading;
   }
 
-  function Lane3D(el) {
-    this.el = el;
+  function Lane3D(el, onFail) {
+    this.el = el; this.failed = false;
     el.innerHTML = '<div class="l3-wrap"><canvas class="l3-cv"></canvas><div class="l3-sign" aria-live="polite"></div></div>';
     this.cv = el.querySelector('.l3-cv');
     this.sign = el.querySelector('.l3-sign');
     this.state = null;
     this.ready = false;
-    loadThree().then(() => this.init()).catch(() => { el.querySelector('.l3-wrap').hidden = true; });
+    loadThree().then(() => this.init()).catch(() => { this.failed = true; el.querySelector('.l3-wrap').hidden = true; if (onFail) onFail(); });
   }
 
   Lane3D.prototype.init = function () {
