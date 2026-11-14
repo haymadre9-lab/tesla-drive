@@ -201,7 +201,7 @@
   // Herramientas del panel: −/+ para el tamaño, ⠿ para mover. Se guardan con store.save (ajustes de la app).
   Lane3D.toolsHTML = '<div class="l3-tools"><button type="button" data-l3act="move" aria-label="Mover">⠿</button><button type="button" data-l3act="smaller" aria-label="Reducir">−</button><button type="button" data-l3act="bigger" aria-label="Aumentar">+</button></div>';
   Lane3D.bindTools = function (panel, store) {
-    const cfg = Object.assign({ k: 1, x: null, y: null }, store.load() || {});
+    const cfg = Object.assign({ k: 0.85, x: null, y: null }, store.load() || {});
     const apply = () => {
       panel.style.setProperty('--l3k', cfg.k);
       if (cfg.x != null) { panel.style.left = cfg.x + 'px'; panel.style.top = cfg.y + 'px'; panel.style.bottom = 'auto'; }
@@ -231,7 +231,7 @@
   Lane3D.prototype.setDistance = function (d) { if (this.last) { this.last.distance = d; this.renderSign(this.last); } };
   Lane3D.prototype.renderSign = function (st) { this.sign.innerHTML = signHTML(st); };
 
-  const STYLE = '.l3-wrap{position:relative;display:flex;flex-wrap:wrap;gap:8px;align-items:center;max-width:calc(100vw - 40px)}' +
+  const STYLE = '.l3-wrap{position:relative;display:flex;flex-direction:column;gap:8px;align-items:flex-start;max-width:calc(100vw - 40px)}' +
     '.l3-cv{display:block;width:240px;height:150px;max-width:100%;flex:none;border-radius:14px;background:#0f131a}' +
     '.l3-sign{position:relative;width:240px;flex:none}' +
     '.l3sign{width:240px;flex:none}' +
