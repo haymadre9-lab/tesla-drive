@@ -606,6 +606,6 @@ html[data-theme=light] .navmenu{background:#fff;color:#111826;border-color:rgba(
 .jsign{background:#0b5fd0;border:3px solid #fff;border-radius:11px;color:#fff;padding:6px 8px;min-width:96px;max-width:210px;display:flex;flex-direction:column;justify-content:center;gap:5px;} .jlanes{display:flex;gap:2px;justify-content:center;} .jlanes .ln{opacity:.32;color:#fff;display:block;} .jlanes .ln.v{opacity:1;} .jlanes .ln svg{display:block;}
 .jdest{font:700 14px/1.2 system-ui,sans-serif;text-align:center;} .jex{display:inline-block;background:#fff;color:#0b5fd0;border-radius:4px;padding:0 5px;margin-right:5px;font-weight:800;}
 @media (max-width:760px),(max-aspect-ratio:1/1){ .navjv{top:auto;bottom:150px;left:8px;} .jroad{width:120px;height:90px;} }
-.fwin.flat .navjv{top:84px;}
+.fwin.flat .navjv{top:auto;bottom:110px;}
 
-.navwrap.emb .navjv{left:auto;right:12px;}
+.navwrap.emb .navjv{left:8px;right:auto;}
