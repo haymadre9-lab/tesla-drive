@@ -159,22 +159,23 @@
   // Cartel de maniobra. Autopista: azul con letras blancas. Carretera general: blanco con letras negras.
   const ESC = t => String(t == null ? '' : t).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c]);
   const ANG = { straight: 0, 'slight right': 35, right: 90, 'sharp right': 135, uturn: 180, 'sharp left': -135, left: -90, 'slight left': -35 };
-  // Flecha de carril estilo C: trazo fino que sube y se curva hacia la maniobra, con punta sólida
-  const laneArrow = inds => {
+  // Flecha de carril sin recuadro. La que se toma: blanca, más larga y más ancha. Las demás: grises y finas.
+  const laneArrow = (inds, on) => {
     const k = (inds && inds[0]) || 'straight';
+    const W = on ? 2.8 : 1.8, R = on ? 10.5 : 8.5, H = on ? 6 : 4.2, T = on ? 7 : 5;
     let d, head;
     if (k === 'uturn') {
-      d = 'M8 21 V11 C8 4 18 4 18 11 L18 15';
-      head = 'M18 18 L13.5 10.5 L22.5 10.5 Z';
+      d = 'M8 22 V11 C8 3 18 3 18 11 L18 15';
+      head = 'M18 19 L' + (18 - H) + ' 10.5 L' + (18 + H) + ' 10.5 Z';
     } else {
       const a = ANG[k] || 0, r = a * Math.PI / 180;
-      const ex = 12 + 9 * Math.sin(r), ey = 12 - 9 * Math.cos(r);
+      const ex = 12 + R * Math.sin(r), ey = 12 - R * Math.cos(r);
       let dx = ex - 12, dy = ey - 12; const L = Math.hypot(dx, dy) || 1; dx /= L; dy /= L;
       const px = -dy, py = dx, tx = ex + dx * 1.5, ty = ey + dy * 1.5;
-      d = 'M12 21 Q12 12 ' + (ex - dx * 2).toFixed(2) + ' ' + (ey - dy * 2).toFixed(2);
-      head = 'M' + tx.toFixed(2) + ' ' + ty.toFixed(2) + ' L' + (tx - dx * 6 + px * 4.5).toFixed(2) + ' ' + (ty - dy * 6 + py * 4.5).toFixed(2) + ' L' + (tx - dx * 6 - px * 4.5).toFixed(2) + ' ' + (ty - dy * 6 - py * 4.5).toFixed(2) + ' Z';
+      d = 'M12 22 Q12 12 ' + (ex - dx * 2).toFixed(2) + ' ' + (ey - dy * 2).toFixed(2);
+      head = 'M' + tx.toFixed(2) + ' ' + ty.toFixed(2) + ' L' + (tx - dx * T + px * H).toFixed(2) + ' ' + (ty - dy * T + py * H).toFixed(2) + ' L' + (tx - dx * T - px * H).toFixed(2) + ' ' + (ty - dy * T - py * H).toFixed(2) + ' Z';
     }
-    return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + d + '" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="' + head + '" fill="currentColor"/></svg>';
+    return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + d + '" fill="none" stroke="currentColor" stroke-width="' + W + '" stroke-linecap="round" stroke-linejoin="round"/><path d="' + head + '" fill="currentColor"/></svg>';
   };
   // Cartel de maniobra. Autopista: azul con letras blancas. Carretera general: blanco con letras negras.
   // Con carriles: flechas de carril (la que se coge en blanco, las demás en negro), distancia y nombre de la vía o pueblo.
@@ -183,7 +184,7 @@
     const cls = st.hw ? 'hw' : 'gen';
     const name = st.dest || st.street || '';
     if (st.lanes && st.lanes.length >= 2) {
-      const lanes = st.lanes.map(l => '<div class="l3-lane ' + (l.valid ? 'on' : 'off') + '">' + laneArrow(l.indications) + '</div>').join('');
+      const lanes = st.lanes.map(l => '<div class="l3-lane ' + (l.valid ? 'on' : 'off') + '">' + laneArrow(l.indications, !!l.valid) + '</div>').join('');
       return '<div class="l3-board d ' + cls + '">' +
         '<div class="l3-dtop"><span>' + (st.exit ? 'Salida ' + ESC(st.exit) : 'Salida') + '</span><span class="l3-dist">' + dist + '</span></div>' +
         '<div class="l3-lanes">' + lanes + '</div>' +
@@ -255,12 +256,12 @@
     '.l3-dtop{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;font-weight:700;font-size:14px}' +
     '.l3-dist{font-size:18px;font-variant-numeric:tabular-nums}' +
     '.l3-lanes{display:flex;gap:4px;padding:0 8px 8px}' +
-    '.l3-lane{flex:1;height:44px;border-radius:5px;display:flex;align-items:center;justify-content:center;box-sizing:border-box}' +
-    '.l3-lane svg{width:24px;height:24px}' +
-    '.l3-board.hw .l3-lane.on{background:#fff;color:#0b5fd0}' +
-    '.l3-board.hw .l3-lane.off{background:#111;color:#fff}' +
-    '.l3-board.gen .l3-lane.on{background:#111;color:#fff}' +
-    '.l3-board.gen .l3-lane.off{background:#fff;color:#111;border:2px solid #111}' +
+    '.l3-lane{flex:1;height:48px;display:flex;align-items:center;justify-content:center;box-sizing:border-box}' +
+    '.l3-lane svg{width:34px;height:40px}' +
+    '.l3-board.hw .l3-lane.on{color:#fff}' +
+    '.l3-board.hw .l3-lane.off{color:#8d9bb0}' +
+    '.l3-board.gen .l3-lane.on{color:#111}' +
+    '.l3-board.gen .l3-lane.off{color:#8a909b}' +
     '.l3-dname{padding:6px 10px;background:rgba(0,0,0,.2);font-size:14px;font-weight:700;text-align:left}' +
     '.l3-board.gen .l3-dname{background:#e9ecf1;color:#111;border-top:2px solid #111}' +
     '.l3-nm{font-size:13px;font-weight:600;opacity:.9;margin-top:3px}';
