@@ -156,29 +156,37 @@
     if (this.ready) { this.build(); this.resize(); }
   };
 
-  Lane3D.prototype.setDistance = function (d) { if (this.last) { this.last.distance = d; this.renderSign(this.last); } };
-
-  Lane3D.prototype.renderSign = function (st) {
+  // Cartel de maniobra. Autopista: azul con letras blancas. Carretera general: blanco con letras negras.
+  function signHTML(st) {
     const left = st.side === 'left', dist = st.distance ? Math.round(st.distance / 10) * 10 + ' m' : '';
     const txt = st.side === 'straight' ? 'Continúa recto' : 'Sal ' + (left ? 'a la izquierda' : 'a la derecha');
     const arrow = left ? 'M46 6 L6 40 L46 74 L46 52 L72 52 L72 28 L46 28 Z' : 'M26 6 L66 40 L26 74 L26 52 L0 52 L0 28 L26 28 Z';
     const num = st.exit ? '<div class="l3-n">' + String(st.exit).replace(/[<&]/g, '') + '</div>' : '';
-    this.sign.innerHTML = '<div class="l3-board">' +
-      '<div class="l3-top"><svg viewBox="0 0 78 80" aria-hidden="true"><path d="' + arrow + '" fill="#fff"/></svg>' + num + '<div class="l3-tx"><div class="l3-k">Salida</div><div class="l3-m">' + txt + '</div></div></div>' +
+    return '<div class="l3-board ' + (st.hw ? 'hw' : 'gen') + '">' +
+      '<div class="l3-top"><svg viewBox="0 0 78 80" aria-hidden="true"><path d="' + arrow + '" fill="currentColor"/></svg>' + num + '<div class="l3-tx"><div class="l3-k">Salida</div><div class="l3-m">' + txt + '</div></div></div>' +
       '<div class="l3-d">' + dist + '</div></div>';
-  };
+  }
+  Lane3D.signHTML = signHTML;
+  Lane3D.prototype.setDistance = function (d) { if (this.last) { this.last.distance = d; this.renderSign(this.last); } };
+  Lane3D.prototype.renderSign = function (st) { this.sign.innerHTML = signHTML(st); };
 
   const STYLE = '.l3-wrap{position:relative;width:240px;height:210px;flex:none;border-radius:14px;overflow:hidden;background:#0f131a}' +
     '.l3-cv{display:block;width:100%;height:100%}' +
     '.l3-sign{position:absolute;left:12px;right:12px;top:12px}' +
-    '.l3-board{background:linear-gradient(180deg,#2a8a50,#1b6237);color:#fff;border:3px solid #fff;border-radius:12px;box-shadow:0 8px 20px rgba(0,0,0,.4),inset 0 0 0 2px rgba(255,255,255,.12);font-family:system-ui,-apple-system,sans-serif;overflow:hidden}' +
+    '.l3sign{width:240px;flex:none}' +
+    '.l3-board{background:#1b6237;color:#fff;border:3px solid #fff;border-radius:12px;box-shadow:0 8px 20px rgba(0,0,0,.4),inset 0 0 0 2px rgba(255,255,255,.12);font-family:system-ui,-apple-system,sans-serif;overflow:hidden}' +
     '.l3-top{display:flex;align-items:center;gap:12px;padding:10px 14px}' +
     '.l3-top svg{width:36px;height:36px;flex:0 0 auto;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3))}' +
     '.l3-n{min-width:34px;height:34px;font-size:18px;padding:0 8px;box-sizing:border-box;border-radius:8px;background:#fff;color:#1b6237;font-weight:800;display:flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums}' +
     '.l3-tx{min-width:0;flex:1}' +
     '.l3-k{font-size:11px;letter-spacing:.1em;text-transform:uppercase;opacity:.85}' +
     '.l3-m{font-size:16px;font-weight:700;line-height:1.1;text-wrap:balance}' +
-    '.l3-d{background:rgba(0,0,0,.22);padding:6px 14px;font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;text-align:right;border-top:2px solid rgba(255,255,255,.35)}';
+    '.l3-d{background:rgba(0,0,0,.22);padding:6px 14px;font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;text-align:right;border-top:2px solid rgba(255,255,255,.35)}' +
+    '.l3-board.hw{background:#0b5fd0;color:#fff;border-color:#fff}' +
+    '.l3-board.hw .l3-n{background:#fff;color:#0b5fd0}' +
+    '.l3-board.gen{background:#fff;color:#111;border-color:#111}' +
+    '.l3-board.gen .l3-n{background:#111;color:#fff}' +
+    '.l3-board.gen .l3-d{background:#e9ecf1;border-top-color:#111;color:#111}';
   if (typeof document !== 'undefined' && !document.getElementById('l3-style')) {
     const s = document.createElement('style'); s.id = 'l3-style'; s.textContent = STYLE; document.head.appendChild(s);
   }
