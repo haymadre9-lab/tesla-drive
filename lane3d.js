@@ -162,18 +162,23 @@
     const left = st.side === 'left', dist = st.distance ? Math.round(st.distance / 10) * 10 + ' m' : '';
     const txt = st.side === 'straight' ? 'Continúa recto' : 'Sal ' + (left ? 'a la izquierda' : 'a la derecha');
     const arrow = left ? 'M46 6 L6 40 L46 74 L46 52 L72 52 L72 28 L46 28 Z' : 'M26 6 L66 40 L26 74 L26 52 L0 52 L0 28 L26 28 Z';
-    this.sign.innerHTML = '<div class="l3-board"><svg viewBox="0 0 78 80" aria-hidden="true"><path d="' + arrow + '" fill="#fff"/></svg><div class="l3-tx"><div class="l3-k">Salida</div><div class="l3-m">' + txt + '</div></div><div class="l3-d">' + dist + '</div></div>';
+    const num = st.exit ? '<div class="l3-n">' + String(st.exit).replace(/[<&]/g, '') + '</div>' : '';
+    this.sign.innerHTML = '<div class="l3-board">' +
+      '<div class="l3-top"><svg viewBox="0 0 78 80" aria-hidden="true"><path d="' + arrow + '" fill="#fff"/></svg>' + num + '<div class="l3-tx"><div class="l3-k">Salida</div><div class="l3-m">' + txt + '</div></div></div>' +
+      '<div class="l3-d">' + dist + '</div></div>';
   };
 
   const STYLE = '.l3-wrap{position:relative;border-radius:14px;overflow:hidden;background:#0f131a}' +
     '.l3-cv{display:block;width:100%;aspect-ratio:4/4.6}' +
-    '.l3-sign{position:absolute;left:10px;right:10px;top:10px}' +
-    '.l3-board{display:flex;align-items:center;gap:12px;background:linear-gradient(#237a45,#1d6a3c);color:#fff;border:3px solid #fff;border-radius:10px;padding:10px 14px;box-shadow:0 6px 16px rgba(0,0,0,.35);font-family:system-ui,sans-serif}' +
-    '.l3-board svg{width:44px;height:44px;flex:0 0 auto}' +
+    '.l3-sign{position:absolute;left:12px;right:12px;top:12px}' +
+    '.l3-board{background:linear-gradient(180deg,#2a8a50,#1b6237);color:#fff;border:3px solid #fff;border-radius:12px;box-shadow:0 8px 20px rgba(0,0,0,.4),inset 0 0 0 2px rgba(255,255,255,.12);font-family:system-ui,-apple-system,sans-serif;overflow:hidden}' +
+    '.l3-top{display:flex;align-items:center;gap:12px;padding:10px 14px}' +
+    '.l3-top svg{width:46px;height:46px;flex:0 0 auto;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3))}' +
+    '.l3-n{min-width:40px;height:40px;padding:0 8px;box-sizing:border-box;border-radius:8px;background:#fff;color:#1b6237;font-weight:800;font-size:22px;display:flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums}' +
     '.l3-tx{min-width:0;flex:1}' +
-    '.l3-k{font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.85}' +
-    '.l3-m{font-size:20px;font-weight:700;line-height:1.1}' +
-    '.l3-d{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}';
+    '.l3-k{font-size:11px;letter-spacing:.1em;text-transform:uppercase;opacity:.85}' +
+    '.l3-m{font-size:21px;font-weight:700;line-height:1.1;text-wrap:balance}' +
+    '.l3-d{background:rgba(0,0,0,.22);padding:6px 14px;font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;text-align:right;border-top:2px solid rgba(255,255,255,.35)}';
   if (typeof document !== 'undefined' && !document.getElementById('l3-style')) {
     const s = document.createElement('style'); s.id = 'l3-style'; s.textContent = STYLE; document.head.appendChild(s);
   }
