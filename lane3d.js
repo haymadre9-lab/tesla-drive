@@ -157,13 +157,27 @@
   };
 
   // Cartel de maniobra. Autopista: azul con letras blancas. Carretera general: blanco con letras negras.
+  const ESC = t => String(t == null ? '' : t).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c]);
+  const ANG = { straight: 0, 'slight right': 35, right: 90, 'sharp right': 135, uturn: 180, 'sharp left': -135, left: -90, 'slight left': -35 };
+  const laneArrow = inds => { const a = ANG[(inds && inds[0]) || 'straight'] || 0; return '<svg viewBox="0 0 24 24" aria-hidden="true"><g transform="rotate(' + a + ' 12 12)"><path d="M12 21 V5 M6 11 L12 4 L18 11" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></g></svg>'; };
+  // Cartel de maniobra. Autopista: azul con letras blancas. Carretera general: blanco con letras negras.
+  // Con carriles: flechas de carril (la que se coge en blanco, las demás en negro), distancia y nombre de la vía o pueblo.
   function signHTML(st) {
     const left = st.side === 'left', dist = st.distance ? Math.round(st.distance / 10) * 10 + ' m' : '';
+    const cls = st.hw ? 'hw' : 'gen';
+    const name = st.dest || st.street || '';
+    if (st.lanes && st.lanes.length >= 2) {
+      const lanes = st.lanes.map(l => '<div class="l3-lane ' + (l.valid ? 'on' : 'off') + '">' + laneArrow(l.indications) + '</div>').join('');
+      return '<div class="l3-board d ' + cls + '">' +
+        '<div class="l3-dtop"><span>' + (st.exit ? 'Salida ' + ESC(st.exit) : 'Salida') + '</span><span class="l3-dist">' + dist + '</span></div>' +
+        '<div class="l3-lanes">' + lanes + '</div>' +
+        (name ? '<div class="l3-dname">' + ESC(name) + '</div>' : '') + '</div>';
+    }
     const txt = st.side === 'straight' ? 'Continúa recto' : 'Sal ' + (left ? 'a la izquierda' : 'a la derecha');
     const arrow = left ? 'M46 6 L6 40 L46 74 L46 52 L72 52 L72 28 L46 28 Z' : 'M26 6 L66 40 L26 74 L26 52 L0 52 L0 28 L26 28 Z';
-    const num = st.exit ? '<div class="l3-n">' + String(st.exit).replace(/[<&]/g, '') + '</div>' : '';
-    return '<div class="l3-board ' + (st.hw ? 'hw' : 'gen') + '">' +
-      '<div class="l3-top"><svg viewBox="0 0 78 80" aria-hidden="true"><path d="' + arrow + '" fill="currentColor"/></svg>' + num + '<div class="l3-tx"><div class="l3-k">Salida</div><div class="l3-m">' + txt + '</div></div></div>' +
+    const num = st.exit ? '<div class="l3-n">' + ESC(st.exit) + '</div>' : '';
+    return '<div class="l3-board ' + cls + '">' +
+      '<div class="l3-top"><svg viewBox="0 0 78 80" aria-hidden="true"><path d="' + arrow + '" fill="currentColor"/></svg>' + num + '<div class="l3-tx"><div class="l3-k">Salida</div><div class="l3-m">' + txt + '</div>' + (name ? '<div class="l3-nm">' + ESC(name) + '</div>' : '') + '</div></div>' +
       '<div class="l3-d">' + dist + '</div></div>';
   }
   Lane3D.signHTML = signHTML;
@@ -186,7 +200,20 @@
     '.l3-board.hw .l3-n{background:#fff;color:#0b5fd0}' +
     '.l3-board.gen{background:#fff;color:#111;border-color:#111}' +
     '.l3-board.gen .l3-n{background:#111;color:#fff}' +
-    '.l3-board.gen .l3-d{background:#e9ecf1;border-top-color:#111;color:#111}';
+    '.l3-board.gen .l3-d{background:#e9ecf1;border-top-color:#111;color:#111}' +
+    '.l3-board.d{border-radius:10px}' +
+    '.l3-dtop{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;font-weight:700;font-size:14px}' +
+    '.l3-dist{font-size:18px;font-variant-numeric:tabular-nums}' +
+    '.l3-lanes{display:flex;gap:4px;padding:0 8px 8px}' +
+    '.l3-lane{flex:1;height:44px;border-radius:5px;display:flex;align-items:center;justify-content:center;box-sizing:border-box}' +
+    '.l3-lane svg{width:24px;height:24px}' +
+    '.l3-board.hw .l3-lane.on{background:#fff;color:#0b5fd0}' +
+    '.l3-board.hw .l3-lane.off{background:#111;color:#fff}' +
+    '.l3-board.gen .l3-lane.on{background:#111;color:#fff}' +
+    '.l3-board.gen .l3-lane.off{background:#fff;color:#111;border:2px solid #111}' +
+    '.l3-dname{padding:6px 10px;background:rgba(0,0,0,.2);font-size:14px;font-weight:700;text-align:left}' +
+    '.l3-board.gen .l3-dname{background:#e9ecf1;color:#111;border-top:2px solid #111}' +
+    '.l3-nm{font-size:13px;font-weight:600;opacity:.9;margin-top:3px}';
   if (typeof document !== 'undefined' && !document.getElementById('l3-style')) {
     const s = document.createElement('style'); s.id = 'l3-style'; s.textContent = STYLE; document.head.appendChild(s);
   }
