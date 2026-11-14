@@ -159,22 +159,22 @@
   // Cartel de maniobra. Autopista: azul con letras blancas. Carretera general: blanco con letras negras.
   const ESC = t => String(t == null ? '' : t).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c]);
   const ANG = { straight: 0, 'slight right': 35, right: 90, 'sharp right': 135, uturn: 180, 'sharp left': -135, left: -90, 'slight left': -35 };
-  // Flecha de carril redondeada: recta hacia arriba y curva hacia la dirección de la maniobra
+  // Flecha de carril estilo C: trazo fino que sube y se curva hacia la maniobra, con punta sólida
   const laneArrow = inds => {
     const k = (inds && inds[0]) || 'straight';
     let d, head;
     if (k === 'uturn') {
-      d = 'M8 21 V11 C8 4 18 4 18 11 L18 14';
-      head = 'M14 11 L18 16 L22 11';
+      d = 'M8 21 V11 C8 4 18 4 18 11 L18 15';
+      head = 'M18 18 L13.5 10.5 L22.5 10.5 Z';
     } else {
       const a = ANG[k] || 0, r = a * Math.PI / 180;
       const ex = 12 + 9 * Math.sin(r), ey = 12 - 9 * Math.cos(r);
-      d = 'M12 21 Q12 12 ' + ex.toFixed(2) + ' ' + ey.toFixed(2);
       let dx = ex - 12, dy = ey - 12; const L = Math.hypot(dx, dy) || 1; dx /= L; dy /= L;
-      const px = -dy, py = dx, tx = ex + dx * 0.5, ty = ey + dy * 0.5;
-      head = 'M' + (tx - dx * 4 + px * 4).toFixed(2) + ' ' + (ty - dy * 4 + py * 4).toFixed(2) + ' L' + tx.toFixed(2) + ' ' + ty.toFixed(2) + ' L' + (tx - dx * 4 - px * 4).toFixed(2) + ' ' + (ty - dy * 4 - py * 4).toFixed(2);
+      const px = -dy, py = dx, tx = ex + dx * 1.5, ty = ey + dy * 1.5;
+      d = 'M12 21 Q12 12 ' + (ex - dx * 2).toFixed(2) + ' ' + (ey - dy * 2).toFixed(2);
+      head = 'M' + tx.toFixed(2) + ' ' + ty.toFixed(2) + ' L' + (tx - dx * 6 + px * 4.5).toFixed(2) + ' ' + (ty - dy * 6 + py * 4.5).toFixed(2) + ' L' + (tx - dx * 6 - px * 4.5).toFixed(2) + ' ' + (ty - dy * 6 - py * 4.5).toFixed(2) + ' Z';
     }
-    return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + d + '" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><path d="' + head + '" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + d + '" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="' + head + '" fill="currentColor"/></svg>';
   };
   // Cartel de maniobra. Autopista: azul con letras blancas. Carretera general: blanco con letras negras.
   // Con carriles: flechas de carril (la que se coge en blanco, las demás en negro), distancia y nombre de la vía o pueblo.
