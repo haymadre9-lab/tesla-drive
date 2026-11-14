@@ -434,13 +434,31 @@ const Nav = (() => {
       <path d="${path}" fill="none" stroke="#fff" stroke-width="15" stroke-linecap="round" stroke-linejoin="round" opacity=".92"/><path d="${path}" fill="none" stroke="${col}" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
       <g transform="translate(${hx} ${hy}) rotate(${rot})"><polygon points="-15,3 15,3 0,-20" fill="#fff"/><polygon points="-10,1 10,1 0,-14" fill="${col}"/></g></svg>`;
   }
+  /* Carriles de respaldo desde OpenStreetMap (Overpass) cuando OSRM no los trae: etiqueta turn:lanes de la vía cercana */
+  const OSM_LANE = { left: 'left', slight_left: 'slight left', sharp_left: 'sharp left', through: 'straight', slight_right: 'slight right', sharp_right: 'sharp right', right: 'right', reverse: 'uturn', merge_to_left: 'straight', merge_to_right: 'straight' };
+  const MOD_IND = { left: 'left', 'slight left': 'slight left', 'sharp left': 'sharp left', right: 'right', 'slight right': 'slight right', 'sharp right': 'sharp right', straight: 'straight', uturn: 'uturn' };
+  function parseTurnLanes(str, m) {
+    const want = MOD_IND[m.modifier] || (/roundabout|rotary/.test(m.type) ? 'straight' : null);
+    return str.split('|').map(l => { const ind = l.trim() === '' || l.trim() === 'none' ? [] : l.split(';').map(x => OSM_LANE[x.trim()]).filter(Boolean); return { valid: !!want && ind.includes(want), indications: ind }; });
+  }
+  async function osmLanes(lat, lon) {
+    const q = `[out:json][timeout:8];way(around:35,${lat},${lon})["highway"]["turn:lanes"];out tags 3;`;
+    const ac = new AbortController(), tm = setTimeout(() => ac.abort(), 9000);
+    try { const r = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: 'data=' + encodeURIComponent(q), signal: ac.signal }); const j = await r.json(); const w = (j.elements || [])[0]; return w && w.tags ? w.tags['turn:lanes'] : null; }
+    catch (e) { return null; } finally { clearTimeout(tm); }
+  }
   function junction(nx, cur, dN, force) {
+    N.lastJ = [nx, cur, dN, force];
     const el = $('#njv', N.el); if (!el) return; const m = nx.maneuver, t = m.type;
-    const lanes = (() => { const it = (cur && cur.intersections) || []; for (let i = it.length - 1; i >= 0; i--) if (it[i].lanes && it[i].lanes.length) return it[i].lanes; return null; })();
+    let lanes = (() => { const it = (cur && cur.intersections) || []; for (let i = it.length - 1; i >= 0; i--) if (it[i].lanes && it[i].lanes.length) return it[i].lanes; return null; })();
+    const osm = (() => { const mm = nx.maneuver; if (lanes || !mm.location || dN > 650 || S.junction === false) return null; const k = mm.location[1].toFixed(4) + ',' + mm.location[0].toFixed(4); N.olanes = N.olanes || {};
+      if (!(k in N.olanes)) { N.olanes[k] = null; osmLanes(mm.location[1], mm.location[0]).then(tags => { N.olanes[k] = tags; if (tags && N.lastJ) junction(...N.lastJ); }); }
+      return N.olanes[k] ? parseTurnLanes(N.olanes[k], mm) : null; })();
+    if (osm) lanes = osm;
     const dest = nx.destinations || '', ex = nx.exits || '';
     const show = force || S.junction !== false && dN <= 650 && !/^(depart|arrive|notification|new name)$/.test(t) && !((m.modifier === 'straight' || !m.modifier) && t !== 'roundabout' && t !== 'rotary' && !lanes && !dest);
     if (!show) { if (!el.hidden) { el.hidden = true; el.dataset.k = ''; } return; }
-    const key = (force ? 'demo' : '') + N.idx + '|' + t + '|' + (m.modifier || '') + '|' + (m.exit || '') + '|' + (nx.destinations || '') + '|' + (S.accent || '');
+    const key = (force ? 'demo' : '') + N.idx + '|' + t + '|' + (m.modifier || '') + '|' + (m.exit || '') + '|' + (nx.destinations || '') + '|' + (lanes ? 'L' + lanes.length + (lanes.some(l => l.valid) ? 'v' : '') : '') + '|' + (S.accent || '');
     if (el.dataset.k !== key) {
       el.dataset.k = key; const col = '#ff3d9a';
       const sign = lanes || dest || ex ? `<div class="jsign">${lanes ? `<div class="jlanes">${lanes.map(l => `<span class="ln ${l.valid ? 'v' : ''}">${laneSvg(l.indications || [])}</span>`).join('')}</div>` : ''}${dest || ex ? `<div class="jdest">${ex ? `<span class="jex">${esc(ex)}</span>` : ''}${esc(dest.split(',').slice(0, 3).join(' · '))}</div>` : ''}</div>` : '';
