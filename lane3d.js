@@ -195,10 +195,11 @@
     }
     const txt = st.side === 'straight' ? 'Continúa recto' : 'Sal ' + (left ? 'a la izquierda' : 'a la derecha');
     const arrow = left ? 'M46 6 L6 40 L46 74 L46 52 L72 52 L72 28 L46 28 Z' : 'M26 6 L66 40 L26 74 L26 52 L0 52 L0 28 L26 28 Z';
-    const num = st.exit ? '<div class="l3-n">' + ESC(st.exit) + '</div>' : '';
-    return '<div class="l3-board ' + cls + '">' +
-      '<div class="l3-top">' + laneArrow([st.side === 'left' ? 'left' : st.side === 'right' ? 'right' : 'straight'], true) + num + '<div class="l3-tx"><div class="l3-k">Salida</div><div class="l3-m">' + txt + '</div>' + (name ? '<div class="l3-nm">' + ESC(name) + '</div>' : '') + '</div></div>' +
-      '<div class="l3-d">' + dist + '</div></div>';
+    // Opción 6: flecha, salida y destino en fila; la distancia arriba a la derecha. Azul en autopista, blanco en general.
+    const arrowSvg = laneArrow([st.side === 'left' ? 'left' : st.side === 'right' ? 'right' : 'straight'], true);
+    const small = st.exit ? 'Salida ' + ESC(st.exit) : 'Salida';
+    return '<div class="l3-board ' + cls + ' l3-six">' +
+      '<div class="l3-row">' + arrowSvg + '<div class="l3-tx"><small>' + small + '</small><b>' + ESC(name || txt) + '</b></div><div class="l3-dist">' + dist + '</div></div></div>';
   }
   Lane3D.signHTML = signHTML;
   // Herramientas del panel: −/+ para el tamaño, ⠿ para mover. Se guardan con store.save (ajustes de la app).
@@ -273,6 +274,12 @@
     '.l3-board.gen .l3-n{background:#111;color:#fff}' +
     '.l3-board.gen .l3-d{background:#e9ecf1;border-top-color:#111;color:#111}' +
     '.l3-board{width:240px;height:150px;box-sizing:border-box;overflow:hidden}' +
+    '.l3-six .l3-row{display:flex;align-items:center;gap:10px;padding:12px}' +
+    '.l3-six svg{width:46px;height:46px;flex:0 0 auto}' +
+    '.l3-six .l3-tx{min-width:0;flex:1}' +
+    '.l3-six .l3-tx small{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;opacity:.85}' +
+    '.l3-six .l3-tx b{display:block;font-size:18px;line-height:1.1}' +
+    '.l3-six .l3-dist{font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;align-self:flex-start;white-space:nowrap}' +
     '.l3-board.d{border-radius:10px}' +
     '.l3-dtop{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;font-weight:700;font-size:14px}' +
     '.l3-dist{font-size:18px;font-variant-numeric:tabular-nums}' +
