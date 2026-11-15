@@ -76,5 +76,13 @@ const Keys = (() => {
   }
   setInterval(() => { if (code() !== cur) start(); }, 3000); setTimeout(start, 800);
   CATS.mapa[1].push({ t: 'btn', get l() { return 'Enviar claves (IA, TomTom, YouTube…) al otro dispositivo, cifradas'; }, f: sendDlg });
+  function ocmDlg() {
+    dlg(`<h3>Clave de Open Charge Map</h3><div class="note">Para ver la potencia de los cargadores. Se guarda solo en este dispositivo.</div><input id="ocmk" type="password" value="${esc(LS.get('leco.ocm') || '')}" style="width:100%;padding:10px;box-sizing:border-box" autocomplete="off"><div class="acts"><button class="btn" id="ocms">Guardar</button><button class="btn sec" id="ocmd">Borrar</button><button class="btn sec" id="ocmx">Cerrar</button></div>`, d => {
+      $('#ocms', d).onclick = () => { LS.set('leco.ocm', $('#ocmk', d).value.trim()); closeDlg(); toast('Clave guardada en este dispositivo'); };
+      $('#ocmd', d).onclick = () => { LS.set('leco.ocm', ''); closeDlg(); toast('Clave borrada'); };
+      $('#ocmx', d).onclick = closeDlg;
+    });
+  }
+  if (typeof CATS !== 'undefined' && CATS.mapa) CATS.mapa[1].push({ t: 'btn', get l() { return 'Clave de Open Charge Map (cargadores): ' + (LS.get('leco.ocm') ? 'configurada' : 'sin clave'); }, f: ocmDlg });
   return { send, sendDlg, start, derive, encrypt, decrypt, ITEMS };
 })();
