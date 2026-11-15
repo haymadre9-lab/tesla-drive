@@ -182,10 +182,45 @@
   };
   // Cartel de maniobra. Autopista: azul con letras blancas. Carretera general: blanco con letras negras.
   // Con carriles: flechas de carril (la que se coge en blanco, las demás en negro), distancia y nombre de la vía o pueblo.
+  // Rotonda vista desde arriba. La entrada está abajo (90°); el tramo recorrido va marcado y la salida elegida
+  // lleva punta de flecha. El número de la salida va dentro de la rotonda.
+  const RB_ARM = { 1: 0, 2: -90, 3: -180 };
+  function roundaboutSVG(exit) {
+    const pt = (a, r) => [50 + r * Math.cos(a * Math.PI / 180), 50 + r * Math.sin(a * Math.PI / 180)];
+    const f = v => v.toFixed(1);
+    const end = RB_ARM[exit] != null ? RB_ARM[exit] : 0;
+    let out = '<svg viewBox="0 0 100 100" aria-hidden="true">';
+    out += '<circle cx="50" cy="50" r="30" fill="none" stroke="currentColor" stroke-opacity=".3" stroke-width="7"/>';
+    out += '<circle cx="50" cy="50" r="18" fill="currentColor" fill-opacity=".1"/>';
+    // tramo recorrido: desde la entrada (90°) en sentido antihorario hasta la salida
+    let d = '';
+    for (let i = 0; i <= 24; i++) { const a = 90 + (end - 90) * i / 24, [x, y] = pt(a, 30); d += (i ? ' L' : 'M') + f(x) + ' ' + f(y); }
+    out += '<path d="' + d + '" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round"/>';
+    // brazo de salida con punta de flecha
+    const [x1, y1] = pt(end, 36), [x2, y2] = pt(end, 46), [hx, hy] = pt(end, 50);
+    const ux = Math.cos(end * Math.PI / 180), uy = Math.sin(end * Math.PI / 180);
+    const bx = hx - ux * 5, by = hy - uy * 5, px = -uy * 5, py = ux * 5;
+    out += '<line x1="' + f(x1) + '" y1="' + f(y1) + '" x2="' + f(bx) + '" y2="' + f(by) + '" stroke="currentColor" stroke-width="7" stroke-linecap="round"/>';
+    out += '<path d="M' + f(hx) + ' ' + f(hy) + ' L' + f(bx + px) + ' ' + f(by + py) + ' L' + f(bx - px) + ' ' + f(by - py) + ' Z" fill="currentColor"/>';
+    // número de la salida dentro de la rotonda
+    out += '<text x="50" y="57" font-size="22" font-weight="800" text-anchor="middle" fill="currentColor">' + (exit || '') + '</text>';
+    return out + '</svg>';
+  }
+  // Cartel de rotonda, formato 5: texto a la izquierda y rotonda a la derecha. Sin nombre de calle, el número de salida va en un recuadro.
+  function roundaboutBoard(st) {
+    const cls = st.hw ? 'hw' : 'gen';
+    const dist = st.distance ? Math.round(st.distance / 10) * 10 + ' m' : '';
+    const name = st.dest || st.street || '';
+    const box = st.exit && !name ? '<div class="l3-rbbox">' + ESC(st.exit) + '</div>' : '';
+    return '<div class="l3-board l3-rb ' + cls + '">' +
+      '<div class="l3-rbrow"><div class="l3-rbtx"><small>Rotonda</small>' + box + (name ? '<b>' + ESC(name) + '</b>' : '') + '<span class="l3-rbd">' + dist + '</span></div>' +
+      '<div class="l3-rbsvg">' + roundaboutSVG(st.exit) + '</div></div></div>';
+  }
   function signHTML(st) {
     const left = st.side === 'left', dist = st.distance ? Math.round(st.distance / 10) * 10 + ' m' : '';
     const cls = st.hw ? 'hw' : 'gen';
     const name = st.dest || st.street || '';
+    if (st.roundabout) return roundaboutBoard(st);
     if (st.lanes && st.lanes.length >= 2) {
       const lanes = st.lanes.map(l => '<div class="l3-lane ' + (l.valid ? 'on' : 'off') + '">' + laneArrow(l.indications, !!l.valid) + '</div>').join('');
       return '<div class="l3-board d ' + cls + '">' +
@@ -195,10 +230,11 @@
     }
     const txt = st.side === 'straight' ? 'Continúa recto' : 'Sal ' + (left ? 'a la izquierda' : 'a la derecha');
     const arrow = left ? 'M46 6 L6 40 L46 74 L46 52 L72 52 L72 28 L46 28 Z' : 'M26 6 L66 40 L26 74 L26 52 L0 52 L0 28 L26 28 Z';
-    const num = st.exit ? '<div class="l3-n">' + ESC(st.exit) + '</div>' : '';
-    return '<div class="l3-board ' + cls + '">' +
-      '<div class="l3-top">' + laneArrow([st.side === 'left' ? 'left' : st.side === 'right' ? 'right' : 'straight'], true) + num + '<div class="l3-tx"><div class="l3-k">Salida</div><div class="l3-m">' + txt + '</div>' + (name ? '<div class="l3-nm">' + ESC(name) + '</div>' : '') + '</div></div>' +
-      '<div class="l3-d">' + dist + '</div></div>';
+    // Opción 6: flecha, salida y destino en fila; la distancia arriba a la derecha. Azul en autopista, blanco en general.
+    const arrowSvg = laneArrow([st.side === 'left' ? 'left' : st.side === 'right' ? 'right' : 'straight'], true);
+    const small = st.exit ? 'Salida ' + ESC(st.exit) : 'Salida';
+    return '<div class="l3-board ' + cls + ' l3-six">' +
+      '<div class="l3-row">' + arrowSvg + '<div class="l3-tx"><small>' + small + '</small><b>' + ESC(name || txt) + '</b></div><div class="l3-dist">' + dist + '</div></div></div>';
   }
   Lane3D.signHTML = signHTML;
   // Herramientas del panel: −/+ para el tamaño, ⠿ para mover. Se guardan con store.save (ajustes de la app).
@@ -273,6 +309,23 @@
     '.l3-board.gen .l3-n{background:#111;color:#fff}' +
     '.l3-board.gen .l3-d{background:#e9ecf1;border-top-color:#111;color:#111}' +
     '.l3-board{width:240px;height:150px;box-sizing:border-box;overflow:hidden}' +
+    '.l3-rb .l3-rbrow{display:flex;align-items:center;gap:8px;padding:10px;height:100%;box-sizing:border-box}' +
+    '.l3-rb .l3-rbtx{min-width:0;flex:1;display:flex;flex-direction:column;gap:4px}' +
+    '.l3-rb .l3-rbtx small{font-size:11px;letter-spacing:.06em;text-transform:uppercase;opacity:.85}' +
+    '.l3-rb .l3-rbtx b{font-size:16px;line-height:1.15}' +
+    '.l3-rb .l3-rbbox{align-self:flex-start;background:#fff;color:#0b5fd0;font-weight:800;font-size:22px;padding:0 8px;border-radius:4px;line-height:30px}' +
+    '.l3-rb.gen .l3-rbbox{background:#111;color:#fff}' +
+    '.l3-rb .l3-rbd{margin-top:auto;font-size:18px;font-weight:800;font-variant-numeric:tabular-nums}' +
+    '.l3-rb .l3-rbsvg{width:104px;height:104px;flex:0 0 auto}' +
+    '.l3-rb .l3-rbsvg svg{width:100%;height:100%;display:block}' +
+    '.l3-board.hw.l3-rb{color:#fff}' +
+    '.l3-board.gen.l3-rb{color:#111}' +
+    '.l3-six .l3-row{display:flex;align-items:center;gap:10px;padding:12px}' +
+    '.l3-six svg{width:46px;height:46px;flex:0 0 auto}' +
+    '.l3-six .l3-tx{min-width:0;flex:1}' +
+    '.l3-six .l3-tx small{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;opacity:.85}' +
+    '.l3-six .l3-tx b{display:block;font-size:18px;line-height:1.1}' +
+    '.l3-six .l3-dist{font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;align-self:flex-start;white-space:nowrap}' +
     '.l3-board.d{border-radius:10px}' +
     '.l3-dtop{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;font-weight:700;font-size:14px}' +
     '.l3-dist{font-size:18px;font-variant-numeric:tabular-nums}' +
