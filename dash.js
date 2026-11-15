@@ -8,8 +8,8 @@ const PRESETS = [
   { id: 'speed', n: 'Velocímetro', i: '⚡', d: 'Velocidad grande, límite y brújula', skin: 'neon', accent: '#00e5ff', rows: 2, w: [['speedbig', 1, '2x2'], ['navinfo', 1, '2x1'], ['compass', 1, '1x1'], ['clock', 1, '1x1']] },
   { id: 'media', n: 'Música', i: '🎵', d: 'Reproductor y letras a pantalla grande', skin: 'sky', accent: '#b388ff', rows: 2, w: [['music', 1, '2x2'], ['lyrics', 1, '2x2'], ['clock', 1, '1x1'], ['weather', 1, '1x1']] },
   { id: 'minimal', n: 'Minimal', i: '▫️', d: 'Solo hora y velocidad, sin tarjetas', skin: 'minimal', accent: '#ffffff', rows: 1, w: [['clock', 1, '2x1'], ['speedbig', 1, '2x1']] },
-  { id: 'ciudad', n: 'Ciudad', i: '🏙️', d: 'Mapa con reloj, tiempo y velocidad; barra de direcciones abajo', skin: 'tesla', rows: 2, w: [['navmap', 1, '2x2'], ['clock', 1, '1x1'], ['weather', 1, '1x1'], ['speed', 1, '1x1']] },
-  { id: 'viaje', n: 'Viaje', i: '🛣️', d: 'Mapa con velocímetro Tesla; carteles y vista 3D de carriles', skin: 'tesla', noShade: true, rows: 1, w: [['navmap', 1, '2x2'], ['speedbig', 1, '1x2']] },
+  { id: 'ciudad', n: 'Ciudad', i: '🏙️', d: 'Mapa con reloj, tiempo y velocidad; barra de direcciones', skin: 'tesla', bar: true, sign: false, rows: 2, w: [['navmap', 1, '2x2'], ['clock', 1, '1x1'], ['weather', 1, '1x1'], ['speed', 1, '1x1']] },
+  { id: 'viaje', n: 'Viaje', i: '🛣️', d: 'Mapa con velocímetro Tesla; carteles y vista 3D de carriles', skin: 'tesla', noShade: true, bar: false, sign: true, rows: 1, w: [['navmap', 1, '2x2'], ['speedbig', 1, '1x2']] },
   { id: 'hud', n: 'HUD parabrisas', i: '🔆', d: 'Velocidad en espejo para reflejar en el cristal (móvil sobre el salpicadero)', skin: 'hud', accent: '#39ffb0', rows: 1, mirror: true, w: [['hud', 1, '1x1']] },
 ];
 const SPANS = ['1x1', '2x1', '1x2', '2x2'];
@@ -20,6 +20,7 @@ const Dash = (() => {
   if (!Array.isArray(S.dashboards) || !S.dashboards.length) S.dashboards = clone(PRESETS);
   S.dashboards = S.dashboards.filter(x => x.id !== 'drive' && x.id !== 'ev'); // quitados por petición: había demasiados
   PRESETS.forEach(p => { if (!S.dashboards.find(d => d.id === p.id) && !(S.dashGone || []).includes(p.id)) S.dashboards.push(clone(p)); });
+  S.dashboards.forEach(d => { const p = PRESETS.find(x => x.id === d.id); if (p && (p.id === 'ciudad' || p.id === 'viaje') && d.bar === undefined) { d.bar = p.bar; d.sign = p.sign; } });
   if (!S.dashboards.find(d => d.id === S.dash)) S.dash = 'classic';
 
   const cur = () => S.dashboards.find(d => d.id === S.dash) || S.dashboards[0];
@@ -204,6 +205,10 @@ const Dash = (() => {
     const row2 = el(`<div class="row"><div class="tx"><b>Estilo</b></div><select id="dskin">${SKINS.map(([k, l]) => `<option value="${k}" ${k === D.skin ? 'selected' : ''}>${l}</option>`).join('')}</select><input type="color" id="dacc" value="${D.accent || S.accent}"><select id="drows">${[0, 1, 2, 3].map(n => `<option value="${n}" ${(D.rows || 0) === n ? 'selected' : ''}>${n ? n + (n > 1 ? ' filas' : ' fila') : 'Filas: auto'}</option>`).join('')}</select></div>`);
     $('#dskin', row2).onchange = e => { D.skin = e.target.value; save(); applyTheme(); renderers.home(); };
     $('#dacc', row2).oninput = e => { D.accent = e.target.value; save(); applyTheme(); }; $('#drows', row2).onchange = e => { D.rows = +e.target.value || undefined; save(); renderers.home(); }; w.append(row2);
+    const sw2 = el(`<div class="row"><div class="tx"><b>Barra negra de próxima maniobra</b><small>La barra de direcciones arriba al centro. Vacío = la opción general de Ajustes → Mapa</small></div><div class="sw ${D.bar === undefined ? '' : D.bar ? 'on' : ''}"></div></div>`);
+    $('.sw', sw2).onclick = e => { D.bar = !(D.bar === true); e.currentTarget.classList.toggle('on', D.bar); save(); renderers.home(); }; w.append(sw2);
+    const sw3 = el(`<div class="row"><div class="tx"><b>Carteles y vista 3D de carriles</b><small>Los carteles azules y blancos con la vista 3D, encima del velocímetro. Vacío = la opción general de Ajustes → Mapa</small></div><div class="sw ${D.sign === undefined ? '' : D.sign ? 'on' : ''}"></div></div>`);
+    $('.sw', sw3).onclick = e => { D.sign = !(D.sign === true); e.currentTarget.classList.toggle('on', D.sign); save(); renderers.home(); }; w.append(sw3);
     const imm = el(`<div class="row"><div class="tx"><b>Pantalla completa inmersiva</b><small>Oculta la barra superior y el menú lateral en este dashboard; se abren con el botón ☰</small></div><div class="sw ${D.immersive ? 'on' : ''}"></div></div>`);
     $('.sw', imm).onclick = e => { D.immersive = !D.immersive; e.currentTarget.classList.toggle('on', !!D.immersive); save(); syncImm('home'); renderers.home(); }; w.append(imm);
     if (typeof Scene !== 'undefined' && Scene.available()) { const sr = el('<div class="row" style="flex-direction:column;align-items:stretch"><div class="tx"><b>Reloj de velocidad y mapa</b><small>Recoloca los relojes de la escena: lado y tamaño (el compacto deja ver más mapa)</small></div></div>'); sr.append(Scene.controls(() => renderers.settings())); w.append(sr); }
