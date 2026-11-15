@@ -487,14 +487,14 @@ const Nav = (() => {
       const side = jvDir(m) < -.1 ? 'left' : jvDir(m) > .1 ? 'right' : 'straight';
       if (!N.l3 || !el.contains(N.l3.el)) { el.innerHTML = Lane3D.toolsHTML + '<div class="l3host"></div><div class="l3dest"></div>'; N.l3 = new Lane3D($('.l3host', el), () => { const e2 = $('#njv', N.el); if (e2 && N.lastJ) { e2.dataset.k = ''; junction(...N.lastJ); } }); }
       const dd = $('.l3dest', el); if (dd && el.dataset.k !== key) dd.innerHTML = dest3;
-      if (el.dataset.k !== key) { el.dataset.k = key; N.l3.update({ side, lanes: lanes || [], hw, dest: dest.split(',')[0], street: nx.name || '', distance: dN, exit: m.exit || (ex.match(/\d+/) || [])[0] || '', scene: N.route && N.route.duration && N.route.distance / N.route.duration < 11 ? 'ciudad' : 'autopista', night: typeof mapDark === 'function' && mapDark() }); }
+      if (el.dataset.k !== key) { el.dataset.k = key; N.l3.update({ side, roundabout: /roundabout|rotary/.test(t), lanes: lanes || [], hw, dest: dest.split(',')[0], street: nx.name || '', distance: dN, exit: m.exit || (ex.match(/\d+/) || [])[0] || '', scene: N.route && N.route.duration && N.route.distance / N.route.duration < 11 ? 'ciudad' : 'autopista', night: typeof mapDark === 'function' && mapDark() }); }
       else N.l3.setDistance(dN);
       el.hidden = false; Lane3D.bindTools(el, { load: () => S.l3, save: v => { S.l3 = v; save(); } }); return;
     }
     if (window.Lane3D) { // sin carriles (o sin 3D): solo el cartel de maniobra; azul en autopista, blanco en carretera general
       const dest3 = dest || ex ? `<div class="jdest">${ex ? `<span class="jex">${esc(ex)}</span>` : ''}${esc(dest.split(',').slice(0, 3).join(' · '))}</div>` : '';
       const side = jvDir(m) < -.1 ? 'left' : jvDir(m) > .1 ? 'right' : 'straight';
-      el.innerHTML = Lane3D.toolsHTML + '<div class="l3sign">' + Lane3D.signHTML({ side, hw, distance: dN, lanes: lanes || null, dest: dest.split(',')[0], street: nx.name || '', exit: m.exit || (ex.match(/\d+/) || [])[0] || '' }) + '</div>' + dest3;
+      el.innerHTML = Lane3D.toolsHTML + '<div class="l3sign">' + Lane3D.signHTML({ side, roundabout: /roundabout|rotary/.test(t), hw, distance: dN, lanes: lanes || null, dest: dest.split(',')[0], street: nx.name || '', exit: m.exit || (ex.match(/\d+/) || [])[0] || '' }) + '</div>' + dest3;
       el.hidden = false; Lane3D.bindTools(el, { load: () => S.l3, save: v => { S.l3 = v; save(); } }); return;
     }
     if (el.dataset.k !== key) {
