@@ -281,7 +281,7 @@ const Nav = (() => {
     drawRoute(); if (N.dm) N.dm.remove(); N.dm = N.mx.marker([d.lat, d.lon], '<div class="poi" style="border-color:var(--acc);font-size:21px">🏁</div>', [36, 36]); drawStops();
     N.ttl = null; ttLanesFor([o, ...(stops || []).map(x => [x.lat, x.lon]), [d.lat, d.lon]]).then(res => { N.ttl = res; if (N.lastJ) { const e = $('#njv', N.el); if (e) { e.dataset.k = ''; junction(...N.lastJ); } } });
     if (!quiet) { saveRoute(d); if (!d.link && typeof Link !== 'undefined') Link.publish(d); N.mx.focus(N.fx, 0); N.mx.fit(N.coords); setTimeout(() => { N.follow = true; }, 4000); S.navRecent = [{ name: d.name, lat: d.lat, lon: d.lon, sub: d.sub || '', t: Date.now() }, ...(S.navRecent || []).filter(x => x.name !== d.name && dist([x.lat, x.lon], [d.lat, d.lon]) > 60)].slice(0, 15); save(); chips(); if (typeof Adv !== 'undefined') Adv.logTrip(d); say('Ruta calculada. ' + fmtD(rt.distance) + ' hasta ' + d.name); }
-    $('#nguide', N.el).hidden = false; $('#nbar', N.el).hidden = false; N.el.classList.add('guiding'); $('#nsim', N.el).hidden = false; update(o);
+    $('#nguide', N.el).hidden = false; $('#nbar', N.el).hidden = false; N.el.classList.add('guiding'); update(o);
     return true;
   }
   function stop() {
@@ -548,7 +548,7 @@ const Nav = (() => {
   }
   function simulate() {
     if (N.sim) { clearInterval(N.simT); N.sim = false; $('#nsim', N.el).textContent = '🧪 Simular ruta'; return; }
-    if (!N.coords.length) return; N.sim = true; $('#nsim', N.el).textContent = '⏹ Parar simulación'; N.follow = true;
+    if (!(N.coords && N.coords.length)) return toast('No hay ruta activa: haz una ruta primero', 3000); N.sim = true; $('#nsim', N.el).textContent = '⏹ Parar simulación'; N.follow = true;
     let i = 0, f = 0;
     N.simT = setInterval(() => {
       const c = N.coords, a = c[i], b = c[i + 1]; if (!b) { clearInterval(N.simT); return; }
@@ -560,5 +560,5 @@ const Nav = (() => {
     }, 1000);
   }
   function prefill(q) { go('map'); setTimeout(() => openSearch(q), 150); }
-  return { setStyle, cycleStyle: () => { const cur = (N.opt && N.opt.mapstyle) || S.mapStyle || 'auto'; setStyle(STYLE_CYCLE[(STYLE_CYCLE.indexOf(cur) + 1) % STYLE_CYCLE.length]); }, resume, refreshMan: () => { if (N.active && N.pos) update(N.pos); }, manSvg, applyStyle: () => applyStyle(), openPhone: () => navDlg(appById('maps') || { n: 'GPS', e: '🧭', k: 'gmaps' }), switchMap: () => Maps.switchFrom(N.el), setMode, toggle3d: () => { if (!N.mx) return; if (!N.mx.can3d) return toast('Este navegador no admite el mapa 3D'); setMode(!is3d()); toast(is3d() ? 'Vista 3D' : 'Vista 2D'); }, render, mount: el => render(el, true), onPos, prefill, routeTo, search, addStop, stopsDlg, goHome, demoJunction, savePlace, editPlace, placesDlg, state: N, instr, distToLine: distToRoute, summary: () => N.sum };
+  return { simulateToggle: () => simulate(), setStyle, cycleStyle: () => { const cur = (N.opt && N.opt.mapstyle) || S.mapStyle || 'auto'; setStyle(STYLE_CYCLE[(STYLE_CYCLE.indexOf(cur) + 1) % STYLE_CYCLE.length]); }, resume, refreshMan: () => { if (N.active && N.pos) update(N.pos); }, manSvg, applyStyle: () => applyStyle(), openPhone: () => navDlg(appById('maps') || { n: 'GPS', e: '🧭', k: 'gmaps' }), switchMap: () => Maps.switchFrom(N.el), setMode, toggle3d: () => { if (!N.mx) return; if (!N.mx.can3d) return toast('Este navegador no admite el mapa 3D'); setMode(!is3d()); toast(is3d() ? 'Vista 3D' : 'Vista 2D'); }, render, mount: el => render(el, true), onPos, prefill, routeTo, search, addStop, stopsDlg, goHome, demoJunction, savePlace, editPlace, placesDlg, state: N, instr, distToLine: distToRoute, summary: () => N.sum };
 })();
