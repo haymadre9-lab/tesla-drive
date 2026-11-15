@@ -144,6 +144,7 @@ const Nav = (() => {
     const age = Math.min(2.5, (Date.now() - F.fixT) / 1000), k = Math.exp(-dt / (N.coords.length ? .6 : 1.2)); F.off = [F.off[0] * k, F.off[1] * k];
     F.disp = [F.fix[0] + F.v[0] * age + F.off[0], F.fix[1] + F.v[1] * age + F.off[1]]; N.me.set(F.disp);
     if (N.hd != null) F.cb = F.cb == null ? N.hd : angLerp(F.cb, N.hd, 1 - Math.exp(-dt / .8));
+    if (F.cb != null && N.mx.kind !== 'gl') { const a = meEl(); if (a) a.style.setProperty('--h', F.cb + 'deg'); }
     const m = N.mx;
     if (m.kind === 'gl' && followCam() && N.el.isConnected) {
       const d3 = is3d(), kk = 1 - Math.exp(-dt / .5); m.focus(N.fx, d3 ? .4 : 0);
