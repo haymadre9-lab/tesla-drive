@@ -138,10 +138,13 @@
 
   Lane3D.prototype.frame = function () {
     if (!this.ready || !this.state || !this.cenAt) return;
-    // cámara del conductor, desplazada hacia la salida para que la curva quede en el encuadre
-    const pos = new T.Vector3(this.cenAt(this.state.sel, 0), 1.2, -4.2);
-    const look = new T.Vector3(this.cenAt(this.state.sel, 0) + (this.cenAt(this.state.sel, 18) - this.cenAt(this.state.sel, 0)) * 0.8, 0.4, 22);
-    this.cam.position.copy(pos); this.cam.lookAt(look);
+    // inclinación: 35° por defecto, sube hasta 45° al acercarse la maniobra (0° = cenital, 60° = conductor)
+    const k = Math.max(0, Math.min(1, (this.tilt || 35) / 60)), e = k * k * (3 - 2 * k);
+    const sel = this.state.sel, c0 = this.cenAt(sel, 0), c18 = this.cenAt(sel, 18);
+    const P0 = new T.Vector3(c0 * 0.5, 34, -2), P1 = new T.Vector3(c0, 1.2, -4.2);
+    const L0 = new T.Vector3(c0 * 0.5, 0, 8), L1 = new T.Vector3(c0 + (c18 - c0) * 0.8, 0.4, 22);
+    this.cam.position.lerpVectors(P0, P1, e);
+    this.cam.lookAt(L0.lerp(L1, e));
     this.r.render(this.scene, this.cam);
   };
 
@@ -151,7 +154,7 @@
     if (st.lanes) { const v = st.lanes.findIndex(l => l.valid); if (v >= 0) sel = v; }
     // el carril de la salida es el más cercano al lado de salida
     this.state = { D: st.side === 'left' ? 1 : -1, n, sel, scene: st.scene || 'autopista', night: !!st.night, side: st.side || 'straight' };
-    this.last = st;
+    this.last = st; this.tilt = tiltFor(st.distance);
     this.renderSign(st);
     if (this.ready) { this.build(); this.resize(); }
   };
@@ -244,7 +247,9 @@
     window.addEventListener('contextmenu', e => { if (owner(e.target)) e.preventDefault(); }, true);
   };
 
-  Lane3D.prototype.setDistance = function (d) { if (this.last) { this.last.distance = d; this.renderSign(this.last); } };
+  // 35° lejos, 45° a menos de 150 m de la maniobra
+  const tiltFor = d => d == null ? 35 : 35 + 10 * Math.max(0, Math.min(1, (650 - d) / 500));
+  Lane3D.prototype.setDistance = function (d) { this.tilt = tiltFor(d); if (this.last) { this.last.distance = d; this.renderSign(this.last); } };
   Lane3D.prototype.renderSign = function (st) { this.sign.innerHTML = signHTML(st); };
 
   const STYLE = '.l3-wrap{position:relative;display:flex;flex-direction:column;gap:8px;align-items:flex-start;max-width:calc(100vw - 40px)}' +
