@@ -136,6 +136,19 @@ const Poi = (() => {
   fetch('data/radares_tramo.json').then(r => r.json()).then(j => { TR.list = j.lista || []; }).catch(() => { });
   // Solo cuenta lo que está delante: el radar debe estar a menos de 60° de tu rumbo
   const ahead = (p, q, hdg) => hdg == null || angDiff(bearing(p, q), hdg) <= 60;
+  // Barra de progreso del tramo: lo recorrido, la media hasta ahora y la media que hay que mantener para cumplir
+  function tramoBar(z, cum, elapsed) {
+    let el = document.getElementById('tramoProg');
+    if (!el) { el = document.createElement('div'); el.id = 'tramoProg'; el.setAttribute('aria-live', 'polite'); document.body.appendChild(el); }
+    if (!z) { el.className = ''; el.innerHTML = ''; return; }
+    const len = z.len || 1, lim = z.lim, pct = Math.min(100, cum / len * 100), remain = Math.max(0, len - cum);
+    const avg = elapsed > 5 ? cum / elapsed * 3.6 : 0, tLeft = len / (lim / 3.6) - elapsed;
+    const need = tLeft > 5 ? remain / tLeft * 3.6 : 0;
+    el.className = 'on ' + (avg <= lim ? 'ok' : 'bad');
+    el.innerHTML = '<div class="tp-h"><b>Tramo · límite ' + lim + '</b><span>quedan ' + (remain / 1000).toFixed(1) + ' km</span></div>' +
+      '<div class="tp-b"><i style="width:' + pct.toFixed(1) + '%"></i></div>' +
+      '<div class="tp-f"><span>media ' + Math.round(avg) + ' km/h</span><span>' + (tLeft > 5 ? 'mantén ≤ ' + Math.round(need) + ' km/h' : 'tiempo cumplido') + '</span></div>';
+  }
   function tramoUpd(p, c) {
     if (!TR.list) return false;
     const hdg = c.heading != null && !isNaN(c.heading) ? c.heading : null;
@@ -143,7 +156,7 @@ const Poi = (() => {
       for (const z of TR.list) {
         const d = dist(p, [z.from.lat, z.from.lon]);
         if (d < 900 && !TR.warned[z.id] && ahead(p, [z.from.lat, z.from.lon], hdg)) { TR.warned[z.id] = true; toast(`Tramo de velocidad media a ${Math.round(d)} m · límite ${z.lim} km/h`, 5000); }
-        if (d < 120 && ahead(p, [z.to.lat, z.to.lon], hdg)) { TR.inside = z; TR.t0 = Date.now(); TR.cum = 0; TR.last = p; break; }
+        if (d < 120 && ahead(p, [z.to.lat, z.to.lon], hdg)) { TR.inside = z; TR.t0 = Date.now(); TR.cum = 0; TR.last = p; tramoBar(z, 0, 0); break; }
       }
       return false;
     }
@@ -151,8 +164,9 @@ const Poi = (() => {
     const elapsed = (Date.now() - TR.t0) / 1000, avg = elapsed > 5 ? TR.cum / elapsed * 3.6 : 0;
     if (dist(p, [z.to.lat, z.to.lon]) < 150 || elapsed > 3600) {
       if (TR.cum > 500 && elapsed > 30) toast(`Tramo: velocidad media ${Math.round(avg)} km/h · límite ${z.lim}`, 6000);
-      TR.inside = null; return false;
+      TR.inside = null; tramoBar(null); return false;
     }
+    tramoBar(z, TR.cum, elapsed);
     return elapsed > 30 && avg > z.lim;
   }
 
