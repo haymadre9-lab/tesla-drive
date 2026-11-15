@@ -539,7 +539,10 @@ const Nav = (() => {
     if (h == null) { // sin rumbo del GPS: se calcula desde un punto de referencia a ≥ 10 m (se mueve con el coche)
       if (!N.anchor) N.anchor = p; else { const da = dist(N.anchor, p); if (da >= 10 && (c.speed == null || sp > .8)) { h = (Math.atan2(rad(p[1] - N.anchor[1]) * Math.cos(rad(N.anchor[0])), rad(p[0] - N.anchor[0])) * 180 / Math.PI + 360) % 360; N.anchor = p; } else if (da > 60) N.anchor = p; }
     } else N.anchor = p;
-    if (h != null && (N.hd == null || Math.abs(((h - N.hd + 540) % 360) - 180) > 3.5)) N.hd = h; // banda muerta: ignora el temblor del rumbo del GPS
+    if (h != null) { // banda muerta y giro suave: a poca velocidad el rumbo del GPS tiembla mucho
+      if (N.hd == null) N.hd = h;
+      else { const df = ((h - N.hd + 540) % 360) - 180, slow = kmh < 15; if (Math.abs(df) > (slow ? 8 : 3.5)) N.hd = (N.hd + df * (slow ? 0.3 : 0.6) + 360) % 360; }
+    }
     const hh = rad(N.hd == null ? 0 : N.hd), kl = 111320;
     if (F.fix && c.speed != null && sp < .8 && dist(F.fix, p) < Math.max(8, (c.accuracy || 0))) { N.pos = F.fix; return; } // parado: el GPS «baila» unos metros; no se mueve ni se gira nada
     if (!F.disp || dist(F.disp, q) > 250) { F.disp = q; F.off = [0, 0]; N.snap = true; if (N.hd != null) F.cb = N.hd; } else F.off = [F.disp[0] - q[0], F.disp[1] - q[1]];
