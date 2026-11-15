@@ -197,7 +197,7 @@
     const arrow = left ? 'M46 6 L6 40 L46 74 L46 52 L72 52 L72 28 L46 28 Z' : 'M26 6 L66 40 L26 74 L26 52 L0 52 L0 28 L26 28 Z';
     const num = st.exit ? '<div class="l3-n">' + ESC(st.exit) + '</div>' : '';
     return '<div class="l3-board ' + cls + '">' +
-      '<div class="l3-top"><svg viewBox="0 0 78 80" aria-hidden="true"><path d="' + arrow + '" fill="currentColor"/></svg>' + num + '<div class="l3-tx"><div class="l3-k">Salida</div><div class="l3-m">' + txt + '</div>' + (name ? '<div class="l3-nm">' + ESC(name) + '</div>' : '') + '</div></div>' +
+      '<div class="l3-top">' + laneArrow([st.side === 'left' ? 'left' : st.side === 'right' ? 'right' : 'straight'], true) + num + '<div class="l3-tx"><div class="l3-k">Salida</div><div class="l3-m">' + txt + '</div>' + (name ? '<div class="l3-nm">' + ESC(name) + '</div>' : '') + '</div></div>' +
       '<div class="l3-d">' + dist + '</div></div>';
   }
   Lane3D.signHTML = signHTML;
