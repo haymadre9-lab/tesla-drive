@@ -8,6 +8,8 @@ const PRESETS = [
   { id: 'speed', n: 'Velocímetro', i: '⚡', d: 'Velocidad grande, límite y brújula', skin: 'neon', accent: '#00e5ff', rows: 2, w: [['speedbig', 1, '2x2'], ['navinfo', 1, '2x1'], ['compass', 1, '1x1'], ['clock', 1, '1x1']] },
   { id: 'media', n: 'Música', i: '🎵', d: 'Reproductor y letras a pantalla grande', skin: 'sky', accent: '#b388ff', rows: 2, w: [['music', 1, '2x2'], ['lyrics', 1, '2x2'], ['clock', 1, '1x1'], ['weather', 1, '1x1']] },
   { id: 'minimal', n: 'Minimal', i: '▫️', d: 'Solo hora y velocidad, sin tarjetas', skin: 'minimal', accent: '#ffffff', rows: 1, w: [['clock', 1, '2x1'], ['speedbig', 1, '2x1']] },
+  { id: 'ciudad', n: 'Ciudad', i: '🏙️', d: 'Mapa con reloj, tiempo y velocidad; barra de direcciones abajo', skin: 'glass', rows: 2, w: [['navmap', 1, '2x2'], ['clock', 1, '1x1'], ['weather', 1, '1x1'], ['speed', 1, '1x1']] },
+  { id: 'viaje', n: 'Viaje', i: '🛣️', d: 'Mapa con velocímetro Tesla; carteles y vista 3D de carriles', skin: 'tesla', rows: 1, w: [['navmap', 1, '2x2'], ['speedbig', 1, '1x2']] },
   { id: 'hud', n: 'HUD parabrisas', i: '🔆', d: 'Velocidad en espejo para reflejar en el cristal (móvil sobre el salpicadero)', skin: 'hud', accent: '#39ffb0', rows: 1, mirror: true, w: [['hud', 1, '1x1']] },
 ];
 const SPANS = ['1x1', '2x1', '1x2', '2x2'];
@@ -28,15 +30,28 @@ const Dash = (() => {
   }
   function syncImm(p) { document.body.classList.toggle('immersive', (p || page) === 'home' && !!cur().immersive); document.body.classList.remove('imm-open'); }
   function use(id) { S.dash = id; save(); applyTheme(); go('home'); renderers.home(); tag(); }
-  function next(d) { const l = S.dashboards, i = l.findIndex(x => x.id === S.dash); use(l[(i + d + l.length) % l.length].id); toast(cur().i + ' ' + cur().n); }
+  const onList = () => { const l = S.dashboards.filter(d => d.on !== false); return l.length ? l : S.dashboards; };
+  function next(d) { const l = onList(), i = l.findIndex(x => x.id === S.dash); use(l[(i + d + l.length) % l.length].id); toast(cur().i + ' ' + cur().n); }
   function tag() { const t = $('#dashtag'); if (t) { $('b', t).textContent = cur().i + ' ' + cur().n; t.style.display = page === 'home' ? '' : 'none'; } }
 
   function picker() {
-    dlg(`<h3>🎛 Dashboards</h3><div class="dgrid">${S.dashboards.map(d => `<div class="dcard ${d.id === S.dash ? 'sel' : ''}" data-id="${esc(d.id)}"><div class="di">${esc(d.i)}</div><b>${esc(d.n)}</b><small>${esc(d.d || 'Personalizado')}</small></div>`).join('')}</div>
-      <div class="acts"><button class="btn" id="dwiz">✨ Crear nuevo</button><button class="btn sec" id="dnew">＋ Duplicar actual</button><button class="btn sec" id="dset">⚙ Editar</button><button class="btn" id="dc">Cerrar</button></div>`, d => {
+    dlg(`<h3>🎛 Dashboards</h3><div class="dgrid">${onList().map(d => `<div class="dcard ${d.id === S.dash ? 'sel' : ''}" data-id="${esc(d.id)}"><div class="di">${esc(d.i)}</div><b>${esc(d.n)}</b><small>${esc(d.d || 'Personalizado')}</small></div>`).join('')}</div>
+      <div class="acts"><button class="btn" id="dwiz">✨ Crear nuevo</button><button class="btn sec" id="dnew">＋ Duplicar actual</button><button class="btn sec" id="dlist">☑ Elegir cuáles</button><button class="btn sec" id="dset">⚙ Editar</button><button class="btn" id="dc">Cerrar</button></div>`, d => {
       $$('.dcard', d).forEach(c => c.onclick = () => { closeDlg(); use(c.dataset.id); });
-      $('#dc', d).onclick = closeDlg; $('#dset', d).onclick = () => { closeDlg(); cat = 'inicio'; go('settings'); };
+      $('#dc', d).onclick = closeDlg; $('#dset', d).onclick = () => { closeDlg(); cat = 'inicio'; go('settings'); }; $('#dlist', d).onclick = () => { closeDlg(); editList(); };
       $('#dnew', d).onclick = () => { closeDlg(); dup(); }; $('#dwiz', d).onclick = () => { closeDlg(); Tpl.wizard(); };
+    });
+  }
+  // Elegir qué dashboards entran al cambiar (deslizar, flechas y el selector)
+  function editList() {
+    dlg(`<h3>Dashboards en la lista</h3><div class="note">Solo los marcados aparecen al cambiar de dashboard.</div><div class="dgrid">${S.dashboards.map(d => `<label class="dcard" style="cursor:pointer"><input type="checkbox" data-id="${esc(d.id)}" ${d.on !== false ? 'checked' : ''} style="float:right;width:22px;height:22px"><div class="di">${esc(d.i)}</div><b>${esc(d.n)}</b></label>`).join('')}</div><div class="acts"><button class="btn" id="dlok">Guardar</button><button class="btn sec" id="dlx">Cancelar</button></div>`, d => {
+      $('#dlx', d).onclick = closeDlg;
+      $('#dlok', d).onclick = () => {
+        $$('input[type=checkbox]', d).forEach(c => { const x = S.dashboards.find(y => y.id === c.dataset.id); if (x) x.on = c.checked; });
+        if (!S.dashboards.some(x => x.on !== false)) return toast('Deja al menos un dashboard marcado');
+        if (cur().on === false) S.dash = onList()[0].id;
+        save(); closeDlg(); tag(); toast('Lista de dashboards guardada');
+      };
     });
   }
   async function dup() {
@@ -218,5 +233,5 @@ const Dash = (() => {
     document.addEventListener('mousemove', e => { if (!g) return; e.stopPropagation(); move(e.clientX, e.clientY); }, o);
     document.addEventListener('mouseup', end, o);
   }
-  return { cur, accent, use, next, picker, tag, grip: gripUpd };
+  return { cur, accent, use, next, picker, editList, tag, grip: gripUpd };
 })();
