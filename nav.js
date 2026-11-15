@@ -463,10 +463,13 @@ const Nav = (() => {
       }).filter(Boolean);
     } catch (e) { return null; } finally { clearTimeout(tm); }
   }
+  // Barra negra y carteles: cada dashboard puede tenerlos activos o no; sin elegir, manda la opción general de Ajustes
+  const barOn = () => { const D = typeof Dash !== 'undefined' ? Dash.cur() : null; return D && D.bar !== undefined ? D.bar !== false : S.guideBar !== false; };
+  const signOn = () => { const D = typeof Dash !== 'undefined' ? Dash.cur() : null; return D && D.sign !== undefined ? D.sign !== false : S.l3panel !== false; };
   function junction(nx, cur, dN, force) {
     N.lastJ = [nx, cur, dN, force];
     const el = $('#njv', N.el); if (!el) return; const m = nx.maneuver, t = m.type;
-    if (S.l3panel === false) { el.hidden = true; el.dataset.k = ''; return; }
+    if (!signOn()) { el.hidden = true; el.dataset.k = ''; return; }
     let lanes = (() => { const it = (cur && cur.intersections) || []; for (let i = it.length - 1; i >= 0; i--) if (it[i].lanes && it[i].lanes.length) return it[i].lanes; return null; })();
     if (N.ttl && nx.maneuver.location) { // TomTom primero: el tramo más cercano a la maniobra (170 m)
       const L = [nx.maneuver.location[1], nx.maneuver.location[0]]; let best = null, bd = 170;
@@ -505,7 +508,7 @@ const Nav = (() => {
     const d = $('.jd', el); if (d) d.textContent = fmtD(dN);
   }
   function update(p) {
-    if (N.el) N.el.classList.toggle('noguide', S.guideBar === false); // interruptor de Ajustes → Mapa
+    if (N.el) N.el.classList.toggle('noguide', !barOn()); // barra negra: por dashboard o la opción general
     const st = N.steps, last = st.length - 1; if (!st.length) return;
     const onR = N.sn && N.cum && N.stepAt && N.cum.length > N.ri + 1, prog = onR ? N.cum[N.ri] + N.rf * (N.cum[N.ri + 1] - N.cum[N.ri]) : 0, tot = N.cum ? N.cum[N.cum.length - 1] : 0;
     while (N.idx < last && (dist(p, loc(st[N.idx + 1])) < 35 || (onR && prog >= N.cum[N.stepAt[N.idx + 1]] - 5))) { N.idx++; const sp = st[N.idx].stop; if (sp && !sp.done) { sp.done = true; say('Parada: ' + sp.name); toast('📍 Parada: ' + sp.name, 3500); drawStops(); saveRoute(N.dest); } }
