@@ -453,6 +453,7 @@ body[data-skin=teslaos],body[data-skin=hud]{--txt:#f2f5fa;--dim:#93a0b4;--card:r
 /* ══ Escena integrada: ventanas sin tarjeta, bordes difuminados y relojes con halo ══ */
 .fwin.flat > .card{background:transparent;border:0 !important;box-shadow:none !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;border-radius:0;}
 .fwin.flat .wdots{opacity:.12;} .fwin.noptr{pointer-events:none;} .fwin.noptr .wdots{display:none;} .fwin.noptr.editing{pointer-events:auto;}
+.fwin.feather:has(.navjv:not([hidden])){-webkit-mask-image:none;mask-image:none;}
 .fwin.feather:not(.editing){-webkit-mask-image:linear-gradient(to right,transparent,#000 var(--fade,12%),#000 calc(100% - var(--fade,12%)),transparent),linear-gradient(to bottom,transparent,#000 var(--fade,12%),#000 calc(100% - var(--fade,12%)),transparent);-webkit-mask-composite:source-in;mask-image:linear-gradient(to right,transparent,#000 var(--fade,12%),#000 calc(100% - var(--fade,12%)),transparent),linear-gradient(to bottom,transparent,#000 var(--fade,12%),#000 calc(100% - var(--fade,12%)),transparent);mask-composite:intersect;}
 .fwin.flat .navwrap.emb{border-radius:0;} .fwin.flat #navmap{background:#0a0f18;}
 /* relojes redondos que se funden con el mapa */
