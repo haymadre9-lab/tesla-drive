@@ -128,8 +128,26 @@ const Poi = (() => {
     if (over && bd < 400 && !P.said[best.id + 'o']) { P.said[best.id + 'o'] = now; speak('Reduce la velocidad'); }
   }
 
+  // Halo en el borde de la pantalla al acercarse a un radar con límite, si vas por encima de su velocidad.
+  // Rojo: radar fijo o de tramo. Amarillo: radar móvil (zona). Parpadea suave mientras dure el exceso.
+  const HALO = { last: null };
+  function haloEl() {
+    let el = document.getElementById('radarHalo');
+    if (!el) { el = document.createElement('div'); el.id = 'radarHalo'; el.setAttribute('aria-hidden', 'true'); document.body.appendChild(el); }
+    return el;
+  }
+  function radarHalo(p, c) {
+    const el = haloEl(), kmh = c.speed != null && !isNaN(c.speed) ? c.speed * 3.6 : null;
+    let best = null, bd = 650;
+    for (const x of camsNear(p, 650)) { if (!x.max) continue; const d = dist(p, [x.lat, x.lon]); if (d < bd) { bd = d; best = x; } }
+    const approaching = !!(best && HALO.last && HALO.last.id === best.id && bd < HALO.last.d - 2);
+    HALO.last = best ? { id: best.id, d: bd } : null;
+    const over = !!(best && kmh != null && kmh > best.max && approaching);
+    el.className = over ? 'on blink ' + (best.k === 'movil' || best.t === 'movil' ? 'yellow' : 'red') : '';
+  }
   function onPos(c) {
     const p = [c.latitude, c.longitude], kmh = (c.speed || 0) * 3.6;
+    try { radarHalo(p, c); } catch (e) { /* el halo nunca debe romper la posición */ }
     if (c.heading != null && !isNaN(c.heading) && kmh > 6) P.heading = c.heading;
     else if (P.prev && dist(P.prev, p) > 8) P.heading = bearing(P.prev, p);
     if (!P.prev || dist(P.prev, p) > 8) P.prev = p;
