@@ -473,13 +473,13 @@ const Nav = (() => {
       for (const e of N.ttl) { const dd = dist(L, e.ll); if (dd < bd) { bd = dd; best = e; } }
       if (best) lanes = best.lanes;
     }
-    const osm = (() => { const mm = nx.maneuver; if (lanes || !mm.location || dN > 650 || S.junction === false) return null; const k = mm.location[1].toFixed(4) + ',' + mm.location[0].toFixed(4); N.olanes = N.olanes || {};
+    const osm = (() => { const mm = nx.maneuver; if (lanes || !mm.location || dN > 650) return null; const k = mm.location[1].toFixed(4) + ',' + mm.location[0].toFixed(4); N.olanes = N.olanes || {};
       if (!(k in N.olanes)) { N.olanes[k] = null; osmLanes(mm.location[1], mm.location[0]).then(tags => { N.olanes[k] = tags; if (tags && N.lastJ) junction(...N.lastJ); }); }
       return N.olanes[k] ? parseTurnLanes(N.olanes[k], mm) : null; })();
     if (osm) lanes = osm;
     const dest = nx.destinations || '', ex = nx.exits || '';
     const hw = /autopista|autov[ií]a|\b(ap|a|as)-?\d/i.test(((cur && (cur.ref || cur.name)) || '') + ' ' + ((nx.ref || nx.name) || ''));
-    const show = force || S.junction !== false && dN <= 650 && !/^(depart|arrive|notification|new name)$/.test(t) && !((m.modifier === 'straight' || !m.modifier) && t !== 'roundabout' && t !== 'rotary' && !lanes && !dest);
+    const show = force || dN <= 650 && !/^(depart|arrive|notification|new name)$/.test(t) && !((m.modifier === 'straight' || !m.modifier) && t !== 'roundabout' && t !== 'rotary' && !lanes && !dest);
     if (!show) { if (!el.hidden) { el.hidden = true; el.dataset.k = ''; } return; }
     const key = (force ? 'demo' : '') + N.idx + '|' + t + '|' + (m.modifier || '') + '|' + (m.exit || '') + '|' + (nx.destinations || '') + '|' + (lanes ? 'L' + lanes.length + (lanes.some(l => l.valid) ? 'v' : '') : '') + '|' + (S.accent || '');
     if (window.Lane3D && lanes && lanes.length && !(N.l3 && N.l3.failed)) { // vista 3D solo con carriles reales (OSRM u OSM); sin datos no se muestra
