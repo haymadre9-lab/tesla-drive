@@ -505,6 +505,7 @@ const Nav = (() => {
     const d = $('.jd', el); if (d) d.textContent = fmtD(dN);
   }
   function update(p) {
+    if (N.el) N.el.classList.toggle('noguide', S.guideBar === false); // interruptor de Ajustes → Mapa
     const st = N.steps, last = st.length - 1; if (!st.length) return;
     const onR = N.sn && N.cum && N.stepAt && N.cum.length > N.ri + 1, prog = onR ? N.cum[N.ri] + N.rf * (N.cum[N.ri + 1] - N.cum[N.ri]) : 0, tot = N.cum ? N.cum[N.cum.length - 1] : 0;
     while (N.idx < last && (dist(p, loc(st[N.idx + 1])) < 35 || (onR && prog >= N.cum[N.stepAt[N.idx + 1]] - 5))) { N.idx++; const sp = st[N.idx].stop; if (sp && !sp.done) { sp.done = true; say('Parada: ' + sp.name); toast('📍 Parada: ' + sp.name, 3500); drawStops(); saveRoute(N.dest); } }
