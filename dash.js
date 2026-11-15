@@ -8,8 +8,6 @@ const PRESETS = [
   { id: 'speed', n: 'Velocímetro', i: '⚡', d: 'Velocidad grande, límite y brújula', skin: 'neon', accent: '#00e5ff', rows: 2, w: [['speedbig', 1, '2x2'], ['navinfo', 1, '2x1'], ['compass', 1, '1x1'], ['clock', 1, '1x1']] },
   { id: 'media', n: 'Música', i: '🎵', d: 'Reproductor y letras a pantalla grande', skin: 'sky', accent: '#b388ff', rows: 2, w: [['music', 1, '2x2'], ['lyrics', 1, '2x2'], ['clock', 1, '1x1'], ['weather', 1, '1x1']] },
   { id: 'minimal', n: 'Minimal', i: '▫️', d: 'Solo hora y velocidad, sin tarjetas', skin: 'minimal', accent: '#ffffff', rows: 1, w: [['clock', 1, '2x1'], ['speedbig', 1, '2x1']] },
-  { id: 'ciudad', n: 'Ciudad', i: '🏙️', d: 'Mapa con reloj, tiempo y velocidad; barra de direcciones', skin: 'tesla', bar: true, sign: false, rows: 2, w: [['navmap', 1, '2x2'], ['clock', 1, '1x1'], ['weather', 1, '1x1'], ['speed', 1, '1x1']] },
-  { id: 'viaje', n: 'Viaje', i: '🛣️', d: 'Mapa con velocímetro Tesla; carteles y vista 3D de carriles', skin: 'tesla', noShade: true, bar: false, sign: true, rows: 1, w: [['navmap', 1, '2x2'], ['speedbig', 1, '1x2']] },
   { id: 'hud', n: 'HUD parabrisas', i: '🔆', d: 'Velocidad en espejo para reflejar en el cristal (móvil sobre el salpicadero)', skin: 'hud', accent: '#39ffb0', rows: 1, mirror: true, w: [['hud', 1, '1x1']] },
 ];
 const SPANS = ['1x1', '2x1', '1x2', '2x2'];
@@ -18,7 +16,7 @@ const clone = o => JSON.parse(JSON.stringify(o));
 
 const Dash = (() => {
   if (!Array.isArray(S.dashboards) || !S.dashboards.length) S.dashboards = clone(PRESETS);
-  S.dashboards = S.dashboards.filter(x => x.id !== 'drive' && x.id !== 'ev'); // quitados por petición: había demasiados
+  S.dashboards = S.dashboards.filter(x => !['drive', 'ev', 'ciudad', 'viaje'].includes(x.id)); // quitados por petición
   PRESETS.forEach(p => { if (!S.dashboards.find(d => d.id === p.id) && !(S.dashGone || []).includes(p.id)) S.dashboards.push(clone(p)); });
   S.dashboards.forEach(d => { const p = PRESETS.find(x => x.id === d.id); if (p && (p.id === 'ciudad' || p.id === 'viaje') && d.bar === undefined) { d.bar = p.bar; d.sign = p.sign; } });
   if (!S.dashboards.find(d => d.id === S.dash)) S.dash = 'classic';
@@ -41,6 +39,15 @@ const Dash = (() => {
     if (PRESETS.some(p => p.id === id)) S.dashGone = [...(S.dashGone || []).filter(x => x !== id), id];
     if (S.dash === id) S.dash = S.dashboards.find(x => x.on !== false) ? S.dashboards.find(x => x.on !== false).id : S.dashboards[0].id;
     save(); applyTheme(); tag(); renderers.home(); toast('Dashboard borrado: ' + D.n);
+  }
+  // Menú de un dashboard: cambiar su nombre o borrarlo
+  function menuDash(id) {
+    const D = S.dashboards.find(x => x.id === id); if (!D) return;
+    dlg(`<h3>${esc(D.i)} ${esc(D.n)}</h3><div class="acts"><button class="btn" id="dren">✎ Cambiar nombre</button><button class="btn bad" id="ddrop">Borrar</button><button class="btn sec" id="dcl">Cerrar</button></div>`, d => {
+      $('#dcl', d).onclick = closeDlg;
+      $('#ddrop', d).onclick = () => { closeDlg(); confirmDrop(id); };
+      $('#dren', d).onclick = async () => { closeDlg(); const n = await promptDlg('Nombre del dashboard', '', D.n); if (n && n.trim()) { D.n = n.trim(); save(); tag(); renderers.home(); toast('Nombre: ' + D.n); } };
+    });
   }
   function confirmDrop(id) {
     const D = S.dashboards.find(x => x.id === id); if (!D) return;
@@ -231,7 +238,7 @@ const Dash = (() => {
   /* ── UI global: botón y etiqueta ── */
   $('#btnDash').onclick = picker;
   (() => { const tg = $('#dashtag'); if (!tg) return; let lp = 0; const stop = () => { clearTimeout(lp); lp = 0; };
-    tg.addEventListener('pointerdown', () => { stop(); lp = setTimeout(() => { lp = 0; confirmDrop(cur().id); }, 700); });
+    tg.addEventListener('pointerdown', () => { stop(); lp = setTimeout(() => { lp = 0; menuDash(cur().id); }, 700); });
     ['pointerup', 'pointerleave', 'pointercancel', 'pointermove'].forEach(ev => tg.addEventListener(ev, stop)); })();
   $('#imm').onclick = e => { e.stopPropagation(); document.body.classList.toggle('imm-open'); };
   document.addEventListener('pointerdown', e => { if (document.body.classList.contains('imm-open') && !e.target.closest('#dock,#status,#imm,#modal')) document.body.classList.remove('imm-open'); }, true);
@@ -256,5 +263,5 @@ const Dash = (() => {
     document.addEventListener('mousemove', e => { if (!g) return; e.stopPropagation(); move(e.clientX, e.clientY); }, o);
     document.addEventListener('mouseup', end, o);
   }
-  return { cur, accent, use, next, picker, editList, drop, confirmDrop, tag, grip: gripUpd };
+  return { cur, accent, use, next, picker, editList, drop, confirmDrop, menuDash, tag, grip: gripUpd };
 })();
