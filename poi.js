@@ -131,19 +131,60 @@ const Poi = (() => {
   // Halo en el borde de la pantalla al acercarse a un radar con límite, si vas por encima de su velocidad.
   // Rojo: radar fijo o de tramo. Amarillo: radar móvil (zona). Parpadea suave mientras dure el exceso.
   const HALO = { last: null };
+  // Tramos de velocidad media (lista de Autoboard: entrada, salida, límite y longitud)
+  const TR = { list: null, inside: null, t0: 0, cum: 0, last: null, warned: {} };
+  fetch('data/radares_tramo.json').then(r => r.json()).then(j => { TR.list = j.lista || []; }).catch(() => { });
+  // Solo cuenta lo que está delante: el radar debe estar a menos de 60° de tu rumbo
+  const ahead = (p, q, hdg) => hdg == null || angDiff(bearing(p, q), hdg) <= 60;
+  // Barra de progreso del tramo: lo recorrido, la media hasta ahora y la media que hay que mantener para cumplir
+  function tramoBar(z, cum, elapsed) {
+    let el = document.getElementById('tramoProg');
+    if (!el) { el = document.createElement('div'); el.id = 'tramoProg'; el.setAttribute('aria-live', 'polite'); document.body.appendChild(el); }
+    if (!z) { el.className = ''; el.innerHTML = ''; return; }
+    const len = z.len || 1, lim = z.lim, pct = Math.min(100, cum / len * 100), remain = Math.max(0, len - cum);
+    const avg = elapsed > 5 ? cum / elapsed * 3.6 : 0, tLeft = len / (lim / 3.6) - elapsed;
+    const need = tLeft > 5 ? remain / tLeft * 3.6 : 0;
+    el.className = 'on ' + (avg <= lim ? 'ok' : 'bad');
+    el.innerHTML = '<div class="tp-h"><b>Tramo · límite ' + lim + '</b><span>quedan ' + (remain / 1000).toFixed(1) + ' km</span></div>' +
+      '<div class="tp-b"><i style="width:' + pct.toFixed(1) + '%"></i></div>' +
+      '<div class="tp-f"><span>media ' + Math.round(avg) + ' km/h</span><span>' + (tLeft > 5 ? 'mantén ≤ ' + Math.round(need) + ' km/h' : 'tiempo cumplido') + '</span></div>';
+  }
+  function tramoUpd(p, c) {
+    if (!TR.list) return false;
+    const hdg = c.heading != null && !isNaN(c.heading) ? c.heading : null;
+    if (!TR.inside) {
+      for (const z of TR.list) {
+        const d = dist(p, [z.from.lat, z.from.lon]);
+        if (d < 900 && !TR.warned[z.id] && ahead(p, [z.from.lat, z.from.lon], hdg)) { TR.warned[z.id] = true; toast(`Tramo de velocidad media a ${Math.round(d)} m · límite ${z.lim} km/h`, 5000); }
+        if (d < 120 && ahead(p, [z.to.lat, z.to.lon], hdg)) { TR.inside = z; TR.t0 = Date.now(); TR.cum = 0; TR.last = p; tramoBar(z, 0, 0); break; }
+      }
+      return false;
+    }
+    const z = TR.inside; TR.cum += dist(TR.last, p); TR.last = p;
+    const elapsed = (Date.now() - TR.t0) / 1000, avg = elapsed > 5 ? TR.cum / elapsed * 3.6 : 0;
+    if (dist(p, [z.to.lat, z.to.lon]) < 150 || elapsed > 3600) {
+      if (TR.cum > 500 && elapsed > 30) toast(`Tramo: velocidad media ${Math.round(avg)} km/h · límite ${z.lim}`, 6000);
+      TR.inside = null; tramoBar(null); return false;
+    }
+    tramoBar(z, TR.cum, elapsed);
+    return elapsed > 30 && avg > z.lim;
+  }
+
   function haloEl() {
     let el = document.getElementById('radarHalo');
     if (!el) { el = document.createElement('div'); el.id = 'radarHalo'; el.setAttribute('aria-hidden', 'true'); document.body.appendChild(el); }
     return el;
   }
   function radarHalo(p, c) {
-    const el = haloEl(), kmh = c.speed != null && !isNaN(c.speed) ? c.speed * 3.6 : null;
+    const el = haloEl(), kmh = c.speed != null && !isNaN(c.speed) ? c.speed * 3.6 : null, hdg = c.heading != null && !isNaN(c.heading) ? c.heading : null;
+    const tramoOver = tramoUpd(p, c);
     let best = null, bd = 650;
-    for (const x of camsNear(p, 650)) { if (!x.max) continue; const d = dist(p, [x.lat, x.lon]); if (d < bd) { bd = d; best = x; } }
+    for (const x of camsNear(p, 650)) { if (!x.max || !ahead(p, [x.lat, x.lon], hdg)) continue; const d = dist(p, [x.lat, x.lon]); if (d < bd) { bd = d; best = x; } }
     const approaching = !!(best && HALO.last && HALO.last.id === best.id && bd < HALO.last.d - 2);
     HALO.last = best ? { id: best.id, d: bd } : null;
     const over = !!(best && kmh != null && kmh > best.max && approaching);
-    el.className = over ? 'on blink ' + (best.k === 'movil' || best.t === 'movil' ? 'yellow' : 'red') : '';
+    if (tramoOver) el.className = 'on blink red';
+    else el.className = over ? 'on blink ' + (best.k === 'movil' || best.t === 'movil' ? 'yellow' : 'red') : '';
   }
   function onPos(c) {
     const p = [c.latitude, c.longitude], kmh = (c.speed || 0) * 3.6;

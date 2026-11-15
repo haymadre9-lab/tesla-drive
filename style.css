@@ -185,6 +185,13 @@ html[data-theme="dark"] #navmap .leaflet-tile-pane{filter:invert(.92) hue-rotate
 #radarHalo.blink{animation:radarBlink 1.8s ease-in-out infinite;}
 @keyframes radarBlink{0%,100%{opacity:.45}50%{opacity:1}}
 @media (prefers-reduced-motion:reduce){#radarHalo.blink{animation:none;}}
+#tramoProg{position:fixed;left:50%;transform:translateX(-50%);top:72px;z-index:9500;width:min(360px,calc(100% - 24px));background:rgba(8,12,20,.86);color:#fff;border-radius:14px;padding:10px 12px;display:none;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.4);}
+#tramoProg.on{display:block;}
+#tramoProg .tp-h,#tramoProg .tp-f{display:flex;justify-content:space-between;font-size:13px;gap:8px;}
+#tramoProg .tp-b{height:8px;border-radius:4px;background:rgba(255,255,255,.2);overflow:hidden;margin:8px 0;}
+#tramoProg .tp-b i{display:block;height:100%;transition:width .5s linear;}
+#tramoProg.ok .tp-b i{background:#2fd16a;}
+#tramoProg.bad .tp-b i{background:#ff3d3d;}
 .navguide[hidden]{display:none;} .navwrap.noguide .navguide{display:none !important;} .navguide .ni{font-size:60px;line-height:1;width:72px;text-align:center;color:var(--acc);} .navguide .nt b{display:block;font-size:34px;line-height:1.1;} .navguide .nt span{color:var(--dim);font-size:16px;}
 .navbar{position:absolute;z-index:500;left:12px;right:84px;bottom:12px;display:flex;gap:12px;align-items:center;background:var(--bg);border:1px solid var(--bd);border-radius:20px;padding:10px 14px;box-shadow:0 8px 28px rgba(0,0,0,.45);}
 .navbar[hidden]{display:none;} .navbar > div{display:flex;flex-direction:column;min-width:64px;} .navbar b{font-size:24px;font-variant-numeric:tabular-nums;} .navbar small{color:var(--dim);font-size:11px;} .navbar .btn{padding:12px 14px;} .navbar .btn.bad{margin-left:auto;}
