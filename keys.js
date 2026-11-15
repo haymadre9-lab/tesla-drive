@@ -17,6 +17,7 @@ const Keys = (() => {
   const ITEMS = [
     { id: 'ai', n: 'Asistente IA (Groq, Gemini u OpenRouter)', has: () => { try { const j = JSON.parse(LS.get('leco.ai') || '{}'); return !!j.key; } catch { return false; } }, get: () => LS.get('leco.ai'), set: v => LS.set('leco.ai', v) },
     { id: 'tt', n: 'TomTom (buscador y límite de velocidad)', has: () => !!LS.get('leco.tt'), get: () => LS.get('leco.tt'), set: v => LS.set('leco.tt', v) },
+    { id: 'ocm', n: 'Open Charge Map (cargadores con potencia)', has: () => !!LS.get('leco.ocm'), get: () => LS.get('leco.ocm'), set: v => LS.set('leco.ocm', v) },
     { id: 'yt', n: 'YouTube (buscar vídeos)', has: () => !!LS.get('leco.yt'), get: () => LS.get('leco.yt'), set: v => LS.set('leco.yt', v) },
     { id: 'nc', n: 'Código de las notas de voz', has: () => !!LS.get('leco.notes.code'), get: () => LS.get('leco.notes.code'), set: v => { if (typeof Notes !== 'undefined' && Notes.setCode) Notes.setCode(v); else LS.set('leco.notes.code', v); } },
   ];

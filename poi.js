@@ -61,6 +61,11 @@ const Poi = (() => {
       if (!wanted(k) || P.fbusy[k]) continue;
       const f = P.fetched[k]; if (!force && f && dist(f, p) < 3000) continue;
       P.fbusy[k] = true;
+      if (k === 'chargers' && ocmKey()) { // Open Charge Map (clave de Ajustes → Mapa): trae la potencia de cada cargador
+        try { merge(k, await ocmFetch(p, ocmKey())); P.fetched[k] = p; persist(); draw(); bus.emit('poi'); }
+        catch { if (force) toast('No se pudo consultar Open Charge Map: revisa la clave'); }
+        P.fbusy[k] = false; continue;
+      }
       const b = `${p[0] - .06},${p[1] - .09},${p[0] + .06},${p[1] + .09}`;
       try { const j = await ovp(QUERY[k](b)); merge(k, (j.elements || []).filter(e => e.lat != null).map(MAP[k])); P.fetched[k] = p; persist(); draw(); bus.emit('poi'); }
       catch { if (force) toast('Sin conexión con el servidor de mapas: se usan datos guardados'); }
@@ -205,6 +210,20 @@ const Poi = (() => {
     take(t.maxpower); take(t.output);
     Object.keys(t).forEach(k => { if (/^socket:.*:output$/.test(k)) take(t[k]); });
     return best;
+  }
+  const ocmKey = () => { try { return localStorage.getItem('leco.ocm') || ''; } catch { return ''; } };
+  async function ocmFetch(p, key) {
+    const u = `https://api.openchargemap.io/v3/poi/?output=json&compact=true&verbose=false&maxresults=300&distance=8&distanceunit=KM&latitude=${p[0].toFixed(5)}&longitude=${p[1].toFixed(5)}&key=${encodeURIComponent(key)}`;
+    const ac = new AbortController(), tm = setTimeout(() => ac.abort(), 12000);
+    try {
+      const r = await fetch(u, { signal: ac.signal }); if (!r.ok) throw new Error('ocm ' + r.status);
+      const arr = await r.json();
+      return (arr || []).filter(x => x.AddressInfo && x.AddressInfo.Latitude != null).map(x => {
+        const cons = x.Connections || [], kws = cons.map(c => +c.PowerKW || 0), kw = kws.length ? Math.max(...kws) : null;
+        const op = (x.OperatorInfo && x.OperatorInfo.Title) || '', name = x.AddressInfo.Title || op || 'Cargador';
+        return { id: 'ocm' + x.ID, lat: x.AddressInfo.Latitude, lon: x.AddressInfo.Longitude, name, op, tesla: /tesla/i.test(op + ' ' + name), cap: x.NumberOfPoints || cons.length || '', kw: kw || null };
+      });
+    } finally { clearTimeout(tm); }
   }
   // Color del icono por potencia: verde < 22 kW, ámbar 22-49, naranja 50-149, morado 150 o más, gris sin dato
   const kwClass = kw => kw == null ? 'chgk-n' : kw < 22 ? 'chgk-s' : kw < 50 ? 'chgk-m' : kw < 150 ? 'chgk-f' : 'chgk-u';
