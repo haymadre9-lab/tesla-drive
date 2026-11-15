@@ -192,6 +192,7 @@ html[data-theme="dark"] #navmap .leaflet-tile-pane{filter:invert(.92) hue-rotate
 #tramoProg .tp-b i{display:block;height:100%;transition:width .5s linear;}
 #tramoProg.ok .tp-b i{background:#2fd16a;}
 #tramoProg.bad .tp-b i{background:#ff3d3d;}
+body.noshade #shade{display:none;}
 .navguide[hidden]{display:none;} .navwrap.noguide .navguide{display:none !important;} .navguide .ni{font-size:60px;line-height:1;width:72px;text-align:center;color:var(--acc);} .navguide .nt b{display:block;font-size:34px;line-height:1.1;} .navguide .nt span{color:var(--dim);font-size:16px;}
 .navbar{position:absolute;z-index:500;left:12px;right:84px;bottom:12px;display:flex;gap:12px;align-items:center;background:var(--bg);border:1px solid var(--bd);border-radius:20px;padding:10px 14px;box-shadow:0 8px 28px rgba(0,0,0,.45);}
 .navbar[hidden]{display:none;} .navbar > div{display:flex;flex-direction:column;min-width:64px;} .navbar b{font-size:24px;font-variant-numeric:tabular-nums;} .navbar small{color:var(--dim);font-size:11px;} .navbar .btn{padding:12px 14px;} .navbar .btn.bad{margin-left:auto;}

@@ -8,8 +8,8 @@ const PRESETS = [
   { id: 'speed', n: 'Velocímetro', i: '⚡', d: 'Velocidad grande, límite y brújula', skin: 'neon', accent: '#00e5ff', rows: 2, w: [['speedbig', 1, '2x2'], ['navinfo', 1, '2x1'], ['compass', 1, '1x1'], ['clock', 1, '1x1']] },
   { id: 'media', n: 'Música', i: '🎵', d: 'Reproductor y letras a pantalla grande', skin: 'sky', accent: '#b388ff', rows: 2, w: [['music', 1, '2x2'], ['lyrics', 1, '2x2'], ['clock', 1, '1x1'], ['weather', 1, '1x1']] },
   { id: 'minimal', n: 'Minimal', i: '▫️', d: 'Solo hora y velocidad, sin tarjetas', skin: 'minimal', accent: '#ffffff', rows: 1, w: [['clock', 1, '2x1'], ['speedbig', 1, '2x1']] },
-  { id: 'ciudad', n: 'Ciudad', i: '🏙️', d: 'Mapa con reloj, tiempo y velocidad; barra de direcciones abajo', skin: 'glass', rows: 2, w: [['navmap', 1, '2x2'], ['clock', 1, '1x1'], ['weather', 1, '1x1'], ['speed', 1, '1x1']] },
-  { id: 'viaje', n: 'Viaje', i: '🛣️', d: 'Mapa con velocímetro Tesla; carteles y vista 3D de carriles', skin: 'tesla', rows: 1, w: [['navmap', 1, '2x2'], ['speedbig', 1, '1x2']] },
+  { id: 'ciudad', n: 'Ciudad', i: '🏙️', d: 'Mapa con reloj, tiempo y velocidad; barra de direcciones abajo', skin: 'tesla', rows: 2, w: [['navmap', 1, '2x2'], ['clock', 1, '1x1'], ['weather', 1, '1x1'], ['speed', 1, '1x1']] },
+  { id: 'viaje', n: 'Viaje', i: '🛣️', d: 'Mapa con velocímetro Tesla; carteles y vista 3D de carriles', skin: 'tesla', noShade: true, rows: 1, w: [['navmap', 1, '2x2'], ['speedbig', 1, '1x2']] },
   { id: 'hud', n: 'HUD parabrisas', i: '🔆', d: 'Velocidad en espejo para reflejar en el cristal (móvil sobre el salpicadero)', skin: 'hud', accent: '#39ffb0', rows: 1, mirror: true, w: [['hud', 1, '1x1']] },
 ];
 const SPANS = ['1x1', '2x1', '1x2', '2x2'];
@@ -19,7 +19,7 @@ const clone = o => JSON.parse(JSON.stringify(o));
 const Dash = (() => {
   if (!Array.isArray(S.dashboards) || !S.dashboards.length) S.dashboards = clone(PRESETS);
   S.dashboards = S.dashboards.filter(x => x.id !== 'drive' && x.id !== 'ev'); // quitados por petición: había demasiados
-  PRESETS.forEach(p => { if (!S.dashboards.find(d => d.id === p.id)) S.dashboards.push(clone(p)); });
+  PRESETS.forEach(p => { if (!S.dashboards.find(d => d.id === p.id) && !(S.dashGone || []).includes(p.id)) S.dashboards.push(clone(p)); });
   if (!S.dashboards.find(d => d.id === S.dash)) S.dash = 'classic';
 
   const cur = () => S.dashboards.find(d => d.id === S.dash) || S.dashboards[0];
@@ -28,10 +28,25 @@ const Dash = (() => {
     Object.keys(WIDGETS).forEach(id => { if (!D.w.find(x => x[0] === id)) D.w.push([id, 0, (WIDGETS[id].cls.match(/w-\d+x\d+/) || ['w-1x1'])[0].slice(2)]); });
     return D;
   }
-  function syncImm(p) { document.body.classList.toggle('immersive', (p || page) === 'home' && !!cur().immersive); document.body.classList.remove('imm-open'); }
+  function syncImm(p) { document.body.classList.toggle('immersive', (p || page) === 'home' && !!cur().immersive); document.body.classList.remove('imm-open'); document.body.classList.toggle('noshade', !!cur().noShade); }
   function use(id) { S.dash = id; save(); applyTheme(); go('home'); renderers.home(); tag(); }
   const onList = () => { const l = S.dashboards.filter(d => d.on !== false); return l.length ? l : S.dashboards; };
   function next(d) { const l = onList(), i = l.findIndex(x => x.id === S.dash); use(l[(i + d + l.length) % l.length].id); toast(cur().i + ' ' + cur().n); }
+  // Borrar un dashboard. Los de fábrica se recuerdan para no volver a aparecer.
+  function drop(id) {
+    if (S.dashboards.length <= 1) return toast('No se puede borrar el último dashboard');
+    const D = S.dashboards.find(x => x.id === id); if (!D) return;
+    S.dashboards = S.dashboards.filter(x => x.id !== id);
+    if (PRESETS.some(p => p.id === id)) S.dashGone = [...(S.dashGone || []).filter(x => x !== id), id];
+    if (S.dash === id) S.dash = S.dashboards.find(x => x.on !== false) ? S.dashboards.find(x => x.on !== false).id : S.dashboards[0].id;
+    save(); applyTheme(); tag(); renderers.home(); toast('Dashboard borrado: ' + D.n);
+  }
+  function confirmDrop(id) {
+    const D = S.dashboards.find(x => x.id === id); if (!D) return;
+    dlg(`<h3>Borrar «${esc(D.n)}»</h3><div class="note">Se quita de la lista. Si es de fábrica, no vuelve a aparecer.</div><div class="acts"><button class="btn bad" id="dyes">Borrar</button><button class="btn sec" id="dno">Cancelar</button></div>`, d => {
+      $('#dno', d).onclick = closeDlg; $('#dyes', d).onclick = () => { closeDlg(); drop(id); };
+    });
+  }
   function tag() { const t = $('#dashtag'); if (t) { $('b', t).textContent = cur().i + ' ' + cur().n; t.style.display = page === 'home' ? '' : 'none'; } }
 
   function picker() {
@@ -192,9 +207,9 @@ const Dash = (() => {
     const imm = el(`<div class="row"><div class="tx"><b>Pantalla completa inmersiva</b><small>Oculta la barra superior y el menú lateral en este dashboard; se abren con el botón ☰</small></div><div class="sw ${D.immersive ? 'on' : ''}"></div></div>`);
     $('.sw', imm).onclick = e => { D.immersive = !D.immersive; e.currentTarget.classList.toggle('on', !!D.immersive); save(); syncImm('home'); renderers.home(); }; w.append(imm);
     if (typeof Scene !== 'undefined' && Scene.available()) { const sr = el('<div class="row" style="flex-direction:column;align-items:stretch"><div class="tx"><b>Reloj de velocidad y mapa</b><small>Recoloca los relojes de la escena: lado y tamaño (el compacto deja ver más mapa)</small></div></div>'); sr.append(Scene.controls(() => renderers.settings())); w.append(sr); }
-    const acts = el('<div class="row"><div class="tx"><b>Gestionar</b></div><button class="btn sec" id="adup">Duplicar</button><button class="btn sec" id="aren">Renombrar</button><button class="btn bad" id="adel"></button></div>');
+    const acts = el('<div class="row"><div class="tx"><b>Gestionar</b></div><button class="btn sec" id="adup">Duplicar</button><button class="btn sec" id="aren">Renombrar</button><button class="btn sec" id="adel"></button><button class="btn bad" id="adrop">Borrar</button></div>');
     const preset = PRESETS.find(p => p.id === D.id); $('#adel', acts).textContent = preset ? 'Restablecer' : 'Eliminar';
-    $('#adup', acts).onclick = dup;
+    $('#adup', acts).onclick = dup; $('#adrop', acts).onclick = () => confirmDrop(D.id);
     $('#aren', acts).onclick = async () => { const n = await promptDlg('Nombre', '', D.n); if (n) { D.n = n; save(); renderers.settings(); tag(); } };
     $('#adel', acts).onclick = () => { if (preset) { Object.assign(D, clone(preset)); } else { S.dashboards = S.dashboards.filter(x => x !== D); S.dash = 'classic'; } save(); applyTheme(); renderers.home(); renderers.settings(); tag(); toast(preset ? 'Restablecido' : 'Eliminado'); };
     w.append(acts, el('<div class="sec-t">Widgets de este dashboard (orden, tamaño y visibilidad)</div>'));
@@ -210,6 +225,9 @@ const Dash = (() => {
 
   /* ── UI global: botón y etiqueta ── */
   $('#btnDash').onclick = picker;
+  (() => { const tg = $('#dashtag'); if (!tg) return; let lp = 0; const stop = () => { clearTimeout(lp); lp = 0; };
+    tg.addEventListener('pointerdown', () => { stop(); lp = setTimeout(() => { lp = 0; confirmDrop(cur().id); }, 700); });
+    ['pointerup', 'pointerleave', 'pointercancel', 'pointermove'].forEach(ev => tg.addEventListener(ev, stop)); })();
   $('#imm').onclick = e => { e.stopPropagation(); document.body.classList.toggle('imm-open'); };
   document.addEventListener('pointerdown', e => { if (document.body.classList.contains('imm-open') && !e.target.closest('#dock,#status,#imm,#modal')) document.body.classList.remove('imm-open'); }, true);
   const t = document.createElement('div'); t.id = 'dashtag'; t.innerHTML = '<button data-d="-1">◀</button><b></b><button data-d="1">▶</button>'; $('#pages').append(t);
@@ -233,5 +251,5 @@ const Dash = (() => {
     document.addEventListener('mousemove', e => { if (!g) return; e.stopPropagation(); move(e.clientX, e.clientY); }, o);
     document.addEventListener('mouseup', end, o);
   }
-  return { cur, accent, use, next, picker, editList, tag, grip: gripUpd };
+  return { cur, accent, use, next, picker, editList, drop, confirmDrop, tag, grip: gripUpd };
 })();
