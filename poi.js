@@ -50,7 +50,7 @@ const Poi = (() => {
   };
   const MAP = {
     cams: e => ({ id: e.id, lat: e.lat, lon: e.lon, max: parseMax(e.tags?.maxspeed), type: e.tags?.enforcement || 'maxspeed' }),
-    chargers: e => { const t = e.tags || {}, n = t.name || t.brand || t.operator || 'Cargador'; return { id: e.id, lat: e.lat, lon: e.lon, name: n, op: t.operator || t.brand || '', tesla: /tesla/i.test((t.operator || '') + (t.brand || '') + (t.name || '')), cap: t.capacity || '' }; },
+    chargers: e => { const t = e.tags || {}, n = t.name || t.brand || t.operator || 'Cargador'; return { id: e.id, lat: e.lat, lon: e.lon, name: n, op: t.operator || t.brand || '', tesla: /tesla/i.test((t.operator || '') + (t.brand || '') + (t.name || '')), cap: t.capacity || '', kw: powerKw(t) }; },
     fuel: e => ({ id: e.id, lat: e.lat, lon: e.lon, name: e.tags?.name || e.tags?.brand || 'Gasolinera', op: e.tags?.brand || '' }),
   };
   const wanted = k => k === 'cams' ? (S.radarAlerts || S.layers.cams) : (S.layers[k] || P.need[k]);
@@ -198,6 +198,16 @@ const Poi = (() => {
 
   /* ── Marcadores en el mapa ── */
   const icon = (e, cls = '') => `<div class="poi ${cls}">${e}</div>`, SZ = [36, 36];
+  // Potencia máxima del cargador en kW: maxpower o socket:*:output de OpenStreetMap (W se pasan a kW)
+  function powerKw(t) {
+    let best = null;
+    const take = v => { const m = String(v || '').match(/(\d+(?:[.,]\d+)?)/); if (!m) return; let n = parseFloat(m[1].replace(',', '.')); if (n > 1000) n /= 1000; if (n > 0 && (best == null || n > best)) best = n; };
+    take(t.maxpower); take(t.output);
+    Object.keys(t).forEach(k => { if (/^socket:.*:output$/.test(k)) take(t[k]); });
+    return best;
+  }
+  // Color del icono por potencia: verde < 22 kW, ámbar 22-49, naranja 50-149, morado 150 o más, gris sin dato
+  const kwClass = kw => kw == null ? 'chgk-n' : kw < 22 ? 'chgk-s' : kw < 50 ? 'chgk-m' : kw < 150 ? 'chgk-f' : 'chgk-u';
   function attach(map) { P.map = map; ['cams', 'chargers', 'fuel', 'reports'].forEach(k => P.groups[k] = map.group()); draw(); }
   function draw() {
     if (!P.map) return;
@@ -207,7 +217,7 @@ const Poi = (() => {
     ['cams', 'chargers', 'fuel', 'reports'].forEach(k => {
       const g = P.groups[k]; if (!S.layers[k]) return;
       if (k === 'cams') camsNear(cc, 12000).slice(0, 400).forEach(x => g.add([x.lat, x.lon], icon('📷', x.k === 'movil' ? 'rep' : 'cam'), SZ, () => info(`📷 ${RADL[x.k] || 'Radar'}${x.max ? ' · ' + x.max + ' km/h' : ''}`, x.k === 'movil' ? 'Zona donde puede haber radar móvil: no es un aviso en tiempo real.' : 'Datos de tu base de radares / OpenStreetMap. Puede no estar actualizado.', x)));
-      if (k === 'chargers') P.chargers.filter(near).forEach(x => g.add([x.lat, x.lon], icon('⚡', x.tesla ? 'tesla' : 'chg'), SZ, () => info('⚡ ' + x.name, [x.op, x.cap ? x.cap + ' puntos' : ''].filter(Boolean).join(' · '), x, true)));
+      if (k === 'chargers') P.chargers.filter(near).filter(x => (x.kw || 0) >= +(S.chgMin || 0)).forEach(x => g.add([x.lat, x.lon], icon(`<b>${x.kw != null ? Math.round(x.kw) : '⚡'}</b>`, 'chgk ' + kwClass(x.kw)), SZ, () => info('⚡ ' + x.name, [x.op, x.kw != null ? Math.round(x.kw) + ' kW' : 'potencia sin dato', x.cap ? x.cap + ' puntos' : ''].filter(Boolean).join(' · '), x, true)));
       if (k === 'fuel') P.fuel.filter(near).forEach(x => g.add([x.lat, x.lon], icon('⛽', 'fuel'), SZ, () => info('⛽ ' + x.name, x.op, x, true)));
       if (k === 'reports') liveReports().forEach(r => g.add([r.lat, r.lon], icon(REP[r.type][0], 'rep'), SZ, () => dlg(`<h3>${REP[r.type][0]} ${REP[r.type][1]}</h3><div class="note">Reportado hace ${Math.round((Date.now() - r.t) / 60000)} min (solo en este dispositivo).</div><div class="acts"><button class="btn bad" id="d">Eliminar</button><button class="btn sec" id="c">Cerrar</button></div>`, d => { $('#c', d).onclick = closeDlg; $('#d', d).onclick = () => { S.reports = S.reports.filter(z => z !== r); save(); closeDlg(); draw(); }; })));
     });
