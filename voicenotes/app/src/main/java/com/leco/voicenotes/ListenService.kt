@@ -51,6 +51,8 @@ class ListenService : Service() {
         private const val RATE = 16000
         private const val VOICE_RMS = 600      // umbral de energía para considerar "hay voz"
         private const val NEAR_METERS = 250f
+        private const val MAX_WORDS = 40           // una nota hablada es corta: más palabras = conversación
+        private const val MAX_DICTATION_MS = 25_000L
 
         @Volatile var running = false
         @Volatile var status = "Detenido"
@@ -239,6 +241,19 @@ class ListenService : Service() {
         var lastVoice = 0L
         var fed = false
 
+        // Últimos segundos de audio con voz: para volver a escucharlos con el reconocedor completo si salta la frase.
+        val seg = ShortArray(RATE * 6)
+        var segLen = 0
+        fun pushSeg(b: ShortArray, n: Int) {
+            if (segLen + n > seg.size) {
+                val keep = seg.size / 2
+                System.arraycopy(seg, segLen - keep, seg, 0, keep)
+                segLen = keep
+            }
+            System.arraycopy(b, 0, seg, segLen, n)
+            segLen += n
+        }
+
         rec.startRecording()
         status = "Escuchando: di \"$phrase\""
         try {
@@ -255,7 +270,7 @@ class ListenService : Service() {
                 if (announce.isNotEmpty()) {
                     val msg = announce.poll()
                     if (msg != null) speak(rec, msg)
-                    wake.reset(); fed = false
+                    wake.reset(); fed = false; segLen = 0
                     continue
                 }
                 val n = rec.read(buf, 0, buf.size)
@@ -267,19 +282,23 @@ class ListenService : Service() {
                 var triggered = false
                 if (now - lastVoice < 1200) {
                     fed = true
+                    pushSeg(buf, n)
                     // Solo se decide con el resultado FINAL de una frase (nunca con hipótesis parciales).
                     if (wake.acceptWaveForm(buf, n)) {
                         fed = false
-                        triggered = isWake(wake.result, phrase)
+                        val heard = JSONObject(wake.result).optString("text", "")
+                        if (isWake(heard, phrase)) triggered = confirmWake(model, seg, segLen, phrase, heard)
+                        segLen = 0
                     }
                 } else if (fed) {
                     fed = false
-                    val fin = wake.finalResult
+                    val heard = JSONObject(wake.finalResult).optString("text", "")
                     wake.reset()
-                    triggered = isWake(fin, phrase)
+                    if (isWake(heard, phrase)) triggered = confirmWake(model, seg, segLen, phrase, heard)
+                    segLen = 0
                 }
                 if (triggered) {
-                    wake.reset(); fed = false; lastVoice = 0
+                    wake.reset(); fed = false; lastVoice = 0; segLen = 0
                     handleNote(model, rec, buf)
                     status = "Escuchando: di \"$phrase\""
                 }
@@ -294,13 +313,71 @@ class ListenService : Service() {
     }
 
     /**
-     * La frase debe ser la ÚNICA cosa dicha en esa tanda (con a lo sumo un ruido [unk]).
-     * Si va rodeada de otras palabras (radio, conversación) no cuenta.
+     * Primer filtro (barato): la frase debe ser la ÚNICA cosa dicha en esa tanda, con a lo sumo un ruido [unk].
      */
-    private fun isWake(json: String, phrase: String): Boolean {
-        val toks = JSONObject(json).optString("text", "").trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+    private fun isWake(text: String, phrase: String): Boolean {
+        val toks = text.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
         val unk = toks.count { it == "[unk]" }
         return unk <= 1 && toks.filter { it != "[unk]" }.joinToString(" ") == phrase
+    }
+
+    /**
+     * Segundo filtro (fuerte): se vuelve a escuchar la misma grabación con el reconocedor COMPLETO del idioma.
+     * Una conversación se transcribe como palabras reales y no se parece a la frase, así que se descarta.
+     */
+    private fun confirmWake(model: Model, seg: ShortArray, len: Int, phrase: String, heard: String): Boolean {
+        var full = ""
+        if (len > 0) {
+            val r = Recognizer(model, RATE.toFloat())
+            try {
+                val tmp = ShortArray(2048)
+                var off = 0
+                while (off < len) {
+                    val n = minOf(tmp.size, len - off)
+                    System.arraycopy(seg, off, tmp, 0, n)
+                    r.acceptWaveForm(tmp, n)
+                    off += n
+                }
+                full = JSONObject(r.finalResult).optString("text", "")
+            } finally {
+                r.close()
+            }
+        }
+        val a = flat(full)
+        val b = flat(phrase)
+        // Palabra por palabra: mismo número de palabras y, en cada una, como mucho 1 letra de diferencia
+        // (2 en palabras de ≤3 letras, que el reconocedor confunde más: «oye»/«hoy»).
+        val ta = a.split(" ")
+        val tb = b.split(" ")
+        val ok = a.isNotEmpty() && ta.size == tb.size &&
+            ta.indices.all { lev(ta[it], tb[it]) <= (if (tb[it].length <= 3) 2 else 1) }
+        logWake("oído «$heard» · comprobado «$full» ${if (ok) "✓ activada" else "✗ descartada"}")
+        return ok
+    }
+
+    private fun flat(s: String) =
+        java.text.Normalizer.normalize(s.lowercase(Locale("es")).trim(), java.text.Normalizer.Form.NFD)
+            .replace(Regex("\\p{Mn}+"), "").replace(Regex("\\s+"), " ")
+
+    private fun lev(a: String, b: String): Int {
+        var prev = IntArray(b.length + 1) { it }
+        for (i in 1..a.length) {
+            val cur = IntArray(b.length + 1)
+            cur[0] = i
+            for (j in 1..b.length) {
+                cur[j] = minOf(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + if (a[i - 1] == b[j - 1]) 0 else 1)
+            }
+            prev = cur
+        }
+        return prev[b.length]
+    }
+
+    /** Últimos intentos de activación, para ver en Ajustes qué está oyendo realmente. */
+    private fun logWake(line: String) {
+        val t = java.text.SimpleDateFormat("HH:mm:ss", Locale("es")).format(java.util.Date())
+        val p = prefs(this)
+        val old = (p.getString("wakeLog", "") ?: "").split("\n").filter { it.isNotBlank() }
+        p.edit().putString("wakeLog", (listOf("$t · $line") + old).take(8).joinToString("\n")).apply()
     }
 
     private fun handleNote(model: Model, rec: AudioRecord, buf: ShortArray) {
@@ -309,6 +386,11 @@ class ListenService : Service() {
         val raw = dictate(model, rec, buf)
         if (raw.isBlank() || raw.trim().split(" ").size < 2) {
             speak(rec, "No te he entendido")
+            return
+        }
+        if (raw.trim().split(" ").size > MAX_WORDS) {
+            logWake("descartada por larga (${raw.trim().split(" ").size} palabras): «${raw.take(50)}…»")
+            speak(rec, "Eso parece una conversación, no la guardo")
             return
         }
         val (cat, content) = Parser.parse(raw, CatStore.all(this))
@@ -333,9 +415,9 @@ class ListenService : Service() {
                 val now = SystemClock.elapsedRealtime()
                 if (rms(buf, n) > VOICE_RMS) { lastVoice = now; heard = true }
                 if (r.acceptWaveForm(buf, n)) sb.append(' ').append(JSONObject(r.result).optString("text", ""))
-                if (heard && now - lastVoice > 2000) break   // 2 s de silencio: fin de la nota
+                if (heard && now - lastVoice > 1600) break   // 1,6 s de silencio: fin de la nota
                 if (!heard && now - start > 5000) break      // no ha dicho nada
-                if (now - start > 45_000) break              // tope de seguridad
+                if (now - start > MAX_DICTATION_MS) break     // tope de seguridad
             }
             sb.append(' ').append(JSONObject(r.finalResult).optString("text", ""))
         } finally {

@@ -66,6 +66,7 @@ class MainActivity : Activity() {
     private lateinit var subtitle: TextView
     private lateinit var statusText: TextView
     private lateinit var killInfo: TextView
+    private lateinit var wakeLog: TextView
     private lateinit var dot: View
     private lateinit var btnToggle: TextView
     private lateinit var tabsBox: LinearLayout
@@ -117,6 +118,7 @@ class MainActivity : Activity() {
         subtitle = findViewById(R.id.subtitle)
         statusText = findViewById(R.id.status)
         killInfo = findViewById(R.id.killInfo)
+        wakeLog = findViewById(R.id.wakeLog)
         dot = findViewById(R.id.dot)
         btnToggle = findViewById(R.id.btnToggle)
         tabsBox = findViewById(R.id.tabs)
@@ -714,6 +716,9 @@ class MainActivity : Activity() {
             (if (kills == 0) "Sin cierres detectados por Android."
             else "Android ha cerrado la escucha $kills ${if (kills == 1) "vez" else "veces"} (última: ${dm.format(Date(p.getLong("lastKill", 0L)))}).") +
                 (p.getString("lastEvent", null)?.let { "\nÚltimo aviso: $it" } ?: "")
+
+        val wl = p.getString("wakeLog", "") ?: ""
+        wakeLog.text = if (wl.isBlank()) "Registro de activaciones: aún no ha saltado ninguna." else "Últimas activaciones (✓ = guardó nota, ✗ = descartada):\n$wl"
 
         // Orden
         sortDate.background = rounded(if (!byDist) C_ACCENT else C_CHIP, 16)
