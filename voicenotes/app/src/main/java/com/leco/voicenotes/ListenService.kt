@@ -44,7 +44,7 @@ import kotlin.math.abs
 class ListenService : Service() {
 
     companion object {
-        const val WAKE = "oye nota"
+        const val DEFAULT_WAKE = "oye nota"
         const val ACTION_STOP = "com.leco.voicenotes.STOP"
         private const val CHANNEL = "listen"
         private const val NOTIF_ID = 1
@@ -57,6 +57,9 @@ class ListenService : Service() {
 
         /** Estado que sobrevive si Android mata el proceso: want = el usuario quiere escuchar; alive = servicio vivo. */
         fun prefs(ctx: Context) = ctx.getSharedPreferences("state", Context.MODE_PRIVATE)
+
+        fun wakePhrase(ctx: Context): String = prefs(ctx).getString("wake", DEFAULT_WAKE) ?: DEFAULT_WAKE
+        fun setWake(ctx: Context, w: String) = prefs(ctx).edit().putString("wake", w).apply()
 
         fun event(ctx: Context, text: String) {
             val t = java.text.SimpleDateFormat("dd/MM HH:mm", Locale("es")).format(java.util.Date())
@@ -160,7 +163,7 @@ class ListenService : Service() {
         val n = Notification.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setContentTitle("Notas de Voz")
-            .setContentText("Di \"$WAKE\" para dictar una nota")
+            .setContentText("Di \"${wakePhrase(this)}\" para dictar una nota")
             .setContentIntent(open)
             .setOngoing(true)
             .addAction(Notification.Action.Builder(android.R.drawable.ic_delete, "Detener", stop).build())
@@ -230,15 +233,25 @@ class ListenService : Service() {
             AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT,
             maxOf(minBuf, 8192) * 2
         )
-        val wake = Recognizer(model, RATE.toFloat(), "[\"$WAKE\", \"[unk]\"]")
+        var phrase = wakePhrase(this)
+        var wake = Recognizer(model, RATE.toFloat(), "[\"$phrase\", \"[unk]\"]")
         val buf = ShortArray(2048)
         var lastVoice = 0L
         var fed = false
 
         rec.startRecording()
-        status = "Escuchando: di \"$WAKE\""
+        status = "Escuchando: di \"$phrase\""
         try {
             while (!stopFlag) {
+                // Si cambias la frase en Ajustes, se aplica sin reiniciar.
+                val cur = wakePhrase(this)
+                if (cur != phrase) {
+                    phrase = cur
+                    wake.close()
+                    wake = Recognizer(model, RATE.toFloat(), "[\"$phrase\", \"[unk]\"]")
+                    fed = false
+                    status = "Escuchando: di \"$phrase\""
+                }
                 if (announce.isNotEmpty()) {
                     val msg = announce.poll()
                     if (msg != null) speak(rec, msg)
@@ -251,22 +264,24 @@ class ListenService : Service() {
                 if (rms(buf, n) > VOICE_RMS) lastVoice = now
 
                 // Solo alimentamos el reconocedor cuando hay voz: ahorra mucha CPU/batería.
+                var triggered = false
                 if (now - lastVoice < 1200) {
                     fed = true
-                    val end = wake.acceptWaveForm(buf, n)
-                    val json = if (end) wake.result else wake.partialResult
-                    val t = JSONObject(json).let { it.optString("text", "") + it.optString("partial", "") }
-                    if (t.contains(WAKE)) {
-                        wake.reset(); fed = false; lastVoice = 0
-                        handleNote(model, rec, buf)
-                        status = "Escuchando: di \"$WAKE\""
-                    } else if (end) {
+                    // Solo se decide con el resultado FINAL de una frase (nunca con hipótesis parciales).
+                    if (wake.acceptWaveForm(buf, n)) {
                         fed = false
+                        triggered = isWake(wake.result, phrase)
                     }
                 } else if (fed) {
-                    wake.finalResult
-                    wake.reset()
                     fed = false
+                    val fin = wake.finalResult
+                    wake.reset()
+                    triggered = isWake(fin, phrase)
+                }
+                if (triggered) {
+                    wake.reset(); fed = false; lastVoice = 0
+                    handleNote(model, rec, buf)
+                    status = "Escuchando: di \"$phrase\""
                 }
             }
         } catch (_: InterruptedException) {
@@ -278,11 +293,21 @@ class ListenService : Service() {
         }
     }
 
+    /**
+     * La frase debe ser la ÚNICA cosa dicha en esa tanda (con a lo sumo un ruido [unk]).
+     * Si va rodeada de otras palabras (radio, conversación) no cuenta.
+     */
+    private fun isWake(json: String, phrase: String): Boolean {
+        val toks = JSONObject(json).optString("text", "").trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+        val unk = toks.count { it == "[unk]" }
+        return unk <= 1 && toks.filter { it != "[unk]" }.joinToString(" ") == phrase
+    }
+
     private fun handleNote(model: Model, rec: AudioRecord, buf: ShortArray) {
         status = "Dime la nota…"
         beep(rec)
         val raw = dictate(model, rec, buf)
-        if (raw.isBlank()) {
+        if (raw.isBlank() || raw.trim().split(" ").size < 2) {
             speak(rec, "No te he entendido")
             return
         }
@@ -309,7 +334,7 @@ class ListenService : Service() {
                 if (rms(buf, n) > VOICE_RMS) { lastVoice = now; heard = true }
                 if (r.acceptWaveForm(buf, n)) sb.append(' ').append(JSONObject(r.result).optString("text", ""))
                 if (heard && now - lastVoice > 2000) break   // 2 s de silencio: fin de la nota
-                if (!heard && now - start > 7000) break      // no ha dicho nada
+                if (!heard && now - start > 5000) break      // no ha dicho nada
                 if (now - start > 45_000) break              // tope de seguridad
             }
             sb.append(' ').append(JSONObject(r.finalResult).optString("text", ""))

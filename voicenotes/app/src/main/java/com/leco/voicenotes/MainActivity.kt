@@ -188,6 +188,26 @@ class MainActivity : Activity() {
         findViewById<View>(R.id.battery).background = rounded(C_CHIP, 12)
         findViewById<View>(R.id.catsBtn).background = rounded(C_CHIP, 12)
 
+        val wakeBox = findViewById<EditText>(R.id.wakeBox)
+        wakeBox.setText(ListenService.wakePhrase(this))
+        findViewById<View>(R.id.wakeSave).background = rounded(C_CHIP, 12)
+        findViewById<View>(R.id.wakeSave).setOnClickListener {
+            val w = wakeBox.text.toString().trim().lowercase(Locale("es")).replace(Regex("\\s+"), " ")
+            val words = w.split(" ").size
+            if (!Regex("[a-záéíóúüñ ]+").matches(w) || words < 2 || words > 4) {
+                Toast.makeText(this, "Usa de 2 a 4 palabras, solo letras", Toast.LENGTH_LONG).show()
+            } else {
+                ListenService.setWake(this, w)
+                wakeBox.setText(w)
+                rebuildHowTo()
+                Toast.makeText(
+                    this,
+                    if (w.length < 12) "Guardada, pero las frases cortas saltan sin querer: mejor 3 palabras o más" else "Frase guardada: «$w»",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+
         rebuildHowTo()
         showPage(0)
     }
@@ -254,7 +274,7 @@ class MainActivity : Activity() {
         box.addView(
             line(
                 "1. Pulsa el micro de arriba hasta que se ponga verde (solo la primera vez).\n" +
-                    "2. Di «oye nota» y espera el pitido.\n" +
+                    "2. Di «${ListenService.wakePhrase(this)}» y haz una pausa: espera el pitido.\n" +
                     "3. Dicta la nota. Tras 2 segundos de silencio se guarda y te responde por voz.",
                 13f, C_DIM, if (withTitle) 6 else 10
             )
@@ -685,7 +705,7 @@ class MainActivity : Activity() {
             }
         )
         btnToggle.background = circle(if (running) C_GREEN else C_CHIP)
-        subtitle.text = if (running) "Escuchando · di «oye nota»" else "Toca el micro para activar la escucha"
+        subtitle.text = if (running) "Escuchando · di «${ListenService.wakePhrase(this)}»" else "Toca el micro para activar la escucha"
 
         // Cierres de Android (diagnóstico de batería)
         val p = ListenService.prefs(this)

@@ -225,6 +225,56 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:text="🗣  Frase de activación"
+                        android:textColor="@color/text"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:lineSpacingExtra="3dp"
+                        android:text="Frases más largas saltan menos sin querer. Di la frase sola, con una pausa después. Usa palabras corrientes (ej.: «oye nota rápida»). Si deja de responder, prueba otra."
+                        android:textColor="@color/dim"
+                        android:textSize="13sp" />
+
+                    <EditText
+                        android:id="@+id/wakeBox"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:background="@drawable/bg_input"
+                        android:hint="oye nota"
+                        android:inputType="textNoSuggestions"
+                        android:padding="12dp"
+                        android:singleLine="true"
+                        android:textColor="@color/text"
+                        android:textColorHint="@color/dim" />
+
+                    <TextView
+                        android:id="@+id/wakeSave"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:background="@drawable/bg_btn_sec"
+                        android:gravity="center"
+                        android:padding="12dp"
+                        android:text="Guardar frase"
+                        android:textColor="@color/text" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/bg_card"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
                         android:text="🗂  Pestañas y palabras que reconoce"
                         android:textColor="@color/text"
                         android:textSize="16sp"
