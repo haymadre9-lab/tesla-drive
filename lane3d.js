@@ -56,13 +56,14 @@
     const t = T, st = this.state, g = this.world, sel = st.sel, D = st.D, n = st.n;
     // carriles que salen (todos los válidos); vacío en maniobra recta o en incorporación
     const exitList = st.exits || [], exiting = exitList.length > 0;
-    const outerE = exiting ? (D > 0 ? Math.max(...exitList) : Math.min(...exitList)) : sel; // carril de salida más alejado del centro
+    const outerE = exiting ? (D > 0 ? Math.min(...exitList) : Math.max(...exitList)) : sel; // carril de salida más alejado del centro (exterior)
+    const innerE = exiting ? (D > 0 ? Math.max(...exitList) : Math.min(...exitList)) : sel; // el más cercano al resto de carriles
     const hl = exiting ? exitList : [sel];
     const mat = c => new t.MeshLambertMaterial({ color: c });
     g.clear();
     // centro del carril i en z; el carril elegido se separa hacia la salida (lado D) tras SALIDA_Z
     const cen = (i, z) => {
-      let x = D * (i - sel + 1) * LANE * cf(z);
+      let x = -D * (i - (n - 1) / 2) * LANE * cf(z); // índice 0 = izquierda del todo; la pila va centrada
       if (exiting && exitList.includes(i) && z > SALIDA_Z) { const d = z - SALIDA_Z; x += D * (0.9 * (1 - Math.exp(-d / 1.6)) + d * d * 0.06); }
       return x;
     };
@@ -82,13 +83,15 @@
     // arcén: en el lado de salida sigue el borde del carril de salida tras la separación (sin cuña)
     ribbon(z => {
       const near = -D * (LANE * (n / 2) * cf(z) + 0.8);
-      const far = !exiting || z <= SALIDA_Z ? D * (LANE * (n / 2) * cf(z) + 0.8) : cen(outerE, z) + D * (LANE * cf(z) / 2 + 0.8);
+      const far = !exiting || z <= SALIDA_Z ? D * (LANE * (n / 2) * cf(z) + 0.8) : cen(innerE, z) - D * LANE * cf(z) / 2;
       return near < far ? [near, far] : [far, near];
     }, 0.005, 0x3a404b);
+    // arcén del carril que sale: sigue su borde exterior tras la separación
+    if (exiting) ribbon(z => z <= SALIDA_Z ? [0, 0] : [cen(outerE, z) + D * LANE * cf(z) / 2, cen(outerE, z) + D * (LANE * cf(z) / 2 + 0.8)], 0.005, 0x3a404b);
     for (const i of hl) ribbon(z => [cen(i, z) - LANE * cf(z) / 2, cen(i, z) + LANE * cf(z) / 2], 0.03, 0x6f7888);
     // líneas entre carriles (i = límites de carril) y borde de la salida
     // líneas entre carriles: siguen al carril que sale, así la línea de su borde se separa con él
-    for (let k = 0; k <= n; k++) { const A = exitList.includes(k - 1), B = exitList.includes(k); strip(z => (B && !A ? cen(k, z) - D * LANE * cf(z) / 2 : cen(k - 1, z) + D * LANE * cf(z) / 2), -2, ZMAX, 0.08, 0xf2f4f8); }
+    for (let k = 0; k <= n; k++) { const A = exitList.includes(k - 1), B = exitList.includes(k); strip(z => (B && !A ? cen(k, z) + D * LANE * cf(z) / 2 : cen(k - 1, z) - D * LANE * cf(z) / 2), -2, ZMAX, 0.08, 0xf2f4f8); }
     // flecha blanca sobre el carril elegido
     const pts = []; for (let z = 2; z <= 30; z += 1) pts.push(new t.Vector3(cen(sel, z), 0.12, z));
     g.add(new t.Mesh(new t.TubeGeometry(new t.CatmullRomCurve3(pts), 80, 0.22, 10, false), new t.MeshBasicMaterial({ color: 0xffffff })));
