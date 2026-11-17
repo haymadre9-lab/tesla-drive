@@ -482,7 +482,8 @@ const Nav = (() => {
       return N.olanes[k] ? parseTurnLanes(N.olanes[k], mm) : null; })();
     if (osm) lanes = osm;
     const dest = nx.destinations || '', ex = nx.exits || '';
-    const hw = /autopista|autov[ií]a|\b(ap|a|as)-?\d/i.test(((cur && (cur.ref || cur.name)) || '') + ' ' + ((nx.ref || nx.name) || ''));
+    const hw = /autopista|autov[ií]a|\b(ap|a|as)-?\d/i.test(((cur && (cur.ref || cur.name)) || '') + ' ' + ((nx.ref || nx.name) || ''))
+      || /off ramp|merge|fork/.test(t); // sin ref de la vía: las salidas, incorporaciones y bifurcaciones son de autopista
     const show = force || dN <= 650 && !/^(depart|arrive|notification|new name)$/.test(t) && !((m.modifier === 'straight' || !m.modifier) && t !== 'roundabout' && t !== 'rotary' && !lanes && !dest);
     if (!show) { if (!el.hidden) { el.hidden = true; el.dataset.k = ''; } return; }
     const key = (force ? 'demo' : '') + N.idx + '|' + t + '|' + (m.modifier || '') + '|' + (m.exit || '') + '|' + (nx.destinations || '') + '|' + (lanes ? 'L' + lanes.length + (lanes.some(l => l.valid) ? 'v' : '') : '') + '|' + (S.accent || '');

@@ -181,10 +181,12 @@ const Poi = (() => {
     return el;
   }
   function radarHalo(p, c) {
-    const el = haloEl(), kmh = c.speed != null && !isNaN(c.speed) ? c.speed * 3.6 : null, hdg = c.heading != null && !isNaN(c.heading) ? c.heading : null;
+    const el = haloEl(), kmh = c.speed != null && !isNaN(c.speed) ? c.speed * 3.6 : null;
+    // mismo criterio que las alertas: solo radares de MI vía y por delante (sin rumbo fiable, ninguno)
+    const hdg = c.heading != null && !isNaN(c.heading) && kmh > 6 ? c.heading : P.heading;
     const tramoOver = tramoUpd(p, c);
     let best = null, bd = 650;
-    for (const x of camsNear(p, 650)) { if (!x.max || !ahead(p, [x.lat, x.lon], hdg)) continue; const d = dist(p, [x.lat, x.lon]); if (d < bd) { bd = d; best = x; } }
+    for (const x of camsNear(p, 650)) { if (!x.max || !onMyRoad(p, hdg, x)) continue; const d = dist(p, [x.lat, x.lon]); if (d < bd) { bd = d; best = x; } }
     const approaching = !!(best && HALO.last && HALO.last.id === best.id && bd < HALO.last.d - 2);
     HALO.last = best ? { id: best.id, d: bd } : null;
     const over = !!(best && kmh != null && kmh > best.max && approaching);
