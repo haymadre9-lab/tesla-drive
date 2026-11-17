@@ -250,7 +250,7 @@
   // El panel vive dentro de una ventana del dashboard, y la pulsación larga de esa ventana abre el editor de
   // ventanas (X y flechas). Por eso los toques del panel se interceptan en la fase de captura de la ventana.
   Lane3D.bindTools = function (panel, store) {
-    const cfg = Object.assign({ k: 0.85, x: null, y: null }, store.load() || {});
+    const cfg = Object.assign({ k: 1.05, x: null, y: null }, store.load() || {});
     const apply = () => {
       panel.style.setProperty('--l3k', cfg.k);
       if (cfg.x != null) { panel.style.left = cfg.x + 'px'; panel.style.top = cfg.y + 'px'; panel.style.bottom = 'auto'; }

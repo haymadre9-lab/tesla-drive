@@ -178,12 +178,12 @@ html[data-theme="dark"] #navmap .leaflet-tile-pane{filter:invert(.92) hue-rotate
 .nr{padding:12px 16px;border-bottom:1px solid var(--bd);cursor:pointer;} .nr:last-child{border:0;} .nr b{display:block;font-size:16px;} .nr small{color:var(--dim);} .nr:active{background:var(--card2);}
 .navchips{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;} .navchips .chip{background:var(--card);backdrop-filter:blur(14px);padding:10px 14px;font-size:15px;cursor:pointer;border:1px solid var(--bd);border-radius:14px;}
 .navguide{position:absolute;z-index:500;left:12px;top:12px;display:flex;gap:14px;align-items:center;background:var(--bg);border:1px solid var(--bd);border-radius:20px;padding:12px 20px 12px 14px;box-shadow:0 8px 28px rgba(0,0,0,.45);max-width:min(560px,calc(100% - 24px));}
-#radarHalo{position:fixed;inset:0;pointer-events:none;z-index:9000;opacity:0;transition:opacity .6s ease;box-shadow:inset 0 0 90px 30px transparent;}
+#radarHalo{position:fixed;inset:0;pointer-events:none;z-index:9000;opacity:0;transition:opacity .6s ease;box-shadow:inset 0 0 36px 6px transparent;}
 #radarHalo.on{opacity:1;}
-#radarHalo.red{box-shadow:inset 0 0 90px 30px rgba(232,33,39,.75);}
-#radarHalo.yellow{box-shadow:inset 0 0 90px 30px rgba(255,196,0,.75);}
+#radarHalo.red{box-shadow:inset 0 0 36px 6px rgba(232,33,39,.45);}
+#radarHalo.yellow{box-shadow:inset 0 0 36px 6px rgba(255,196,0,.45);}
 #radarHalo.blink{animation:radarBlink 1.8s ease-in-out infinite;}
-@keyframes radarBlink{0%,100%{opacity:.45}50%{opacity:1}}
+@keyframes radarBlink{0%,100%{opacity:.35}50%{opacity:.8}}
 @media (prefers-reduced-motion:reduce){#radarHalo.blink{animation:none;}}
 #tramoProg{position:fixed;left:50%;transform:translateX(-50%);top:72px;z-index:9500;width:min(360px,calc(100% - 24px));background:rgba(8,12,20,.86);color:#fff;border-radius:14px;padding:10px 12px;display:none;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.4);}
 #tramoProg.on{display:block;}
