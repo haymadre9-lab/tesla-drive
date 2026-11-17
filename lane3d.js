@@ -54,12 +54,16 @@
 
   Lane3D.prototype.build = function () {
     const t = T, st = this.state, g = this.world, sel = st.sel, D = st.D, n = st.n;
+    // carriles que salen (todos los válidos); vacío en maniobra recta o en incorporación
+    const exitList = st.exits || [], exiting = exitList.length > 0;
+    const outerE = exiting ? (D > 0 ? Math.max(...exitList) : Math.min(...exitList)) : sel; // carril de salida más alejado del centro
+    const hl = exiting ? exitList : [sel];
     const mat = c => new t.MeshLambertMaterial({ color: c });
     g.clear();
     // centro del carril i en z; el carril elegido se separa hacia la salida (lado D) tras SALIDA_Z
     const cen = (i, z) => {
       let x = D * (i - sel + 1) * LANE * cf(z);
-      if (i === sel && z > SALIDA_Z) { const d = z - SALIDA_Z; x += D * (0.9 * (1 - Math.exp(-d / 1.6)) + d * d * 0.06); }
+      if (exiting && exitList.includes(i) && z > SALIDA_Z) { const d = z - SALIDA_Z; x += D * (0.9 * (1 - Math.exp(-d / 1.6)) + d * d * 0.06); }
       return x;
     };
     const ribbon = (fn, y, color) => {
@@ -78,12 +82,13 @@
     // arcén: en el lado de salida sigue el borde del carril de salida tras la separación (sin cuña)
     ribbon(z => {
       const near = -D * (LANE * (n / 2) * cf(z) + 0.8);
-      const far = z <= SALIDA_Z ? D * (LANE * (n / 2) * cf(z) + 0.8) : cen(sel, z) + D * (LANE * cf(z) / 2 + 0.8);
+      const far = !exiting || z <= SALIDA_Z ? D * (LANE * (n / 2) * cf(z) + 0.8) : cen(outerE, z) + D * (LANE * cf(z) / 2 + 0.8);
       return near < far ? [near, far] : [far, near];
     }, 0.005, 0x3a404b);
-    ribbon(z => [cen(sel, z) - LANE * cf(z) / 2, cen(sel, z) + LANE * cf(z) / 2], 0.03, 0x6f7888);
+    for (const i of hl) ribbon(z => [cen(i, z) - LANE * cf(z) / 2, cen(i, z) + LANE * cf(z) / 2], 0.03, 0x6f7888);
     // líneas entre carriles (i = límites de carril) y borde de la salida
-    for (let i = 0; i <= n; i++) strip(z => (i - sel + 0.5) * D * LANE * cf(z), -2, ZMAX, 0.08, 0xf2f4f8);
+    // líneas entre carriles: siguen al carril que sale, así la línea de su borde se separa con él
+    for (let k = 0; k <= n; k++) { const A = exitList.includes(k - 1), B = exitList.includes(k); strip(z => (B && !A ? cen(k, z) - D * LANE * cf(z) / 2 : cen(k - 1, z) + D * LANE * cf(z) / 2), -2, ZMAX, 0.08, 0xf2f4f8); }
     // flecha blanca sobre el carril elegido
     const pts = []; for (let z = 2; z <= 30; z += 1) pts.push(new t.Vector3(cen(sel, z), 0.12, z));
     g.add(new t.Mesh(new t.TubeGeometry(new t.CatmullRomCurve3(pts), 80, 0.22, 10, false), new t.MeshBasicMaterial({ color: 0xffffff })));
@@ -101,13 +106,15 @@
       }
     };
     rail(z => -D * (LANE * (n / 2) * cf(z) + 0.9), -2, ZMAX);
-    rail(z => cen(sel, z) + D * (LANE * cf(z) / 2 + 0.5), SALIDA_Z, ZMAX);
+    if (exiting) rail(z => cen(outerE, z) + D * (LANE * cf(z) / 2 + 0.5), SALIDA_Z, ZMAX);
+    // incorporación: carril de acceso que llega por el lado D desde lejos y se une al borde exterior junto al coche
+    if (st.merge) ribbon(z => { const c = D * (LANE * (n / 2) * cf(z) + LANE * cf(z) * (0.5 + 2.2 * Math.min(Math.max(z, 0) / ZMAX, 1))); return [c - LANE * cf(z) * 0.45, c + LANE * cf(z) * 0.45]; }, 0.035, 0x6f7888);
     // postes de luz a ambos lados; en el lado de salida solo tras la separación
     const pole = mat(0x5a616c), lamp = new t.MeshBasicMaterial({ color: 0xfff4d6 });
     for (let z = 10; z < ZMAX; z += 24) for (const side of [-1, 1]) {
-      const exitSide = side === D;
+      const exitSide = exiting && side === D;
       if (exitSide && z <= SALIDA_Z) continue;
-      const x = exitSide ? cen(sel, z) + D * (LANE * cf(z) / 2 + 1.6) : side * (LANE * (n / 2) * cf(z) + 2.0);
+      const x = exitSide ? cen(outerE, z) + D * (LANE * cf(z) / 2 + 1.6) : side * (LANE * (n / 2) * cf(z) + 2.0);
       const p = new t.Mesh(new t.CylinderGeometry(0.09, 0.12, 7, 8), pole); p.position.set(x, 3.5, z); g.add(p);
       const a = new t.Mesh(new t.BoxGeometry(0.08, 0.08, 1.6), pole); a.position.set(x - side * 0.7, 6.9, z); g.add(a);
       const l = new t.Mesh(new t.BoxGeometry(0.35, 0.12, 0.5), lamp); l.position.set(x - side * 1.4, 6.82, z); g.add(l);
@@ -153,7 +160,10 @@
     let sel = n - 1;
     if (st.lanes) { const v = st.lanes.findIndex(l => l.valid); if (v >= 0) sel = v; }
     // el carril de la salida es el más cercano al lado de salida
-    this.state = { D: st.side === 'left' ? 1 : -1, n, sel, scene: st.scene || 'autopista', night: !!st.night, side: st.side || 'straight' };
+    const valid = (st.lanes || []).map((l, i) => (l.valid ? i : -1)).filter(i => i >= 0);
+    // carriles que salen: todos los válidos si la maniobra es lateral y no toman todos los carriles; nada en recto o incorporación
+    const exits = !st.merge && st.side && st.side !== 'straight' && valid.length && valid.length < n ? valid : [];
+    this.state = { D: st.side === 'left' ? 1 : -1, n, sel, exits, merge: !!st.merge, scene: st.scene || 'autopista', night: !!st.night, side: st.side || 'straight' };
     this.last = st; this.tilt = tiltFor(st.distance);
     this.renderSign(st);
     if (this.ready) { this.build(); this.resize(); }
