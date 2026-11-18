@@ -17,7 +17,7 @@
 
   function Lane3D(el, onFail) {
     this.el = el; this.failed = false;
-    el.innerHTML = '<div class="l3-wrap"><canvas class="l3-cv"></canvas><div class="l3-sign" aria-live="polite"></div></div>';
+    el.innerHTML = '<div class="l3-wrap"><canvas class="l3-cv"></canvas><img class="l3-photo" alt="" hidden><div class="l3-sign" aria-live="polite"></div></div>';
     this.cv = el.querySelector('.l3-cv');
     this.sign = el.querySelector('.l3-sign');
     this.state = null;
@@ -161,9 +161,18 @@
     const valid = (st.lanes || []).map((l, i) => (l.valid ? i : -1)).filter(i => i >= 0);
     // carriles que salen: todos los válidos si la maniobra es lateral y no toman todos los carriles; nada en recto o incorporación
     const exits = !st.merge && st.side && st.side !== 'straight' && valid.length && valid.length < n ? valid : [];
+    // Salida de 2 carriles en el borde (4 carriles): se usa la foto de referencia, con los carriles ya pintados
+    const edgeR = exits.length === 2 && n >= 4 && exits.includes(n - 1) && exits.includes(n - 2) && st.side === 'right';
+    const edgeL = exits.length === 2 && n >= 4 && exits.includes(0) && exits.includes(1) && st.side === 'left';
+    this.photo = !st.merge && (edgeR ? 'img/carriles/salida-2-derecha-ref.jpg' : edgeL ? 'img/carriles/salida-2-izquierda-ref.jpg' : null);
     this.state = { D: st.side === 'left' ? 1 : -1, n, sel, exits, merge: !!st.merge, scene: st.scene || 'autopista', night: !!st.night, side: st.side || 'straight' };
     this.last = st; this.tilt = tiltFor(st.distance);
     this.renderSign(st);
+    const ph = this.el.querySelector('.l3-photo'), cv = this.el.querySelector('.l3-cv');
+    if (ph && cv) { // foto fija o escena 3D
+      if (this.photo) { if (ph.getAttribute('src') !== this.photo) ph.src = this.photo; ph.hidden = false; cv.hidden = true; }
+      else { ph.hidden = true; cv.hidden = false; }
+    }
     if (this.ready) { this.build(); this.resize(); }
   };
 
@@ -318,6 +327,7 @@
     '.l3-board.gen .l3-d{background:#e9ecf1;border-top-color:#111;color:#111}' +
     '.l3-board{width:240px;height:150px;box-sizing:border-box;overflow:hidden}' +
     '.l3-board.d,.l3-board.l3-six{height:auto;min-height:150px}' +
+    '.l3-photo{display:block;width:100%;height:150px;object-fit:cover;object-position:50% 40%}' +
     '.l3-rb .l3-rbrow{display:flex;align-items:center;gap:8px;padding:10px;height:100%;box-sizing:border-box}' +
     '.l3-rb .l3-rbtx{min-width:0;flex:1;display:flex;flex-direction:column;gap:4px}' +
     '.l3-rb .l3-rbtx small{font-size:11px;letter-spacing:.06em;text-transform:uppercase;opacity:.85}' +
