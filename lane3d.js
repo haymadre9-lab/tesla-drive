@@ -164,7 +164,8 @@
     // Salida de 2 carriles en el borde (4 carriles): se usa la foto de referencia, con los carriles ya pintados
     const edgeR = exits.length === 2 && n >= 4 && exits.includes(n - 1) && exits.includes(n - 2) && st.side === 'right';
     const edgeL = exits.length === 2 && n >= 4 && exits.includes(0) && exits.includes(1) && st.side === 'left';
-    this.photo = !st.merge && (edgeR ? 'img/carriles/salida-2-derecha-ref.jpg' : edgeL ? 'img/carriles/salida-2-izquierda-ref.jpg' : null);
+    this.photo = null; // fotos de salida retiradas: la vista de cruce vuelve a la escena 3D (edgeR/edgeL quedan para reactivar)
+    void edgeR; void edgeL;
     this.state = { D: st.side === 'left' ? 1 : -1, n, sel, exits, merge: !!st.merge, scene: st.scene || 'autopista', night: !!st.night, side: st.side || 'straight' };
     this.last = st; this.tilt = tiltFor(st.distance);
     this.renderSign(st);
