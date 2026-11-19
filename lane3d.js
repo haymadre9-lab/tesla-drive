@@ -363,7 +363,7 @@
     '.l3-board.gen .l3-d{background:#e9ecf1;border-top-color:#111;color:#111}' +
     '.l3-board{width:240px;height:150px;box-sizing:border-box;overflow:hidden}' +
     '.l3-board.d,.l3-board.l3-six{height:auto;min-height:150px}' +
-    '.l3-photo{display:block;width:100%;height:auto;object-fit:contain}' +
+    '.l3-photo{display:block;width:240px;max-width:100%;height:auto;border-radius:14px}' +
     '.l3-cv[hidden],.l3-photo[hidden]{display:none !important}' +
     '.l3-rb .l3-rbrow{display:flex;align-items:center;gap:8px;padding:10px;height:100%;box-sizing:border-box}' +
     '.l3-rb .l3-rbtx{min-width:0;flex:1;display:flex;flex-direction:column;gap:4px}' +
