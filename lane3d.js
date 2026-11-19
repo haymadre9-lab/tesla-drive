@@ -173,6 +173,10 @@
       if (exits.includes(2) && exits.includes(3)) return D + 'salida-2-de-4-derecha-2-flechas.jpg';
       if (exits.includes(0) && exits.includes(1)) return D + 'salida-2-de-4-izquierda-2-flechas.jpg';
     }
+    if (n === 2 && exits.length === 1) {
+      if (exits[0] === 1 && side === 'derecha') return D + 'salida-1-de-2-derecha.jpg';
+      if (exits[0] === 0 && side === 'izquierda') return D + 'salida-1-de-2-izquierda.jpg';
+    }
     if (n === 3 && exits.length === 2) {
       if (exits.includes(1) && exits.includes(2) && side === 'derecha') return D + 'salida-2-de-3-derecha.jpg';
       if (exits.includes(0) && exits.includes(1) && side === 'izquierda') return D + 'salida-2-de-3-izquierda.jpg';
