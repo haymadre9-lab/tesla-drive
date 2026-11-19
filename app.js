@@ -606,6 +606,7 @@ const OPT = {
   sort: [['default', 'Predeterminado'], ['az', 'Nombre A-Z'], ['za', 'Nombre Z-A']],
   speedUnit: [['kmh', 'km/h'], ['mph', 'mph']], tempUnit: [['c', '°C'], ['f', '°F']], pressUnit: [['bar', 'bar'], ['psi', 'psi'], ['kpa', 'kPa']],
 };
+const APP_VERSION = 'lecoauto-v70'; // mismo número que la caché de sw.js: si cambia aquí, cambia allí
 const CATS = {
   inicio: ['🏠 Inicio', [
     { t: 'widgets' },
@@ -658,7 +659,7 @@ const CATS = {
     { t: 'btn', l: 'Exportar copia de seguridad', f: backup }, { t: 'btn', l: 'Restaurar copia de seguridad', f: () => $('#fileCfg').click() },
     { t: 'btn', l: 'Restablecer valores de fábrica', f: () => confirm('¿Borrar todos los ajustes?') && (localStorage.removeItem('leco.v1'), location.reload()) },
   ]],
-  acerca: ['ℹ️ Acerca de', [{ t: 'note', l: 'LecoAuto PWA — launcher web para pantallas de coche, de código abierto en este repositorio. Es un proyecto independiente: no está afiliado ni incluye código, marcas o recursos de la app Android LecoAuto. Clima: Open-Meteo. Mapa: © OpenStreetMap.' }]],
+  acerca: ['ℹ️ Acerca de', [{ t: 'note', l: 'Versión de la app: ' + APP_VERSION + ' (en Ajustes → Acerca de). LecoAuto PWA — launcher web para pantallas de coche, de código abierto en este repositorio. Es un proyecto independiente: no está afiliado ni incluye código, marcas o recursos de la app Android LecoAuto. Clima: Open-Meteo. Mapa: © OpenStreetMap.' }]],
 };
 const getK = k => k.split('.').reduce((o, p) => o?.[p], S);
 const setK = (k, v) => { const p = k.split('.'), l = p.pop(); p.reduce((o, x) => o[x], S)[l] = v; };
