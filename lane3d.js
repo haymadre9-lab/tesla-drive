@@ -167,11 +167,16 @@
     if (!side || st.side === 'straight') { // recto: el carril del borde en autopista de 4, o el carril de la derecha/izquierda en autopista de 2
       if (n === 4 && valid.length === 1) return valid[0] === 3 ? D + 'frente-4-carriles-1-derecha.jpg' : valid[0] === 0 ? D + 'frente-4-carriles-1-izquierda.jpg' : null;
       if (n === 2 && valid.length === 1) return valid[0] === 1 ? D + 'frente-2-carriles-1-derecha.jpg' : valid[0] === 0 ? D + 'frente-2-carriles-1-izquierda.jpg' : null;
+      if (n === 3 && valid.length === 1) return valid[0] === 2 ? D + 'frente-3-carriles-1-derecha.jpg' : valid[0] === 0 ? D + 'frente-3-carriles-1-izquierda.jpg' : null;
       return null;
     }
     if (n === 4 && exits.length === 2) {
       if (exits.includes(2) && exits.includes(3)) return D + 'salida-2-de-4-derecha-2-flechas.jpg';
       if (exits.includes(0) && exits.includes(1)) return D + 'salida-2-de-4-izquierda-2-flechas.jpg';
+    }
+    if (n === 2 && exits.length === 1) {
+      if (exits[0] === 1 && side === 'derecha') return D + 'salida-1-de-2-derecha.jpg';
+      if (exits[0] === 0 && side === 'izquierda') return D + 'salida-1-de-2-izquierda.jpg';
     }
     if (n === 3 && exits.length === 2) {
       if (exits.includes(1) && exits.includes(2) && side === 'derecha') return D + 'salida-2-de-3-derecha.jpg';
