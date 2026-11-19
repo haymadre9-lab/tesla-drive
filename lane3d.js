@@ -153,6 +153,32 @@
     this.r.render(this.scene, this.cam);
   };
 
+  // Foto de referencia para cada maniobra (carpeta img/carriles). Si no hay foto para la maniobra, se muestra la escena 3D.
+  function photoFor(st, n, exits) {
+    const D = 'img/carriles/';
+    const side = st.side === 'left' ? 'izquierda' : st.side === 'right' ? 'derecha' : null;
+    const valid = (st.lanes || []).map((l, i) => (l.valid ? i : -1)).filter(i => i >= 0);
+    if (st.merge) {
+      if (!side) return null;
+      if (n === 3) return D + 'incorporacion-3-desde-1-carril-' + side + '.jpg';
+      if (n === 2) return D + 'incorporacion-2-desde-1-carril-' + side + '.jpg';
+      return null;
+    }
+    if (!side || st.side === 'straight') { // recto: solo el carril del borde en autopista de 4
+      if (n === 4 && valid.length === 1) return valid[0] === 3 ? D + 'frente-4-carriles-1-derecha.jpg' : valid[0] === 0 ? D + 'frente-4-carriles-1-izquierda.jpg' : null;
+      return null;
+    }
+    if (n === 4 && exits.length === 2) {
+      if (exits.includes(2) && exits.includes(3)) return D + 'salida-2-de-4-derecha-2-flechas.jpg';
+      if (exits.includes(0) && exits.includes(1)) return D + 'salida-2-de-4-izquierda-2-flechas.jpg';
+    }
+    if (n === 3 && exits.length === 1) {
+      if (exits[0] === 2 && side === 'derecha') return D + 'salida-3-carriles-1-derecha.jpg';
+      if (exits[0] === 0 && side === 'izquierda') return D + 'salida-3-carriles-1-izquierda.jpg';
+    }
+    return null;
+  }
+
   Lane3D.prototype.update = function (st) {
     const n = st.lanes && st.lanes.length ? st.lanes.length : 3;
     let sel = n - 1;
@@ -164,8 +190,7 @@
     // Salida de 2 carriles en el borde (4 carriles): se usa la foto de referencia, con los carriles ya pintados
     const edgeR = exits.length === 2 && n >= 4 && exits.includes(n - 1) && exits.includes(n - 2) && st.side === 'right';
     const edgeL = exits.length === 2 && n >= 4 && exits.includes(0) && exits.includes(1) && st.side === 'left';
-    this.photo = null; // fotos de salida retiradas: la vista de cruce vuelve a la escena 3D (edgeR/edgeL quedan para reactivar)
-    void edgeR; void edgeL;
+    this.photo = photoFor(st, n, exits);
     this.state = { D: st.side === 'left' ? 1 : -1, n, sel, exits, merge: !!st.merge, scene: st.scene || 'autopista', night: !!st.night, side: st.side || 'straight' };
     this.last = st; this.tilt = tiltFor(st.distance);
     this.renderSign(st);
@@ -328,7 +353,7 @@
     '.l3-board.gen .l3-d{background:#e9ecf1;border-top-color:#111;color:#111}' +
     '.l3-board{width:240px;height:150px;box-sizing:border-box;overflow:hidden}' +
     '.l3-board.d,.l3-board.l3-six{height:auto;min-height:150px}' +
-    '.l3-photo{display:block;width:100%;height:150px;object-fit:cover;object-position:50% 40%}' +
+    '.l3-photo{display:block;width:100%;height:auto;object-fit:contain}' +
     '.l3-rb .l3-rbrow{display:flex;align-items:center;gap:8px;padding:10px;height:100%;box-sizing:border-box}' +
     '.l3-rb .l3-rbtx{min-width:0;flex:1;display:flex;flex-direction:column;gap:4px}' +
     '.l3-rb .l3-rbtx small{font-size:11px;letter-spacing:.06em;text-transform:uppercase;opacity:.85}' +
