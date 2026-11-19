@@ -386,8 +386,8 @@
     '.l3-dtop{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;font-weight:700;font-size:14px}' +
     '.l3-dist{font-size:18px;font-variant-numeric:tabular-nums}' +
     '.l3-lanes{display:flex;gap:4px;padding:0 8px 8px}' +
-    '.l3-lane{flex:1;height:48px;display:flex;align-items:center;justify-content:center;box-sizing:border-box}' +
-    '.l3-lane svg{width:34px;height:40px}' +
+    '.l3-lane{flex:1;height:62px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:0}' +
+    '.l3-lane svg{width:100%;max-width:50px;height:auto;aspect-ratio:1/1.15}' +
     '.l3-board.hw .l3-lane.on{color:#fff}' +
     '.l3-board.hw .l3-lane.off{color:#8d9bb0}' +
     '.l3-board.gen .l3-lane.on{color:#111}' +
