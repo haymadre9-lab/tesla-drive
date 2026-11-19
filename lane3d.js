@@ -238,28 +238,34 @@
   // Rotonda vista desde arriba. La entrada está abajo (90°); el tramo recorrido va marcado y la salida elegida
   // lleva punta de flecha. El número de la salida va dentro de la rotonda.
   const RB_ARM = { 1: 0, 2: -90, 3: -180 };
+  // Rotonda como cartel real: anillo blanco en sentido antihorario (circulación por la derecha),
+  // entrada por abajo, brazo de salida con punta de flecha y número de salida en el centro.
   function roundaboutSVG(exit) {
     const pt = (a, r) => [50 + r * Math.cos(a * Math.PI / 180), 50 + r * Math.sin(a * Math.PI / 180)];
     const f = v => v.toFixed(1);
     const end = RB_ARM[exit] != null ? RB_ARM[exit] : 0;
+    const R = 27, SW = 9;
     let out = '<svg viewBox="0 0 100 100" aria-hidden="true">';
-    out += '<circle cx="50" cy="50" r="30" fill="none" stroke="currentColor" stroke-opacity=".3" stroke-width="7"/>';
-    out += '<circle cx="50" cy="50" r="18" fill="currentColor" fill-opacity=".1"/>';
-    // tramo recorrido: desde la entrada (90°) en sentido antihorario hasta la salida
+    // anillo completo, tenue
+    out += '<circle cx="50" cy="50" r="' + R + '" fill="none" stroke="currentColor" stroke-opacity=".28" stroke-width="' + SW + '"/>';
+    // tramo recorrido: desde la entrada (abajo) hasta la salida, en sentido antihorario
     let d = '';
-    for (let i = 0; i <= 24; i++) { const a = 90 + (end - 90) * i / 24, [x, y] = pt(a, 30); d += (i ? ' L' : 'M') + f(x) + ' ' + f(y); }
-    out += '<path d="' + d + '" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round"/>';
+    for (let i = 0; i <= 28; i++) { const a = 90 + (end - 90) * i / 28, [x, y] = pt(a, R); d += (i ? ' L' : 'M') + f(x) + ' ' + f(y); }
+    out += '<path d="' + d + '" fill="none" stroke="currentColor" stroke-width="' + SW + '" stroke-linecap="butt"/>';
+    // entrada: tramo recto desde abajo hasta el anillo
+    const [ex1, ey1] = pt(90, R + 22), [ex2, ey2] = pt(90, R);
+    out += '<line x1="' + f(ex1) + '" y1="' + f(ey1) + '" x2="' + f(ex2) + '" y2="' + f(ey2) + '" stroke="currentColor" stroke-width="' + SW + '"/>';
     // brazo de salida con punta de flecha
-    const [x1, y1] = pt(end, 36), [x2, y2] = pt(end, 46), [hx, hy] = pt(end, 50);
+    const [x1, y1] = pt(end, R), [hx, hy] = pt(end, R + 24);
     const ux = Math.cos(end * Math.PI / 180), uy = Math.sin(end * Math.PI / 180);
-    const bx = hx - ux * 5, by = hy - uy * 5, px = -uy * 5, py = ux * 5;
-    out += '<line x1="' + f(x1) + '" y1="' + f(y1) + '" x2="' + f(bx) + '" y2="' + f(by) + '" stroke="currentColor" stroke-width="7" stroke-linecap="round"/>';
+    const bx = hx - ux * 11, by = hy - uy * 11, px = -uy * 11, py = ux * 11;
+    out += '<line x1="' + f(x1) + '" y1="' + f(y1) + '" x2="' + f(bx) + '" y2="' + f(by) + '" stroke="currentColor" stroke-width="' + SW + '"/>';
     out += '<path d="M' + f(hx) + ' ' + f(hy) + ' L' + f(bx + px) + ' ' + f(by + py) + ' L' + f(bx - px) + ' ' + f(by - py) + ' Z" fill="currentColor"/>';
-    // número de la salida dentro de la rotonda
-    out += '<text x="50" y="57" font-size="22" font-weight="800" text-anchor="middle" fill="currentColor">' + (exit || '') + '</text>';
+    // centro: número de salida sobre una isleta oscura
+    out += '<circle cx="50" cy="50" r="15" fill="currentColor" fill-opacity=".12"/>';
+    out += '<text x="50" y="57" font-size="19" font-weight="800" text-anchor="middle" fill="currentColor">' + (exit || '') + '</text>';
     return out + '</svg>';
   }
-  // Cartel de rotonda, formato 5: texto a la izquierda y rotonda a la derecha. Sin nombre de calle, el número de salida va en un recuadro.
   function roundaboutBoard(st) {
     const cls = st.hw ? 'hw' : 'gen';
     const dist = st.distance ? Math.round(st.distance / 10) * 10 + ' m' : '';
