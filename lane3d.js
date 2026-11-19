@@ -218,7 +218,7 @@
   // Flecha de carril sin recuadro. La que se toma: blanca, más larga y más ancha. Las demás: grises y finas.
   const laneArrow = (inds, on) => {
     const k = (inds && inds[0]) || 'straight';
-    const W = on ? 2.8 : 1.8, R = on ? 10.5 : 8.5, H = on ? 6 : 4.2, T = on ? 7 : 5;
+    const W = on ? 4.2 : 2.8, R = on ? 12.5 : 10, H = on ? 8 : 5.6, T = on ? 9 : 6.5;
     let d, head;
     if (k === 'uturn') {
       d = 'M8 22 V11 C8 3 18 3 18 11 L18 15';
