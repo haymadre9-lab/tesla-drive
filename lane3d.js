@@ -207,7 +207,7 @@
     const ph = this.el.querySelector('.l3-photo'), cv = this.el.querySelector('.l3-cv');
     if (ph && cv) { // foto fija o escena 3D
       if (this.photo) { if (ph.getAttribute('src') !== this.photo) ph.src = this.photo; ph.hidden = false; cv.hidden = true; }
-      else { ph.hidden = true; cv.hidden = false; }
+      else { ph.hidden = true; cv.hidden = true; } // sin imagen para esta maniobra: solo el cartel, sin escena 3D
     }
     if (this.ready) { this.build(); this.resize(); }
   };

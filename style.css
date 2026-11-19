@@ -223,7 +223,7 @@ body.tesla #dock button{height:88px;font-size:32px;} body.tesla #dock button i{f
 .navlayers button{width:50px;height:50px;border-radius:50%;background:var(--bg);border:2px solid var(--bd);font-size:22px;box-shadow:0 4px 14px rgba(0,0,0,.4);opacity:.7;} .navlayers button.on{opacity:1;border-color:var(--acc);} .navlayers #nrep{background:var(--acc);opacity:1;border-color:transparent;}
 .poi{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-size:19px;background:var(--bg);border:3px solid var(--warn);box-shadow:0 3px 10px rgba(0,0,0,.5);}
 .poi.tesla{border-color:#e82127;} .poi.chg{border-color:var(--ok);} .poi.fuel{border-color:#5b9cff;} .poi.cam{border-color:var(--bad);} .poi.rep{border-color:var(--warn);}
-#alertbar{position:fixed;z-index:75;top:auto;bottom:14px;left:var(--alert-left,300px);transform:none;background:var(--warn);color:#111;padding:12px 26px;border-radius:18px;font-size:22px;font-weight:700;box-shadow:0 8px 30px rgba(0,0,0,.5);white-space:nowrap;} #alertbar[hidden]{display:none;}
+#alertbar{position:fixed;z-index:75;top:auto;bottom:14px;left:var(--alert-left,150px);transform:none;background:var(--warn);color:#111;padding:12px 26px;border-radius:18px;font-size:22px;font-weight:700;box-shadow:0 8px 30px rgba(0,0,0,.5);white-space:nowrap;} #alertbar[hidden]{display:none;}
 #alertbar.over{background:var(--bad);color:#fff;animation:pulse .8s infinite;}
 
 /* ── Dashboards ── */
