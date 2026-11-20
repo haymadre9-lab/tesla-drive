@@ -218,7 +218,7 @@
   // Flecha de carril sin recuadro. La que se toma: blanca, más larga y más ancha. Las demás: grises y finas.
   const laneArrow = (inds, on) => {
     const k = (inds && inds[0]) || 'straight';
-    const W = on ? 4.2 : 2.8, R = on ? 12.5 : 10, H = on ? 8 : 5.6, T = on ? 9 : 6.5;
+    const W = on ? 6.5 : 4, R = on ? 12.5 : 10, H = on ? 9 : 6, T = on ? 9 : 6.5; // flechas gruesas y con punta ancha, como las de Autoboard-nav
     let d, head;
     if (k === 'uturn') {
       d = 'M8 22 V11 C8 3 18 3 18 11 L18 15';
@@ -394,6 +394,7 @@
     '.l3-lanes{display:flex;gap:4px;padding:0 8px 8px}' +
     '.l3-lane{flex:1;height:62px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:0}' +
     '.l3-lane svg{width:100%;max-width:50px;height:auto;aspect-ratio:1/1.15}' +
+    '.l3-lane svg{filter:drop-shadow(0 2px 3px rgba(0,0,0,.55))}' +
     '.l3-board.hw .l3-lane.on{color:#fff}' +
     '.l3-board.hw .l3-lane.off{color:#8d9bb0}' +
     '.l3-board.gen .l3-lane.on{color:#111}' +
