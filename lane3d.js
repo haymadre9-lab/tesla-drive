@@ -208,7 +208,7 @@
     const ph = this.el.querySelector('.l3-photo'), cv = this.el.querySelector('.l3-cv');
     if (ph && cv) { // foto fija o escena 3D
       if (this.photo) { if (ph.getAttribute('src') !== this.photo) ph.src = this.photo; ph.hidden = false; cv.hidden = true; }
-      else { ph.hidden = true; cv.hidden = true; } // sin imagen para esta maniobra: solo el cartel, sin escena 3D
+      else { ph.hidden = true; cv.hidden = false; } // sin foto: escena 3D
     }
     if (this.ready) { this.build(); this.resize(); }
   };
@@ -396,9 +396,10 @@
     '.l3-lane{flex:1;height:62px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:0}' +
     '.l3-lane svg{width:100%;max-width:50px;height:auto;aspect-ratio:1/1.15}' +
     '.l3-lane svg{filter:drop-shadow(0 2px 3px rgba(0,0,0,.55))}' +
-    '.l3-board.hw .l3-lane.on{color:#fff}' +
+    '.l3-lane{border-radius:10px}' +
+    '.l3-board.hw .l3-lane.on{background:#fff;color:#0b5fd0}' +
     '.l3-board.hw .l3-lane.off{color:#8d9bb0}' +
-    '.l3-board.gen .l3-lane.on{color:#111}' +
+    '.l3-board.gen .l3-lane.on{background:#111;color:#fff}' +
     '.l3-board.gen .l3-lane.off{color:#8a909b}' +
     '.l3-dname{padding:6px 10px;background:rgba(0,0,0,.2);font-size:14px;font-weight:700;text-align:left}' +
     '.l3-board.gen .l3-dname{background:#e9ecf1;color:#111;border-top:2px solid #111}' +
