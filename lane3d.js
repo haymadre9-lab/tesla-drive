@@ -330,7 +330,7 @@
       const cc = ABcolores(st.hw);
       const lanes = st.lanes.map(l => { const k = (l.indications && l.indications[0]) || 'straight', on = !!l.valid;
         // carril activo: casilla blanca con flecha del color del cartel (en azul, azul sobre blanco); inactivo: flecha apagada
-        const colFlecha = on ? (st.hw ? '#1565c0' : '#ffffff') : cc.flechaInactiva;
+        const colFlecha = on ? '#ffffff' : cc.flechaInactiva;
         return '<div class="l3-lane ' + (on ? 'on' : 'off') + '"><svg viewBox="0 0 48 48" aria-hidden="true">' + ABflecha(k, colFlecha, on ? 6.5 : 5, on ? 10 : 8) + '</svg></div>'; }).join('');
       return '<div class="l3-board d ' + cls + '">' +
         '<div class="l3-dtop"><span>' + (st.exit ? 'Salida ' + ESC(st.exit) : 'Salida') + '</span><span class="l3-dist">' + dist + '</span></div>' +
@@ -446,7 +446,7 @@
     '.l3-lane svg{width:100%;max-width:50px;height:auto;aspect-ratio:1/1.15}' +
     '.l3-lane svg{filter:drop-shadow(0 2px 3px rgba(0,0,0,.55))}' +
     '.l3-lane{border-radius:10px}' +
-    '.l3-board.hw .l3-lane.on{background:#fff;color:#0b5fd0}' +
+    '.l3-board.hw .l3-lane.on{background:#1565c0;border:2px solid #ffffff;color:#ffffff}' +
     '.l3-board.hw .l3-lane.off{color:#8d9bb0}' +
     '.l3-board.gen .l3-lane.on{background:#111;color:#fff}' +
     '.l3-board.gen .l3-lane.off{color:#8a909b}' +
