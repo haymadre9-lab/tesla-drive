@@ -328,7 +328,10 @@
     if (st.roundabout) return roundaboutBoard(st);
     if (st.lanes && st.lanes.length >= 2) {
       const cc = ABcolores(st.hw);
-      const lanes = st.lanes.map(l => { const k = (l.indications && l.indications[0]) || 'straight', on = !!l.valid; return '<div class="l3-lane ' + (on ? 'on' : 'off') + '"><svg viewBox="0 0 48 48" aria-hidden="true">' + ABflecha(k, on ? cc.flecha : cc.flechaInactiva, on ? 6.5 : 5, on ? 10 : 8) + '</svg></div>'; }).join('');
+      const lanes = st.lanes.map(l => { const k = (l.indications && l.indications[0]) || 'straight', on = !!l.valid;
+        // carril activo: casilla blanca con flecha del color del cartel (en azul, azul sobre blanco); inactivo: flecha apagada
+        const colFlecha = on ? (st.hw ? '#1565c0' : '#ffffff') : cc.flechaInactiva;
+        return '<div class="l3-lane ' + (on ? 'on' : 'off') + '"><svg viewBox="0 0 48 48" aria-hidden="true">' + ABflecha(k, colFlecha, on ? 6.5 : 5, on ? 10 : 8) + '</svg></div>'; }).join('');
       return '<div class="l3-board d ' + cls + '">' +
         '<div class="l3-dtop"><span>' + (st.exit ? 'Salida ' + ESC(st.exit) : 'Salida') + '</span><span class="l3-dist">' + dist + '</span></div>' +
         '<div class="l3-lanes">' + lanes + '</div>' +
