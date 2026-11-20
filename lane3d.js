@@ -156,6 +156,7 @@
   // Foto de referencia para cada maniobra (carpeta img/carriles). Si no hay foto para la maniobra, se muestra la escena 3D.
   function photoFor(st, n, exits) {
     const D = 'img/carriles/';
+    if (st.roundabout) return null; // las rotondas llevan su propio cartel, no foto de carriles
     const side = st.side === 'left' ? 'izquierda' : st.side === 'right' ? 'derecha' : null;
     const valid = (st.lanes || []).map((l, i) => (l.valid ? i : -1)).filter(i => i >= 0);
     if (st.merge) {
@@ -207,7 +208,7 @@
     const ph = this.el.querySelector('.l3-photo'), cv = this.el.querySelector('.l3-cv');
     if (ph && cv) { // foto fija o escena 3D
       if (this.photo) { if (ph.getAttribute('src') !== this.photo) ph.src = this.photo; ph.hidden = false; cv.hidden = true; }
-      else { ph.hidden = true; cv.hidden = true; } // sin imagen para esta maniobra: solo el cartel, sin escena 3D
+      else { ph.hidden = true; cv.hidden = true; } // sin imagen generada para esta maniobra: no se muestra la escena 3D antigua
     }
     if (this.ready) { this.build(); this.resize(); }
   };
@@ -218,7 +219,7 @@
   // Flecha de carril sin recuadro. La que se toma: blanca, más larga y más ancha. Las demás: grises y finas.
   const laneArrow = (inds, on) => {
     const k = (inds && inds[0]) || 'straight';
-    const W = on ? 4.2 : 2.8, R = on ? 12.5 : 10, H = on ? 8 : 5.6, T = on ? 9 : 6.5;
+    const W = on ? 6.5 : 4, R = on ? 12.5 : 10, H = on ? 9 : 6, T = on ? 9 : 6.5; // flechas gruesas y con punta ancha, como las de Autoboard-nav
     let d, head;
     if (k === 'uturn') {
       d = 'M8 22 V11 C8 3 18 3 18 11 L18 15';
@@ -394,9 +395,11 @@
     '.l3-lanes{display:flex;gap:4px;padding:0 8px 8px}' +
     '.l3-lane{flex:1;height:62px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:0}' +
     '.l3-lane svg{width:100%;max-width:50px;height:auto;aspect-ratio:1/1.15}' +
-    '.l3-board.hw .l3-lane.on{color:#fff}' +
+    '.l3-lane svg{filter:drop-shadow(0 2px 3px rgba(0,0,0,.55))}' +
+    '.l3-lane{border-radius:10px}' +
+    '.l3-board.hw .l3-lane.on{background:#fff;color:#0b5fd0}' +
     '.l3-board.hw .l3-lane.off{color:#8d9bb0}' +
-    '.l3-board.gen .l3-lane.on{color:#111}' +
+    '.l3-board.gen .l3-lane.on{background:#111;color:#fff}' +
     '.l3-board.gen .l3-lane.off{color:#8a909b}' +
     '.l3-dname{padding:6px 10px;background:rgba(0,0,0,.2);font-size:14px;font-weight:700;text-align:left}' +
     '.l3-board.gen .l3-dname{background:#e9ecf1;color:#111;border-top:2px solid #111}' +
