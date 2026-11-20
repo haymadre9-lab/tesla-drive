@@ -241,6 +241,51 @@
   const RB_ARM = { 1: 0, 2: -90, 3: -180 };
   // Rotonda como cartel real: anillo blanco en sentido antihorario (circulación por la derecha),
   // entrada por abajo, brazo de salida con punta de flecha y número de salida en el centro.
+  // Estilo de los carteles de Autoboard-nav: azul pleno con blanco en autopista; blanco con negro en carretera.
+  const ABcolores = hw => hw ? { fondo: '#1565c0', borde: '#ffffff', flecha: '#ffffff', flechaInactiva: '#9aa8bd' }
+                             : { fondo: '#ffffff', borde: '#000000', flecha: '#000000', flechaInactiva: '#bdbdbd' };
+  // Flecha de maniobra (un carril), con punta grande, como en Autoboard-nav
+  function ABflecha(mod, col, grosor, tamPunta) {
+    const LEN = tamPunta, HW = tamPunta * 0.75;
+    let d, vx, vy, ang;
+    switch (mod) {
+      case 'slight right': vx = 40; vy = 14; ang = Math.PI / 2; d = 'M24 44 L24 26 Q24 14 34 14 L' + (vx - LEN) + ' 14'; break;
+      case 'slight left': vx = 8; vy = 14; ang = -Math.PI / 2; d = 'M24 44 L24 26 Q24 14 14 14 L' + (vx + LEN) + ' 14'; break;
+      case 'right': vx = 40; vy = 12; ang = Math.PI / 2; d = 'M24 44 L24 22 Q24 12 34 12 L' + (vx - LEN) + ' 12'; break;
+      case 'left': vx = 8; vy = 12; ang = -Math.PI / 2; d = 'M24 44 L24 22 Q24 12 14 12 L' + (vx + LEN) + ' 12'; break;
+      case 'sharp right': vx = 40; vy = 34; ang = Math.PI; d = 'M24 44 L24 28 Q24 20 32 20 Q40 20 40 28 L40 ' + (vy - LEN); break;
+      case 'sharp left': vx = 8; vy = 34; ang = Math.PI; d = 'M24 44 L24 28 Q24 20 16 20 Q8 20 8 28 L8 ' + (vy - LEN); break;
+      case 'uturn': vx = 44; vy = 32; ang = Math.PI; d = 'M24 44 L24 20 Q24 8 34 8 Q44 8 44 20 L44 ' + (vy - LEN); break;
+      default: vx = 24; vy = 12; ang = 0; d = 'M24 44 L24 ' + (vy + LEN);
+    }
+    const tan = { x: Math.sin(ang), y: -Math.cos(ang) }, lat = { x: Math.cos(ang), y: Math.sin(ang) };
+    const bx = vx - tan.x * LEN, by = vy - tan.y * LEN;
+    const l = { x: bx + lat.x * HW, y: by + lat.y * HW }, r = { x: bx - lat.x * HW, y: by - lat.y * HW };
+    const tri = 'M' + vx + ' ' + vy + ' L' + l.x.toFixed(1) + ' ' + l.y.toFixed(1) + ' L' + r.x.toFixed(1) + ' ' + r.y.toFixed(1) + ' Z';
+    return '<path d="' + d + '" stroke="' + col + '" stroke-width="' + grosor + '" stroke-linecap="butt" stroke-linejoin="round" fill="none"/><path d="' + tri + '" fill="' + col + '"/>';
+  }
+  // Rotonda como en Autoboard-nav: anillo gris, salida marcada con flecha y número en el centro
+  function ABroundabout(exit, colores, modif) {
+    const col = colores.flecha, ina = colores.flechaInactiva;
+    const exitReal = Math.max(1, parseInt(exit, 10) || 1);
+    const dir = (modif === 'right' || modif === 'left' || modif === 'straight' || modif === 'uturn') ? modif : (['right', 'straight', 'left'][exitReal - 1] || 'uturn');
+    const cx = 24, cy = 22, r = 10, TE = 47;
+    const EX = { right: { t: 0, ux: 1, uy: 0 }, straight: { t: -90, ux: 0, uy: -1 }, left: { t: -180, ux: -1, uy: 0 }, uturn: { t: 133, ux: 0, uy: 1 } };
+    const P = (t, rr) => [cx + rr * Math.cos(t * Math.PI / 180), cy + rr * Math.sin(t * Math.PI / 180)];
+    const head = (x, y, ux, uy, hl, hw) => { const bx = x - ux * hl, by = y - uy * hl, px = -uy, py = ux; return '<polygon points="' + x + ',' + y + ' ' + (bx + px * hw) + ',' + (by + py * hw) + ' ' + (bx - px * hw) + ',' + (by - py * hw) + '" fill="' + col + '"/>'; };
+    let o = '<svg viewBox="0 0 48 48" aria-hidden="true">';
+    o += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="' + ina + '" stroke-width="3"/>';
+    for (const j in EX) { if (j === dir) continue; const q = EX[j], [x, y] = P(q.t, r); o += '<path d="M' + x.toFixed(1) + ' ' + y.toFixed(1) + ' L' + (x + q.ux * 8).toFixed(1) + ' ' + (y + q.uy * 8).toFixed(1) + '" stroke="' + ina + '" stroke-width="3" stroke-linecap="round"/>'; }
+    const e = EX[dir], [sx, sy] = P(TE, r), [ex, ey] = P(e.t, r);
+    const span = ((TE - e.t) + 720) % 360, large = span > 180 ? 1 : 0;
+    const L = dir === 'uturn' ? 47 - ey : dir === 'straight' ? ey - 2 : dir === 'left' ? ex - 1 : 47 - ex;
+    const x2 = ex + e.ux * L, y2 = ey + e.uy * L, bx = x2 - e.ux * 8, by = y2 - e.uy * 8;
+    o += '<path d="M' + sx.toFixed(1) + ' 47 V' + sy.toFixed(1) + '" stroke="' + col + '" stroke-width="5"/>';
+    o += '<path d="M' + sx.toFixed(1) + ' ' + sy.toFixed(1) + ' A' + r + ' ' + r + ' 0 ' + large + ' 0 ' + ex.toFixed(1) + ' ' + ey.toFixed(1) + ' L' + bx.toFixed(1) + ' ' + by.toFixed(1) + '" fill="none" stroke="' + col + '" stroke-width="5"/>';
+    o += head(x2.toFixed(1), y2.toFixed(1), e.ux, e.uy, 8, 6);
+    o += '<text x="' + cx + '" y="' + (cy + 4) + '" text-anchor="middle" font-size="11" font-weight="900" fill="' + col + '" font-family="system-ui,sans-serif">' + exitReal + '</text>';
+    return o + '</svg>';
+  }
   function roundaboutSVG(exit) {
     const pt = (a, r) => [50 + r * Math.cos(a * Math.PI / 180), 50 + r * Math.sin(a * Math.PI / 180)];
     const f = v => v.toFixed(1);
@@ -274,7 +319,7 @@
     const box = st.exit && !name ? '<div class="l3-rbbox">' + ESC(st.exit) + '</div>' : '';
     return '<div class="l3-board l3-rb ' + cls + '">' +
       '<div class="l3-rbrow"><div class="l3-rbtx"><small>Rotonda</small>' + box + (name ? '<b>' + ESC(name) + '</b>' : '') + '<span class="l3-rbd">' + dist + '</span></div>' +
-      '<div class="l3-rbsvg">' + roundaboutSVG(st.exit) + '</div></div></div>';
+      '<div class="l3-rbsvg">' + ABroundabout(st.exit, ABcolores(st.hw), st.side) + '</div></div></div>';
   }
   function signHTML(st) {
     const left = st.side === 'left', dist = st.distance ? Math.round(st.distance / 10) * 10 + ' m' : '';
@@ -282,7 +327,11 @@
     const name = st.dest || st.street || '';
     if (st.roundabout) return roundaboutBoard(st);
     if (st.lanes && st.lanes.length >= 2) {
-      const lanes = st.lanes.map(l => '<div class="l3-lane ' + (l.valid ? 'on' : 'off') + '">' + laneArrow(l.indications, !!l.valid) + '</div>').join('');
+      const cc = ABcolores(st.hw);
+      const lanes = st.lanes.map(l => { const k = (l.indications && l.indications[0]) || 'straight', on = !!l.valid;
+        // carril activo: casilla blanca con flecha del color del cartel (en azul, azul sobre blanco); inactivo: flecha apagada
+        const colFlecha = on ? '#ffffff' : cc.flechaInactiva;
+        return '<div class="l3-lane ' + (on ? 'on' : 'off') + '"><svg viewBox="0 0 48 48" aria-hidden="true">' + ABflecha(k, colFlecha, on ? 6.5 : 5, on ? 10 : 8) + '</svg></div>'; }).join('');
       return '<div class="l3-board d ' + cls + '">' +
         '<div class="l3-dtop"><span>' + (st.exit ? 'Salida ' + ESC(st.exit) : 'Salida') + '</span><span class="l3-dist">' + dist + '</span></div>' +
         '<div class="l3-lanes">' + lanes + '</div>' +
@@ -397,7 +446,7 @@
     '.l3-lane svg{width:100%;max-width:50px;height:auto;aspect-ratio:1/1.15}' +
     '.l3-lane svg{filter:drop-shadow(0 2px 3px rgba(0,0,0,.55))}' +
     '.l3-lane{border-radius:10px}' +
-    '.l3-board.hw .l3-lane.on{background:#fff;color:#0b5fd0}' +
+    '.l3-board.hw .l3-lane.on{background:#1565c0;border:2px solid #ffffff;color:#ffffff}' +
     '.l3-board.hw .l3-lane.off{color:#8d9bb0}' +
     '.l3-board.gen .l3-lane.on{background:#111;color:#fff}' +
     '.l3-board.gen .l3-lane.off{color:#8a909b}' +
