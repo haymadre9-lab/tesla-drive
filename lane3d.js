@@ -208,7 +208,7 @@
     const ph = this.el.querySelector('.l3-photo'), cv = this.el.querySelector('.l3-cv');
     if (ph && cv) { // foto fija o escena 3D
       if (this.photo) { if (ph.getAttribute('src') !== this.photo) ph.src = this.photo; ph.hidden = false; cv.hidden = true; }
-      else { ph.hidden = true; cv.hidden = false; } // sin foto: escena 3D
+      else { ph.hidden = true; cv.hidden = true; } // sin imagen generada para esta maniobra: no se muestra la escena 3D antigua
     }
     if (this.ready) { this.build(); this.resize(); }
   };
