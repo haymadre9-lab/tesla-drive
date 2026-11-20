@@ -156,6 +156,7 @@
   // Foto de referencia para cada maniobra (carpeta img/carriles). Si no hay foto para la maniobra, se muestra la escena 3D.
   function photoFor(st, n, exits) {
     const D = 'img/carriles/';
+    if (st.roundabout) return null; // las rotondas llevan su propio cartel, no foto de carriles
     const side = st.side === 'left' ? 'izquierda' : st.side === 'right' ? 'derecha' : null;
     const valid = (st.lanes || []).map((l, i) => (l.valid ? i : -1)).filter(i => i >= 0);
     if (st.merge) {
