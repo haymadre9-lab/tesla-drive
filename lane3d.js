@@ -190,6 +190,20 @@
     return null;
   }
 
+  // Foto para una maniobra, con o sin datos de carriles. En carretera (sin carriles) se usa la de autopista más parecida.
+  Lane3D.fotoPara = function (st) {
+    if (!st || st.roundabout) return null;
+    const lanes = st.lanes || [];
+    const n = lanes.length;
+    const valid = lanes.map((l, i) => (l && l.valid ? i : -1)).filter(i => i >= 0);
+    const exits = !st.merge && st.side && st.side !== 'straight' && valid.length && valid.length < n ? valid : [];
+    const f = n >= 2 ? photoFor(st, n, exits) : null;
+    if (f) return f;
+    if (!st.side || st.side === 'straight') return null;
+    if (st.merge) return 'img/carriles/incorporacion-2-desde-1-carril-' + (st.side === 'left' ? 'izquierda' : 'derecha') + '.jpg';
+    return 'img/carriles/salida-1-de-2-' + (st.side === 'left' ? 'izquierda' : 'derecha') + '.jpg';
+  };
+
   Lane3D.prototype.update = function (st) {
     const n = st.lanes && st.lanes.length ? st.lanes.length : 3;
     let sel = n - 1;
@@ -340,7 +354,8 @@
     const txt = st.side === 'straight' ? 'Continúa recto' : 'Sal ' + (left ? 'a la izquierda' : 'a la derecha');
     const arrow = left ? 'M46 6 L6 40 L46 74 L46 52 L72 52 L72 28 L46 28 Z' : 'M26 6 L66 40 L26 74 L26 52 L0 52 L0 28 L26 28 Z';
     // Opción 6: flecha, salida y destino en fila; la distancia arriba a la derecha. Azul en autopista, blanco en general.
-    const arrowSvg = laneArrow([st.side === 'left' ? 'left' : st.side === 'right' ? 'right' : 'straight'], true);
+    const amod = st.side === 'left' ? 'left' : st.side === 'right' ? 'right' : 'straight';
+    const arrowSvg = '<span class="l3-abox ' + (st.hw ? 'hw' : 'gen') + '"><svg viewBox="0 0 48 48" aria-hidden="true">' + ABflecha(amod, '#ffffff', 6.5, 10) + '</svg></span>';
     const small = st.exit ? 'Salida ' + ESC(st.exit) : 'Salida';
     return '<div class="l3-board ' + cls + ' l3-six">' +
       '<div class="l3-row">' + arrowSvg + '<div class="l3-tx"><small>' + small + '</small><b>' + ESC(name || txt) + '</b></div><div class="l3-dist">' + dist + '</div></div></div>';
@@ -434,6 +449,10 @@
     '.l3-board.gen.l3-rb{color:#111}' +
     '.l3-six .l3-row{display:flex;align-items:center;gap:10px;padding:12px}' +
     '.l3-six svg{width:46px;height:46px;flex:0 0 auto}' +
+    '.l3-abox{display:inline-flex;align-items:center;justify-content:center;width:62px;height:62px;border-radius:10px;box-sizing:border-box;flex:0 0 auto}' +
+    '.l3-abox svg{width:50px;height:50px}' +
+    '.l3-abox.hw{background:#1565c0;border:2px solid #ffffff}' +
+    '.l3-abox.gen{background:#111111;border:2px solid #111111}' +
     '.l3-six .l3-tx{min-width:0;flex:1}' +
     '.l3-six .l3-tx small{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;opacity:.85}' +
     '.l3-six .l3-tx b{display:block;font-size:18px;line-height:1.1}' +
