@@ -190,6 +190,20 @@
     return null;
   }
 
+  // Foto para una maniobra, con o sin datos de carriles. En carretera (sin carriles) se usa la de autopista más parecida.
+  Lane3D.fotoPara = function (st) {
+    if (!st || st.roundabout) return null;
+    const lanes = st.lanes || [];
+    const n = lanes.length;
+    const valid = lanes.map((l, i) => (l && l.valid ? i : -1)).filter(i => i >= 0);
+    const exits = !st.merge && st.side && st.side !== 'straight' && valid.length && valid.length < n ? valid : [];
+    const f = n >= 2 ? photoFor(st, n, exits) : null;
+    if (f) return f;
+    if (!st.side || st.side === 'straight') return null;
+    if (st.merge) return 'img/carriles/incorporacion-2-desde-1-carril-' + (st.side === 'left' ? 'izquierda' : 'derecha') + '.jpg';
+    return 'img/carriles/salida-1-de-2-' + (st.side === 'left' ? 'izquierda' : 'derecha') + '.jpg';
+  };
+
   Lane3D.prototype.update = function (st) {
     const n = st.lanes && st.lanes.length ? st.lanes.length : 3;
     let sel = n - 1;

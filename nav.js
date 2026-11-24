@@ -499,7 +499,9 @@ const Nav = (() => {
     if (window.Lane3D) { // sin carriles (o sin 3D): solo el cartel de maniobra; azul en autopista, blanco en carretera general
       const dest3 = dest || ex ? `<div class="jdest">${ex ? `<span class="jex">${esc(ex)}</span>` : ''}${esc(dest.split(',').slice(0, 3).join(' · '))}</div>` : '';
       const side = jvDir(m) < -.1 ? 'left' : jvDir(m) > .1 ? 'right' : 'straight';
-      el.innerHTML = Lane3D.toolsHTML + '<div class="l3sign">' + Lane3D.signHTML({ side, roundabout: /roundabout|rotary/.test(t), hw, distance: dN, lanes: lanes || null, dest: dest.split(',')[0], street: nx.name || '', exit: m.exit || (ex.match(/\d+/) || [])[0] || '' }) + '</div>' + dest3;
+      const stSign = { side, merge: t === 'merge', roundabout: /roundabout|rotary/.test(t), hw, distance: dN, lanes: lanes || null, dest: dest.split(',')[0], street: nx.name || '', exit: m.exit || (ex.match(/\d+/) || [])[0] || '' };
+      const fotoSin = Lane3D.fotoPara(stSign);
+      el.innerHTML = Lane3D.toolsHTML + '<div class="l3sign">' + (fotoSin ? '<img class="l3-photo" alt="" src="' + fotoSin + '">' : '') + Lane3D.signHTML(stSign) + '</div>' + dest3;
       el.hidden = false; Lane3D.bindTools(el, { load: () => S.l3, save: v => { S.l3 = v; save(); } }); return;
     }
     if (el.dataset.k !== key) {
