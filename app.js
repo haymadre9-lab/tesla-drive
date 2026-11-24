@@ -606,7 +606,7 @@ const OPT = {
   sort: [['default', 'Predeterminado'], ['az', 'Nombre A-Z'], ['za', 'Nombre Z-A']],
   speedUnit: [['kmh', 'km/h'], ['mph', 'mph']], tempUnit: [['c', '°C'], ['f', '°F']], pressUnit: [['bar', 'bar'], ['psi', 'psi'], ['kpa', 'kPa']],
 };
-const APP_VERSION = 'lecoauto-v80'; // mismo número que la caché de sw.js: si cambia aquí, cambia allí
+const APP_VERSION = 'lecoauto-v81'; // mismo número que la caché de sw.js: si cambia aquí, cambia allí
 const CATS = {
   inicio: ['🏠 Inicio', [
     { t: 'widgets' },
