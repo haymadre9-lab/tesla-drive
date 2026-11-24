@@ -210,7 +210,7 @@
     if (!st.hw && n >= 2) {
       let c = null;
       if (exits.length && side) {
-        const lado = exits.every(i => i >= n / 2) ? 'derecha' : exits.every(i => i < n / 2) ? 'izquierda' : null;
+        const lado = exits.includes(n - 1) ? 'derecha' : exits.includes(0) ? 'izquierda' : null;
         if (lado && (lado === 'derecha') === (side === 'derecha')) {
           if (n === 3 && exits.length === 2) c = 'car-3-salida-2-' + lado + '.jpg';
           else if (n === 2 && exits.length === 1) c = 'car-2-salida-1-' + lado + '.png';
