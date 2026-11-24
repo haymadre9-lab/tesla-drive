@@ -190,18 +190,47 @@
     return null;
   }
 
-  // Foto para una maniobra, con o sin datos de carriles. En carretera (sin carriles) se usa la de autopista más parecida.
+  // Foto de referencia de cada maniobra (carpeta img/carriles). Mismo criterio para autopista y carretera,
+  // con prioridad a las imágenes de cada tipo de vía y, si falta, cualquiera que haya.
   Lane3D.fotoPara = function (st) {
-    if (!st || st.roundabout) return null;
+    if (!st) return null;
+    const D = 'img/carriles/';
+    // Rotondas: salidas 1, 2 y 3 con su imagen; a partir de la 4.ª, cambio de sentido
+    if (st.roundabout) {
+      const e = parseInt(st.exit, 10) || 1;
+      if (e >= 4) return D + 'rot-cambio-sentido.jpg';
+      return D + (e === 1 ? 'rot-salida-1.png' : e === 2 ? 'rot-salida-2.jpg' : 'rot-salida-3.jpg');
+    }
     const lanes = st.lanes || [];
     const n = lanes.length;
     const valid = lanes.map((l, i) => (l && l.valid ? i : -1)).filter(i => i >= 0);
     const exits = !st.merge && st.side && st.side !== 'straight' && valid.length && valid.length < n ? valid : [];
+    const side = st.side === 'left' ? 'izquierda' : st.side === 'right' ? 'derecha' : null;
+    // Carretera normal: imágenes nuevas de carretera (y sus espejos), por nombre exacto de archivo
+    if (!st.hw && n >= 2) {
+      let c = null;
+      if (exits.length && side) {
+        const lado = exits.includes(n - 1) ? 'derecha' : exits.includes(0) ? 'izquierda' : null;
+        if (lado && (lado === 'derecha') === (side === 'derecha')) {
+          if (n === 3 && exits.length === 2) c = 'car-3-salida-2-' + lado + '.jpg';
+          else if (n === 2 && exits.length === 1) c = 'car-2-salida-1-' + lado + '.png';
+          else if (n === 3 && exits.length === 1) c = 'car-3-salida-1-' + lado + '.png';
+        }
+      } else if (!st.merge && (!side || st.side === 'straight') && valid.length) {
+        if (n === 3 && valid.length === 2) {
+          if (valid.includes(1) && valid.includes(2)) c = 'car-3-frente-2-derecha.jpg';
+          else if (valid.includes(0) && valid.includes(1)) c = 'car-3-frente-2-izquierda.jpg';
+        } else if (n === 3 && valid.length === 1) c = valid[0] === 2 ? 'car-3-frente-1-derecha.png' : valid[0] === 0 ? 'car-3-frente-1-izquierda.png' : null;
+        else if (n === 2 && valid.length === 1) c = valid[0] === 1 ? 'car-2-frente-1-derecha.png' : valid[0] === 0 ? 'car-2-frente-1-izquierda.png' : null;
+      }
+      if (c) return D + c;
+    }
+    // Autopista (imágenes antiguas) y, si falta, la que haya
     const f = n >= 2 ? photoFor(st, n, exits) : null;
     if (f) return f;
-    if (!st.side || st.side === 'straight') return null;
-    if (st.merge) return 'img/carriles/incorporacion-2-desde-1-carril-' + (st.side === 'left' ? 'izquierda' : 'derecha') + '.jpg';
-    return 'img/carriles/salida-1-de-2-' + (st.side === 'left' ? 'izquierda' : 'derecha') + '.jpg';
+    if (!side || st.side === 'straight') return null;
+    if (st.merge) return D + 'incorporacion-2-desde-1-carril-' + side + '.jpg';
+    return D + (st.hw ? 'salida-1-de-2-' : 'car-2-salida-1-') + side + (st.hw ? '.jpg' : '.png');
   };
 
   Lane3D.prototype.update = function (st) {
@@ -215,7 +244,7 @@
     // Salida de 2 carriles en el borde (4 carriles): se usa la foto de referencia, con los carriles ya pintados
     const edgeR = exits.length === 2 && n >= 4 && exits.includes(n - 1) && exits.includes(n - 2) && st.side === 'right';
     const edgeL = exits.length === 2 && n >= 4 && exits.includes(0) && exits.includes(1) && st.side === 'left';
-    this.photo = photoFor(st, n, exits);
+    this.photo = Lane3D.fotoPara(st);
     this.state = { D: st.side === 'left' ? 1 : -1, n, sel, exits, merge: !!st.merge, scene: st.scene || 'autopista', night: !!st.night, side: st.side || 'straight' };
     this.last = st; this.tilt = tiltFor(st.distance);
     this.renderSign(st);
