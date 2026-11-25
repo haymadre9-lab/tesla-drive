@@ -195,11 +195,11 @@
   Lane3D.fotoPara = function (st) {
     if (!st) return null;
     const D = 'img/carriles/';
-    // Rotondas: salidas 1, 2 y 3 con su imagen; a partir de la 4.ª, cambio de sentido
+    // Rotondas: salidas 1, 2 y 3 con su imagen; a partir de la 4.ª, cambio de sentido.
+    // Autopista/autovía: carril azul (rot-*). Carretera normal: carril blanco con flechas negras (rotc-*).
     if (st.roundabout) {
       const e = parseInt(st.exit, 10) || 1;
-      if (e >= 4) return D + 'rot-cambio-sentido.jpg';
-      return D + (e === 1 ? 'rot-salida-1.png' : e === 2 ? 'rot-salida-2.jpg' : 'rot-salida-3.jpg');
+      return D + (st.hw ? 'rot-' : 'rotc-') + (e >= 4 ? 'cambio-sentido' : 'salida-' + e) + '.jpg';
     }
     const lanes = st.lanes || [];
     const n = lanes.length;
@@ -207,8 +207,8 @@
     const exits = !st.merge && st.side && st.side !== 'straight' && valid.length && valid.length < n ? valid : [];
     const side = st.side === 'left' ? 'izquierda' : st.side === 'right' ? 'derecha' : null;
     // Carretera normal: imágenes nuevas de carretera (y sus espejos), por nombre exacto de archivo
-    if (!st.hw && n >= 2) {
-      let c = null;
+    let c = null;
+    if (n >= 2) {
       if (exits.length && side) {
         const lado = exits.includes(n - 1) ? 'derecha' : exits.includes(0) ? 'izquierda' : null;
         if (lado && (lado === 'derecha') === (side === 'derecha')) {
@@ -223,14 +223,24 @@
         } else if (n === 3 && valid.length === 1) c = valid[0] === 2 ? 'car-3-frente-1-derecha.png' : valid[0] === 0 ? 'car-3-frente-1-izquierda.png' : null;
         else if (n === 2 && valid.length === 1) c = valid[0] === 1 ? 'car-2-frente-1-derecha.png' : valid[0] === 0 ? 'car-2-frente-1-izquierda.png' : null;
       }
-      if (c) return D + c;
     }
-    // Autopista (imágenes antiguas) y, si falta, la que haya
+    // Carretera normal: la urbana con carril blanco y flechas negras (rc-*); si falta el caso, la de autopista recoloreada.
+    // Autopista: la antigua azul; si falta el caso, la urbana azul.
+    const rc = u => u.replace(D, D + 'rc-').replace(/\.(png|jpg)$/, '.jpg');
+    if (!st.hw) {
+      if (c) return rc(D + c);
+      const f0 = n >= 2 ? photoFor(st, n, exits) : null;
+      if (f0) return rc(f0);
+      if (!side || st.side === 'straight') return null;
+      if (st.merge) return rc(D + 'incorporacion-2-desde-1-carril-' + side + '.jpg');
+      return rc(D + 'car-2-salida-1-' + side + '.png');
+    }
     const f = n >= 2 ? photoFor(st, n, exits) : null;
     if (f) return f;
+    if (c) return D + c;
     if (!side || st.side === 'straight') return null;
     if (st.merge) return D + 'incorporacion-2-desde-1-carril-' + side + '.jpg';
-    return D + (st.hw ? 'salida-1-de-2-' : 'car-2-salida-1-') + side + (st.hw ? '.jpg' : '.png');
+    return D + 'salida-1-de-2-' + side + '.jpg';
   };
 
   Lane3D.prototype.update = function (st) {
