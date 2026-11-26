@@ -236,16 +236,21 @@ const Nav = (() => {
 
   /* ── Ruta ── */
   const ROUTERS = ['https://router.project-osrm.org/route/v1/driving', 'https://routing.openstreetmap.de/routed-car/route/v1/driving'];
-  async function fetchRoute(o, d, stops) {
+  async function fetchRoute(o, d, stops, hdg) {
+    // Los dos servidores a la vez (el primero que responda bien gana), con 9 s de límite cada uno.
+    // Con rumbo conocido se pide que la ruta salga en ese sentido, para no volver atrás al recalcular.
+    const pts = [[o[0], o[1]], ...(stops || []).map(x => [x.lat, x.lon]), [d.lat, d.lon]];
+    const q = pts.map(p => p[1] + ',' + p[0]).join(';');
+    const bear = (hdg != null && !isNaN(hdg)) ? '&bearings=' + [Math.round(hdg) + ',60', ...Array(pts.length - 1).fill('')].join(';') : '';
     const errs = [];
-    for (const base of ROUTERS) {
-      try {
-        const j = await getJSON(`${base}/${[[o[0], o[1]], ...(stops || []).map(x => [x.lat, x.lon]), [d.lat, d.lon]].map(q => q[1] + ',' + q[0]).join(';')}?overview=full&geometries=geojson&steps=true`, 14000);
-        if (j.code === 'NoRoute' || (j.routes && !j.routes.length)) { errs.push(new URL(base).host + ': sin ruta'); if (j.code === 'NoRoute') return { none: true }; continue; }
-        if (j.routes && j.routes[0]) return { rt: j.routes[0] };
-        errs.push(new URL(base).host + ': ' + (j.code || 'respuesta vacía'));
-      } catch (e) { errs.push(new URL(base).host + ': ' + (e.name === 'AbortError' ? 'tarda demasiado' : e.message)); }
-    }
+    const tries = ROUTERS.map(base => getJSON(`${base}/${q}?overview=full&geometries=geojson&steps=true${bear}`, 9000).then(j => {
+      if (j.code === 'NoRoute' || (j.routes && !j.routes.length)) return { none: true, host: new URL(base).host };
+      if (j.routes && j.routes[0]) return { rt: j.routes[0] };
+      throw new Error(j.code || 'respuesta vacía');
+    }).catch(e => { errs.push(new URL(base).host + ': ' + (e.name === 'AbortError' ? 'tarda demasiado' : e.message)); return null; }));
+    const res = await Promise.all(tries);
+    const ok = res.find(r => r && r.rt); if (ok) return ok;
+    const none = res.find(r => r && r.none); if (none) return { none: true };
     return { errs };
   }
   /* La ruta activa sobrevive a recargas/cierres de pestaña (el navegador del coche descarta pestañas en segundo plano) */
@@ -264,12 +269,12 @@ const Nav = (() => {
     if (N.pos) centerOn(N.pos, N.tz, false);
     maybeRestore(); if (typeof Poi !== 'undefined') Poi.draw();
   }
-  async function routeTo(d, quiet, stops) {
+  async function routeTo(d, quiet, stops, hdg) {
     stops = (stops === undefined ? (quiet ? N.stops : []) : stops).filter(x => !x.done);
     if (!N.mx) return toast('El mapa aún no está listo: abre la pestaña Mapa y reintenta', 3500);
     const o = GPS.pos ? [GPS.pos.latitude, GPS.pos.longitude] : S.lastPos || (() => { const c = N.mx.center(); toast('Sin GPS: se usa el centro del mapa como origen', 3500); return c; })();
     if (!quiet) toast('Calculando ruta…', 1500);
-    const r = await fetchRoute(o, d, stops);
+    const r = await fetchRoute(o, d, stops, hdg);
     if (!r.rt) { toast(r.none ? 'No hay ruta por carretera hasta ese lugar' : 'No se pudo calcular la ruta (' + (r.errs || []).join(' · ') + '). Reintenta en unos segundos.', 5000); return false; }
     const rt = r.rt;
     N.tzUser = false; N.route = rt; N.coords = rt.geometry.coordinates.map(c => [c[1], c[0]]); N.stops = stops; N.ri = 0; N.rf = 0; N.sn = false; N.steps = rt.legs.flatMap((l, i) => l.steps.map((st, j) => { if (i < rt.legs.length - 1 && j === l.steps.length - 1) st.stop = stops[i]; return st; })); N.idx = 0; N.dest = d; N.off = 0; N.active = true; N.follow = true;
@@ -528,7 +533,7 @@ const Nav = (() => {
     const v = Math.round(spdConv(GPS.speed)); $('#nspd', N.el).textContent = v; $('#nspu', N.el).textContent = spdUnit();
     // fuera de ruta
     if (!N.sim) {
-      if (distToRoute(p, N.coords) > 70) { if (++N.off >= 3 && Date.now() - N.lastReroute > 15000) { N.lastReroute = Date.now(); N.off = 0; say('Recalculando ruta'); toast('Recalculando…'); routeTo(N.dest, true); } } else N.off = 0;
+      if (distToRoute(p, N.coords) > 50) { if (++N.off >= 2 && Date.now() - N.lastReroute > 8000) { N.lastReroute = Date.now(); N.off = 0; say('Recalculando ruta'); toast('Recalculando…'); routeTo(N.dest, true, undefined, (GPS.speed || 0) * 3.6 > 5 && GPS.pos && GPS.pos.heading != null && !isNaN(GPS.pos.heading) ? GPS.pos.heading : null); } } else N.off = 0;
     }
   }
   function arrive() {
